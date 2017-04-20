@@ -20,7 +20,6 @@
 package com.dataloom.mechanic.pods;
 
 import com.dataloom.authentication.LoomAuth0AuthenticationProvider;
-import com.dataloom.datastore.util.RefreshTokenAuthenticationEntryPoint;
 import com.dataloom.organizations.roles.TokenExpirationTracker;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digital.loom.rhizome.authentication.Auth0SecurityPod;
@@ -30,23 +29,22 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.web.AuthenticationEntryPoint;
 
 import javax.inject.Inject;
 
 @Configuration
 @EnableGlobalMethodSecurity(
-    prePostEnabled = true )
+        prePostEnabled = true )
 @EnableWebSecurity(
-    debug = false )
+        debug = false )
 public class MechanicSecurityPod extends Auth0SecurityPod {
 
     @Inject
     ObjectMapper defaultObjectMapper;
-    
+
     @Inject
     TokenExpirationTracker tokenTracker;
-    
+
     @Override
     protected ConfigurableAuth0AuthenticationProvider getAuthenticationProvider() {
         return new LoomAuth0AuthenticationProvider( getAuthenticationApiClient(), tokenTracker );
@@ -60,9 +58,9 @@ public class MechanicSecurityPod extends Auth0SecurityPod {
     }
 
     //Need to re-enable once RefreshTAEP is available to mechnani
-//    @Override
-//    public AuthenticationEntryPoint auth0AuthenticationEntryPoint() {
-//        return new RefreshTokenAuthenticationEntryPoint( defaultObjectMapper );
-//    }
-    
+    //    @Override
+    //    public AuthenticationEntryPoint auth0AuthenticationEntryPoint() {
+    //        return new RefreshTokenAuthenticationEntryPoint( defaultObjectMapper );
+    //    }
+
 }

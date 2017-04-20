@@ -5,6 +5,7 @@ import com.datastax.driver.core.*;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.core.querybuilder.Select;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListeningExecutorService;
 import com.kryptnostic.conductor.rpc.odata.Table;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.cassandra.RowAdapters;
@@ -16,19 +17,21 @@ import java.util.UUID;
  */
 public class DataTableMigrator {
 
-    private final Session           session;
-    private final String            keyspace;
-    private final PreparedStatement readCurrentDataTableRow;
-    private final PreparedStatement writeCurrentDataTableRow;
+    private final Session                  session;
+    private final String                   keyspace;
+    private final PreparedStatement        readCurrentDataTableRow;
+    private final PreparedStatement        writeCurrentDataTableRow;
+    private final ListeningExecutorService executor;
 
-    public DataTableMigrator( Session session, String keyspace ) {
+    public DataTableMigrator( Session session, String keyspace, ListeningExecutorService executor ) {
         this.session = session;
         this.keyspace = keyspace;
+        this.executor = executor;
 
         session.execute( Table.DATA.getBuilder().buildCreateTableQuery() );
 
         readCurrentDataTableRow = session
-                .prepare( QueryBuilder.select().all().from( keyspace, "data" )
+                .prepare( QueryBuilder.select().all().from( keyspace, "olddata" )
                         .where( CommonColumns.ENTITYID.eq() )
                         .and( CommonColumns.PROPERTY_TYPE_ID.eq() )
                         .and( CommonColumns.PROPERTY_VALUE.eq() ) );
@@ -42,11 +45,12 @@ public class DataTableMigrator {
                         .value( CommonColumns.PROPERTY_VALUE.cql(), CommonColumns.PROPERTY_VALUE.bindMarker() ) );
     }
 
-    public void upgrade() {
-        StreamUtil.stream( session.execute( readCurrentEntityIdLookupTableQuery() ) )
+    public long upgrade() {
+        return StreamUtil.stream( session.execute( readCurrentEntityIdLookupTableQuery() ) )
                 .parallel()
                 .map( this::toDataTableQuery )
-                .forEach( ResultSetFuture::getUninterruptibly );
+                .map( ResultSetFuture::getUninterruptibly )
+                .count();
     }
 
     private ResultSetFuture writeRowToNewDataTable( UUID entitySetId, UUID syncId, String entityId, Row r ) {
@@ -68,7 +72,9 @@ public class DataTableMigrator {
                 .setUUID( CommonColumns.SYNCID.cql(), syncId )
                 .setString( CommonColumns.ENTITYID.cql(), entityId ) );
         return (ResultSetFuture) Futures
-                .transformAsync( dataRow, rs -> writeRowToNewDataTable( entitySetId, syncId, entityId, rs.one() ) );
+                .transformAsync(
+                        dataRow, rs -> writeRowToNewDataTable( entitySetId, syncId, entityId, rs.one() ),
+                        executor );
 
     }
 
