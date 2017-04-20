@@ -4,14 +4,13 @@ import com.dataloom.streams.StreamUtil;
 import com.datastax.driver.core.*;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.core.querybuilder.Select;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.kryptnostic.conductor.rpc.odata.Table;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.cassandra.RowAdapters;
-import io.netty.util.internal.ConcurrentSet;
 
 import java.util.UUID;
+import java.util.stream.Stream;
 
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@kryptnostic.com&gt;
@@ -56,33 +55,37 @@ public class DataTableMigrator {
 
         return StreamUtil.stream( session.execute( readCurrentEntityIdLookupTableQuery() ) )
                 .parallel()
-                .map( this::toDataTableQuery )
+                .flatMap( this::toDataTableQuery )
                 .map( ResultSetFuture::getUninterruptibly )
                 .count();
     }
 
-    private ResultSetFuture writeRowToNewDataTable( UUID entitySetId, UUID syncId, String entityId, Row r ) {
-        BoundStatement bs = writeCurrentDataTableRow.bind()
-                .setUUID( CommonColumns.ENTITY_SET_ID.cql(), entitySetId )
-                .setString( CommonColumns.ENTITYID.cql(), entityId )
-                .setUUID( CommonColumns.PROPERTY_TYPE_ID.cql(), RowAdapters.propertyTypeId( r ) )
-                .setUUID( CommonColumns.SYNCID.cql(), syncId )
-                .setBytes( CommonColumns.PROPERTY_VALUE.cql(), r.getBytes( CommonColumns.PROPERTY_VALUE.cql() ) );
-        return session.executeAsync( bs );
+    private Stream<ResultSetFuture> writeRowToNewDataTable(
+            UUID entitySetId,
+            UUID syncId,
+            String entityId,
+            ResultSet rs ) {
+        return StreamUtil.stream( rs )
+                .parallel()
+                .map( r -> {
+                    BoundStatement bs = writeCurrentDataTableRow.bind()
+                            .setUUID( CommonColumns.ENTITY_SET_ID.cql(), entitySetId )
+                            .setString( CommonColumns.ENTITYID.cql(), entityId )
+                            .setUUID( CommonColumns.PROPERTY_TYPE_ID.cql(), RowAdapters.propertyTypeId( r ) )
+                            .setUUID( CommonColumns.SYNCID.cql(), syncId )
+                            .setBytes( CommonColumns.PROPERTY_VALUE.cql(),
+                                    r.getBytes( CommonColumns.PROPERTY_VALUE.cql() ) );
+                    return session.executeAsync( bs );
+                } );
     }
 
-    private ResultSetFuture toDataTableQuery( Row r ) {
+    private Stream<ResultSetFuture> toDataTableQuery( Row r ) {
         final UUID entitySetId = RowAdapters.entitySetId( r );
-        final UUID syncId = RowAdapters.syncId( r );
+        final UUID syncId = SYNC_ID;//RowAdapters.syncId( r );
         final String entityId = RowAdapters.entityId( r );
-        ResultSetFuture dataRow = session.executeAsync( readCurrentDataTableRow.bind()
-                .setUUID( CommonColumns.SYNCID.cql(), syncId )
+        ResultSet dataRow = session.execute( readCurrentDataTableRow.bind()
                 .setString( CommonColumns.ENTITYID.cql(), entityId ) );
-        return (ResultSetFuture) Futures
-                .transformAsync(
-                        dataRow, rs -> writeRowToNewDataTable( entitySetId, syncId, entityId, rs.one() ),
-                        executor );
-
+        return writeRowToNewDataTable( entitySetId, syncId, entityId, dataRow );
     }
 
     private Select readCurrentEntityIdLookupTableQuery() {
