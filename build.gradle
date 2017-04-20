@@ -33,19 +33,15 @@ plugins {
 description = "Kryptnostic Conductor Server"
 group = "com.kryptnostic"
 
-distTar {
-  archiveName "conductor.tgz"
-}
-
-ext.projectName = "conductor"
-ext.scmUrl = 'scm:git:https://github.com/dataloom/conductor.git'
-ext.connectionUrl = 'scm:git:https://github.com/dataloom/conductor.git'
-ext.developerConnectionUrl = 'scm:git:https://github.com/dataloom/conductor.git'
+ext.projectName = "mechanic"
+ext.scmUrl = 'scm:git:https://github.com/dataloom/mechanic.git'
+ext.connectionUrl = 'scm:git:https://github.com/dataloom/mechanic.git'
+ext.developerConnectionUrl = 'scm:git:https://github.com/dataloom/mechanic.git'
 
 apply from: "https://raw.githubusercontent.com/kryptnostic/gradles/master/kryptnostic.gradle"
 apply from: "https://raw.githubusercontent.com/kryptnostic/gradles/master/docker.gradle"
 
-mainClassName = "com.kryptnostic.conductor.Conductor"
+mainClassName = "com.kryptnostic.mechanic.Mechanic"
 
 def CONDUCTOR_XMS = "$System.env.CONDUCTOR_XMS"
 def CONDUCTOR_XMX = "$System.env.CONDUCTOR_XMX"
