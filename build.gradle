@@ -43,20 +43,20 @@ apply from: "https://raw.githubusercontent.com/kryptnostic/gradles/master/docker
 
 mainClassName = "com.kryptnostic.mechanic.Mechanic"
 
-def CONDUCTOR_XMS = "$System.env.CONDUCTOR_XMS"
-def CONDUCTOR_XMX = "$System.env.CONDUCTOR_XMX"
+def MECHANIC_XMS = "$System.env.MECHANIC_XMS"
+def MECHANIC_XMX = "$System.env.MECHANIC_XMX"
 
-if( CONDUCTOR_XMS == 'null' || CONDUCTOR_XMS == null || CONDUCTOR_XMS == "" ) {
-    CONDUCTOR_XMS = '-Xms1g'
+if( MECHANIC_XMS == 'null' || MECHANIC_XMS == null || MECHANIC_XMS == "" ) {
+    MECHANIC_XMS = '-Xms1g'
 }
 
-if( CONDUCTOR_XMX == 'null' || CONDUCTOR_XMX == null || CONDUCTOR_XMX == "" ) {
-    CONDUCTOR_XMX = '-Xms4g'
+if( MECHANIC_XMX == 'null' || MECHANIC_XMX == null || MECHANIC_XMX == "" ) {
+    MECHANIC_XMX = '-Xms4g'
 }
 
-println "Using java args for running ${projectName}: Xms=" + CONDUCTOR_XMS + ",Xmx=" + CONDUCTOR_XMX + " -server"
+println "Using java args for running ${projectName}: Xms=" + MECHANIC_XMS + ",Xmx=" + MECHANIC_XMX + " -server"
 
-applicationDefaultJvmArgs = [CONDUCTOR_XMS, CONDUCTOR_XMX, "-server"]
+applicationDefaultJvmArgs = [MECHANIC_XMS, MECHANIC_XMX, "-server"]
 sourceCompatibility=JavaVersion.VERSION_1_8
 targetCompatibility=JavaVersion.VERSION_1_8
 
