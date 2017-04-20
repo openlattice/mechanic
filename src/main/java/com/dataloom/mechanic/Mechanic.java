@@ -21,11 +21,14 @@ package com.dataloom.mechanic;
 
 import com.dataloom.hazelcast.pods.MapstoresPod;
 import com.dataloom.mechanic.pods.MechanicUpgradePod;
+import com.dataloom.mechanic.upgrades.DataTableMigrator;
 import com.kryptnostic.conductor.codecs.pods.TypeCodecsPod;
 import com.kryptnostic.rhizome.core.RhizomeApplicationServer;
 import com.kryptnostic.rhizome.hazelcast.serializers.RhizomeUtils;
 import com.kryptnostic.rhizome.pods.CassandraPod;
 import com.kryptnostic.rhizome.pods.hazelcast.RegistryBasedHazelcastInstanceConfigurationPod;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ExecutionException;
 
@@ -33,7 +36,8 @@ import java.util.concurrent.ExecutionException;
  * @author Matthew Tamayo-Rios &lt;matthew@kryptnostic.com&gt;
  */
 public class Mechanic extends RhizomeApplicationServer {
-    public static final Class<?>[] rhizomePods = new Class<?>[] {
+    private static final Logger     logger      = LoggerFactory.getLogger( Mechanic.class );
+    public static final  Class<?>[] rhizomePods = new Class<?>[] {
             CassandraPod.class,
             RegistryBasedHazelcastInstanceConfigurationPod.class };
 
@@ -49,7 +53,15 @@ public class Mechanic extends RhizomeApplicationServer {
     }
 
     public static void main( String[] args ) throws InterruptedException, ExecutionException {
-        new Mechanic().sprout( args );
+        Mechanic mechanic = new Mechanic();
+        mechanic.sprout( args );
+
+        logger.info( "Starting upgrade!" );
+
+        long count = mechanic.getContext().getBean( DataTableMigrator.class ).upgrade();
+
+        logger.info( "Upgrade complete! Migrated {} rows.", count );
+        mechanic.plowUnder();
     }
 
     @Override

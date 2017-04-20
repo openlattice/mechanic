@@ -18,7 +18,7 @@ import javax.inject.Inject;
  * @author Matthew Tamayo-Rios &lt;matthew@kryptnostic.com&gt;
  */
 public class MechanicUpgradePod {
-    private static final Logger logger = LoggerFactory.getLogger( MechanicUpgradePod.class );
+
     @Inject
     private CassandraConfiguration cassandraConfiguration;
 
@@ -39,12 +39,5 @@ public class MechanicUpgradePod {
         return new DataTableMigrator( session, cassandraConfiguration.getKeyspace() , executor );
     }
 
-    @PostConstruct
-    public void upgrade() {
-        logger.info( "Starting upgrade!" );
 
-        long count = migrator().upgrade();
-
-        logger.info( "Upgrade complete! Migrated {} rows.", count );
-    }
 }

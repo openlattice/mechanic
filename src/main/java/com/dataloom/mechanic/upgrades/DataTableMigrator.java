@@ -9,6 +9,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.kryptnostic.conductor.rpc.odata.Table;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.cassandra.RowAdapters;
+import io.netty.util.internal.ConcurrentSet;
 
 import java.util.UUID;
 
@@ -16,7 +17,7 @@ import java.util.UUID;
  * @author Matthew Tamayo-Rios &lt;matthew@kryptnostic.com&gt;
  */
 public class DataTableMigrator {
-
+    private static final UUID SYNC_ID = new UUID( 0, 0 );
     private final Session                  session;
     private final String                   keyspace;
     private final PreparedStatement        readCurrentDataTableRow;
@@ -46,6 +47,13 @@ public class DataTableMigrator {
     }
 
     public long upgrade() {
+        StreamUtil.stream( session.execute( "select distinct id from sparks.entity_sets" ) )
+                .map( RowAdapters::id )
+                .forEach( id -> QueryBuilder.insertInto( keyspace, "sync_ids" )
+                        .value( CommonColumns.ENTITY_SET_ID.cql(), id )
+                        .value( CommonColumns.SYNCID.cql(), SYNC_ID )
+                        .value( CommonColumns.CURRENT_SYNC_ID.cql(), SYNC_ID ) );
+
         return StreamUtil.stream( session.execute( readCurrentEntityIdLookupTableQuery() ) )
                 .parallel()
                 .map( this::toDataTableQuery )
