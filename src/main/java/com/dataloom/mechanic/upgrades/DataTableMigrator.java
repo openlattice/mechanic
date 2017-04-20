@@ -76,7 +76,6 @@ public class DataTableMigrator {
         final UUID syncId = RowAdapters.syncId( r );
         final String entityId = RowAdapters.entityId( r );
         ResultSetFuture dataRow = session.executeAsync( readCurrentDataTableRow.bind()
-                .setUUID( CommonColumns.ENTITY_SET_ID.cql(), entitySetId )
                 .setUUID( CommonColumns.SYNCID.cql(), syncId )
                 .setString( CommonColumns.ENTITYID.cql(), entityId ) );
         return (ResultSetFuture) Futures
