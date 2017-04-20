@@ -20,6 +20,7 @@
 package com.dataloom.mechanic;
 
 import com.dataloom.hazelcast.pods.MapstoresPod;
+import com.dataloom.mechanic.pods.CassandraTablesPod;
 import com.dataloom.mechanic.pods.MechanicUpgradePod;
 import com.dataloom.mechanic.upgrades.DataTableMigrator;
 import com.kryptnostic.conductor.codecs.pods.TypeCodecsPod;
@@ -45,6 +46,7 @@ public class Mechanic extends RhizomeApplicationServer {
             TypeCodecsPod.class,
             CassandraPod.class,
             MapstoresPod.class,
+            CassandraTablesPod.class,
             MechanicUpgradePod.class
     };
 
