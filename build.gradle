@@ -1,0 +1,135 @@
+/*
+ * Copyright (C) 2017. Kryptnostic, Inc (dba Loom)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * You can contact the owner of the copyright at support@thedataloom.com
+ */
+
+plugins {
+  id 'com.palantir.docker' version '0.8.0'
+  id "application"
+  id "java"
+  id "eclipse"
+  id "idea"
+  id "jacoco"
+}
+
+/*
+*	Kryptnostic conductor service
+* 	version is defined in kryptnostic-gradles/kryptnostic.gradle
+*/
+description = "Kryptnostic Conductor Server"
+group = "com.kryptnostic"
+
+distTar {
+  archiveName "conductor.tgz"
+}
+
+ext.projectName = "conductor"
+ext.scmUrl = 'scm:git:https://github.com/dataloom/conductor.git'
+ext.connectionUrl = 'scm:git:https://github.com/dataloom/conductor.git'
+ext.developerConnectionUrl = 'scm:git:https://github.com/dataloom/conductor.git'
+
+apply from: "https://raw.githubusercontent.com/kryptnostic/gradles/master/kryptnostic.gradle"
+apply from: "https://raw.githubusercontent.com/kryptnostic/gradles/master/docker.gradle"
+
+mainClassName = "com.kryptnostic.conductor.Conductor"
+
+def CONDUCTOR_XMS = "$System.env.CONDUCTOR_XMS"
+def CONDUCTOR_XMX = "$System.env.CONDUCTOR_XMX"
+
+if( CONDUCTOR_XMS == 'null' || CONDUCTOR_XMS == null || CONDUCTOR_XMS == "" ) {
+    CONDUCTOR_XMS = '-Xms1g'
+}
+
+if( CONDUCTOR_XMX == 'null' || CONDUCTOR_XMX == null || CONDUCTOR_XMX == "" ) {
+    CONDUCTOR_XMX = '-Xms4g'
+}
+
+println "Using java args for running ${projectName}: Xms=" + CONDUCTOR_XMS + ",Xmx=" + CONDUCTOR_XMX + " -server"
+
+applicationDefaultJvmArgs = [CONDUCTOR_XMS, CONDUCTOR_XMX, "-server"]
+sourceCompatibility=JavaVersion.VERSION_1_8
+targetCompatibility=JavaVersion.VERSION_1_8
+
+/*cd ..
+gw
+run {
+  if (System.getProperty("exec.args")) {
+    args System.getProperty("exec.args").split()
+  }
+}
+*/
+
+run.args = ["cassandra", "spark","local"]
+
+configurations {
+    provided
+}
+
+configurations.all {
+	exclude module: 'slf4j-log4j12'
+  exclude group :'asm', module: 'asm'
+}
+
+sourceSets {
+    main.compileClasspath += configurations.provided
+    test.compileClasspath += configurations.provided
+    test.runtimeClasspath += configurations.provided
+}
+
+dependencies {
+    compile "com.fasterxml.jackson.dataformat:jackson-dataformat-csv:${jackson_version}"
+    compile "com.datastax.spark:spark-cassandra-connector_2.11:${spark_cassandra_connector_version}"
+    compile "org.apache.spark:spark-core_2.11:${spark_version}"
+    compile "org.apache.spark:spark-sql_2.11:${spark_version}"
+    compile "org.apache.spark:spark-mllib_2.11:${spark_version}"
+    compile "org.apache.spark:spark-graphx_2.11:${spark_version}"
+    compile "org.apache.spark:spark-streaming_2.11:${spark_version}"
+    compile "org.ow2.asm:asm:5.0.4"
+    if( project.hasProperty('developmentMode') && project.developmentMode ) {
+        logger.quiet(project.name + " using project dependencies.")
+        compile project(":rhizome")
+        compile project(":conductor-client")
+        compile project(":kindling")
+        compile project(":courier")
+    } else {
+        logger.quiet(project.name + " using jar dependencies.")
+        compile "com.kryptnostic:rhizome:${rhizome_version}"
+        compile "com.kryptnostic:conductor-client:${conductor_client_version}"
+        compile "com.kryptnostic:kindling:${kindling_version}"
+        compile "com.kryptnostic:courier:${courier_version}"
+    }
+    /*
+     * TESTING
+     */
+     testCompile "junit:junit:${junit_version}"
+     testCompile "org.mockito:mockito-all:${mockito_version}"
+}
+
+test {
+    systemProperty 'java.library.path','lib/centos:lib/macosx:/usr/lib64'
+    jvmArgs '-Djava.library.path=./lib/centos:./lib/macosx:/usr/lib64'
+}
+
+eclipse {
+    ext.downloadSources = true
+    ext.downloadJavadoc = true
+
+    ext.sourceCompatibility=JavaVersion.VERSION_1_8
+    ext.targetCompatibility=JavaVersion.VERSION_1_8
+}
+
+eclipse.classpath.plusConfigurations += [configurations.provided] 

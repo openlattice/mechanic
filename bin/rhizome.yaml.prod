@@ -1,0 +1,38 @@
+##
+# Rhizome Bootstrap Configuration
+##
+
+# Set to false to disable persistence 
+enable-persistence:  false
+session-clustering-enabled: false
+
+cassandra:
+    provider: "aws"
+    region: "us-west-2"
+    node-tag-key: "cassandra-node-type"
+    node-tag-value: "seed"
+    keyspace: "sparks"
+    replication-factor: 2
+    seed-nodes:
+        - "cassandra"
+
+hazelcast:
+    server: true
+    group: "local"
+    password: "kryptodoge4life"
+    seed-nodes: 
+        - "conductor"
+
+spark:
+    appname: "Kryptnostic Spark Conductor"
+    port: 7077
+    local: true
+    #provider: "aws"
+    #region: "us-west-2"
+    #node-tag-key: "spark-node-type"
+    #node-tag-value: "MASTER"
+    #jars:
+    #  - "/kindling/kindling-0.0.0-SNAPSHOT-all.jar"
+    #  - "/jars/kindling-0.0.0-SNAPSHOT-all.jar"
+    master:
+        - "local[8]"

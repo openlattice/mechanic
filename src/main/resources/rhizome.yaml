@@ -1,0 +1,27 @@
+##
+# Rhizome Bootstrap Configuration
+##
+
+# Set to false to disable persistence 
+enable-persistence:  false
+session-clustering-enabled: false
+
+cassandra:
+    ssl-enabled: false
+    keyspace: "sparks"
+    replication-factor: 1
+    seed-nodes:
+        - "cassandra"
+
+hazelcast:
+    server: true
+    group: "local"
+    password: "kryptodoge4life"
+    seed-nodes: 
+        - "conductor"
+
+spark:
+    appname: "Kryptnostic Spark Conductor"
+    port: 7077
+    master:
+        - "local[8]"
