@@ -32,9 +32,7 @@ public class DataTableMigrator {
 
         readCurrentDataTableRow = session
                 .prepare( QueryBuilder.select().all().from( keyspace, "olddata" )
-                        .where( CommonColumns.ENTITYID.eq() )
-                        .and( CommonColumns.PROPERTY_TYPE_ID.eq() )
-                        .and( CommonColumns.PROPERTY_VALUE.eq() ) );
+                        .where( CommonColumns.ENTITYID.eq() );
 
         writeCurrentDataTableRow = session
                 .prepare( QueryBuilder.insertInto( keyspace, "data" )
