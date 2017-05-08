@@ -41,7 +41,7 @@ ext.developerConnectionUrl = 'scm:git:https://github.com/dataloom/mechanic.git'
 apply from: "https://raw.githubusercontent.com/kryptnostic/gradles/master/kryptnostic.gradle"
 apply from: "https://raw.githubusercontent.com/kryptnostic/gradles/master/docker.gradle"
 
-mainClassName = "com.kryptnostic.mechanic.Mechanic"
+mainClassName = "com.dataloom.mechanic.Mechanic"
 
 def MECHANIC_XMS = "$System.env.MECHANIC_XMS"
 def MECHANIC_XMX = "$System.env.MECHANIC_XMX"
