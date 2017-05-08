@@ -1,6 +1,7 @@
 package com.dataloom.mechanic.pods;
 
 import com.dataloom.mechanic.upgrades.DataTableMigrator;
+import com.dataloom.mechanic.upgrades.EdgeTypeMigrator;
 import com.datastax.driver.core.Session;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -37,6 +38,11 @@ public class MechanicUpgradePod {
     @Bean
     public DataTableMigrator migrator() {
         return new DataTableMigrator( session, cassandraConfiguration.getKeyspace() , executor );
+    }
+
+    @Bean
+    public EdgeTypeMigrator edgeTypeMigrator() {
+        return new EdgeTypeMigrator( session, cassandraConfiguration.getKeyspace() );
     }
 
 
