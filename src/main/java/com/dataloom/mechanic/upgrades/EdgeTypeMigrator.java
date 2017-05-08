@@ -22,7 +22,7 @@ public class EdgeTypeMigrator {
             String keyspace ) {
         this.session = session;
         this.readEntityTypes =
-                QueryBuilder.select( "id", "category" )
+                QueryBuilder.select( "id", "namespace", "name", "category" )
                         .from( keyspace, "entity_types" )
                         .allowFiltering()
                         .where(
@@ -30,6 +30,8 @@ public class EdgeTypeMigrator {
         this.writeEntityTypes = session
                 .prepare( QueryBuilder.update( keyspace, "entity_types" )
                         .where( CommonColumns.ID.eq() )
+                        .and( CommonColumns.NAMESPACE.eq() )
+                        .and( CommonColumns.NAME.eq() )
                         .with( QueryBuilder
                                 .set( CommonColumns.CATEGORY.cql(), "AssociationType" ) ) );
     }
@@ -37,8 +39,10 @@ public class EdgeTypeMigrator {
     public long upgrade() {
         return StreamUtil.stream( session.execute( readEntityTypes ) )
                 .parallel()
-                .map( RowAdapters::id )
-                .map( id -> session.executeAsync( writeEntityTypes.bind().setUUID( CommonColumns.ID.cql(), id ) ) )
+                .map( row -> session.executeAsync( writeEntityTypes.bind()
+                        .setUUID( CommonColumns.ID.cql(), RowAdapters.id( row ) )
+                        .setString( CommonColumns.NAMESPACE.cql(), RowAdapters.namespace( row ) )
+                        .setString( CommonColumns.NAME.cql(), RowAdapters.name( row ) ) ) )
                 .map( ResultSetFuture::getUninterruptibly )
                 .count();
     }
