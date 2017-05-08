@@ -35,6 +35,7 @@ import com.dataloom.linking.HazelcastLinkingGraphs;
 import com.dataloom.linking.HazelcastListingService;
 import com.dataloom.linking.components.Clusterer;
 import com.dataloom.mappers.ObjectMappers;
+import com.dataloom.neuron.Neuron;
 import com.dataloom.organizations.HazelcastOrganizationService;
 import com.dataloom.organizations.roles.HazelcastRolesService;
 import com.dataloom.organizations.roles.RolesManager;
@@ -79,6 +80,9 @@ public class MechanicServicesPod {
 
     @Inject
     private ListeningExecutorService executor;
+
+    @Inject
+    Neuron neuron;
 
     @Inject
     private EventBus eventBus;
@@ -235,7 +239,7 @@ public class MechanicServicesPod {
 
     @Bean
     public HazelcastRequestsManager hazelcastRequestsManager() {
-        return new HazelcastRequestsManager( hazelcastInstance, rqs() );
+        return new HazelcastRequestsManager( hazelcastInstance, rqs(), neuron );
     }
 
     @Bean
