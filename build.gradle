@@ -18,7 +18,6 @@
  */
 
 plugins {
-  id 'com.palantir.docker' version '0.8.0'
   id "application"
   id "java"
   id "eclipse"
@@ -26,12 +25,8 @@ plugins {
   id "jacoco"
 }
 
-/*
-*	Kryptnostic conductor service
-* 	version is defined in kryptnostic-gradles/kryptnostic.gradle
-*/
-description = "Kryptnostic Conductor Server"
-group = "com.kryptnostic"
+description = "Mechanic"
+group = "com.dataloom"
 
 ext.projectName = "mechanic"
 ext.scmUrl = 'scm:git:https://github.com/dataloom/mechanic.git'
@@ -39,7 +34,6 @@ ext.connectionUrl = 'scm:git:https://github.com/dataloom/mechanic.git'
 ext.developerConnectionUrl = 'scm:git:https://github.com/dataloom/mechanic.git'
 
 apply from: "https://raw.githubusercontent.com/kryptnostic/gradles/master/kryptnostic.gradle"
-apply from: "https://raw.githubusercontent.com/kryptnostic/gradles/master/docker.gradle"
 
 mainClassName = "com.dataloom.mechanic.Mechanic"
 
