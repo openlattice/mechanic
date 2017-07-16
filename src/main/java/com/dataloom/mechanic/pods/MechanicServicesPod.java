@@ -157,8 +157,12 @@ public class MechanicServicesPod {
     }
 
     @Bean
+    public CassandraLinkingGraphsQueryService clgqs() {
+        return new CassandraLinkingGraphsQueryService( cassandraConfiguration.getKeyspace(), session );
+    }
+    @Bean
     public HazelcastLinkingGraphs linkingGraph() {
-        return new HazelcastLinkingGraphs( hazelcastInstance );
+        return new HazelcastLinkingGraphs( hazelcastInstance , clgqs() );
     }
 
     @Bean

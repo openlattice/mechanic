@@ -24,6 +24,7 @@ import com.dataloom.mechanic.pods.CassandraTablesPod;
 import com.dataloom.mechanic.pods.MechanicUpgradePod;
 import com.dataloom.mechanic.upgrades.DataTableMigrator;
 import com.dataloom.mechanic.upgrades.EdgeTypeMigrator;
+import com.dataloom.mechanic.upgrades.ManualPartitionOfDataTable;
 import com.kryptnostic.conductor.codecs.pods.TypeCodecsPod;
 import com.kryptnostic.rhizome.core.RhizomeApplicationServer;
 import com.kryptnostic.rhizome.hazelcast.serializers.RhizomeUtils;
@@ -61,7 +62,7 @@ public class Mechanic extends RhizomeApplicationServer {
 
         logger.info( "Starting upgrade!" );
 
-        long count = mechanic.getContext().getBean( EdgeTypeMigrator.class ).upgrade();
+        long count = mechanic.getContext().getBean( ManualPartitionOfDataTable.class ).migrate();;
 
         logger.info( "Upgrade complete! Migrated {} rows.", count );
         mechanic.plowUnder();

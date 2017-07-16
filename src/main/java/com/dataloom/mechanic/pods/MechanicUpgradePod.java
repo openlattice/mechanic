@@ -1,19 +1,13 @@
 package com.dataloom.mechanic.pods;
 
-import com.dataloom.mechanic.upgrades.DataTableMigrator;
-import com.dataloom.mechanic.upgrades.EdgeTypeMigrator;
+import com.dataloom.mechanic.upgrades.ManualPartitionOfDataTable;
 import com.datastax.driver.core.Session;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.hazelcast.core.HazelcastInstance;
 import com.kryptnostic.rhizome.configuration.cassandra.CassandraConfiguration;
-import digital.loom.rhizome.configuration.auth0.Auth0Configuration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.Bean;
-
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import org.springframework.context.annotation.Bean;
 
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@kryptnostic.com&gt;
@@ -35,15 +29,19 @@ public class MechanicUpgradePod {
     @Inject
     private EventBus eventBus;
 
-    @Bean
-    public DataTableMigrator migrator() {
-        return new DataTableMigrator( session, cassandraConfiguration.getKeyspace() , executor );
-    }
+    //    @Bean
+    //    public DataTableMigrator migrator() {
+    //        return new DataTableMigrator( session, cassandraConfiguration.getKeyspace() , executor );
+    //    }
+
+    //    @Bean
+    //    public EdgeTypeMigrator edgeTypeMigrator() {
+    //        return new EdgeTypeMigrator( session, cassandraConfiguration.getKeyspace() );
+    //    }
 
     @Bean
-    public EdgeTypeMigrator edgeTypeMigrator() {
-        return new EdgeTypeMigrator( session, cassandraConfiguration.getKeyspace() );
+    public ManualPartitionOfDataTable mpodt() {
+        return new ManualPartitionOfDataTable( session, cassandraConfiguration.getKeyspace(), executor );
     }
-
 
 }
