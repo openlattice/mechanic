@@ -43,6 +43,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +62,8 @@ public class ManualPartitionOfDataTable {
                 }
             } );
 
-    public static byte[] PARTITION_INDEXES = new byte[ 256 ];
+    private static final AtomicLong counter           = new AtomicLong();
+    public static        byte[]     PARTITION_INDEXES = new byte[ 256 ];
 
     static {
         for ( int i = 0; i < PARTITION_INDEXES.length; ++i ) {
@@ -90,9 +92,10 @@ public class ManualPartitionOfDataTable {
                 .stream( session.execute( readCurrentDataTableRow ) )
                 .parallel()
                 .map( ManualPartitionOfDataTable::fromRow )
+                .peek( info -> {counter.getAndIncrement();} )
                 .forEach( data::add );
 
-        logger.info( "Completed ELT of data in Cassandra" );
+        logger.info( "Completed ELT of {} records from Cassandra" , counter.get() );
 
         session.execute( "drop table sparks.data" );
 
