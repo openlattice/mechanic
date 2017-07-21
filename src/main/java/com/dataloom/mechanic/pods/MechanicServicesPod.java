@@ -21,7 +21,14 @@ package com.dataloom.mechanic.pods;
 
 import com.dataloom.auditing.AuditQueryService;
 import com.dataloom.auditing.HazelcastAuditLoggingService;
-import com.dataloom.authorization.*;
+import com.dataloom.authorization.AbstractSecurableObjectResolveTypeService;
+import com.dataloom.authorization.AuthorizationManager;
+import com.dataloom.authorization.AuthorizationQueryService;
+import com.dataloom.authorization.EdmAuthorizationHelper;
+import com.dataloom.authorization.HazelcastAbstractSecurableObjectResolveTypeService;
+import com.dataloom.authorization.HazelcastAclKeyReservationService;
+import com.dataloom.authorization.HazelcastAuthorizationService;
+import com.dataloom.authorization.Principals;
 import com.dataloom.clustering.ClusteringPartitioner;
 import com.dataloom.data.serializers.FullQualifedNameJacksonDeserializer;
 import com.dataloom.data.serializers.FullQualifedNameJacksonSerializer;
@@ -35,13 +42,16 @@ import com.dataloom.linking.HazelcastLinkingGraphs;
 import com.dataloom.linking.HazelcastListingService;
 import com.dataloom.linking.components.Clusterer;
 import com.dataloom.mappers.ObjectMappers;
-import com.dataloom.neuron.Neuron;
+import com.dataloom.mechanic.benchmark.ReadBench;
 import com.dataloom.organizations.HazelcastOrganizationService;
 import com.dataloom.organizations.roles.HazelcastRolesService;
 import com.dataloom.organizations.roles.RolesManager;
 import com.dataloom.organizations.roles.RolesQueryService;
 import com.dataloom.organizations.roles.TokenExpirationTracker;
-import com.dataloom.requests.*;
+import com.dataloom.requests.HazelcastPermissionsRequestsService;
+import com.dataloom.requests.PermissionsRequestsManager;
+import com.dataloom.requests.PermissionsRequestsQueryService;
+import com.dataloom.requests.RequestQueryService;
 import com.datastax.driver.core.Session;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.eventbus.EventBus;
@@ -55,12 +65,11 @@ import com.kryptnostic.rhizome.configuration.cassandra.CassandraConfiguration;
 import com.kryptnostic.rhizome.pods.CassandraPod;
 import digital.loom.rhizome.authentication.Auth0Pod;
 import digital.loom.rhizome.configuration.auth0.Auth0Configuration;
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
 
 @Configuration
 @Import( { CassandraPod.class, Auth0Pod.class } )
@@ -81,8 +90,8 @@ public class MechanicServicesPod {
     @Inject
     private ListeningExecutorService executor;
 
-//    @Inject
-//    Neuron neuron;
+    //    @Inject
+    //    Neuron neuron;
 
     @Inject
     private EventBus eventBus;
@@ -160,9 +169,10 @@ public class MechanicServicesPod {
     public CassandraLinkingGraphsQueryService clgqs() {
         return new CassandraLinkingGraphsQueryService( cassandraConfiguration.getKeyspace(), session );
     }
+
     @Bean
     public HazelcastLinkingGraphs linkingGraph() {
-        return new HazelcastLinkingGraphs( hazelcastInstance , clgqs() );
+        return new HazelcastLinkingGraphs( hazelcastInstance, clgqs() );
     }
 
     @Bean
@@ -241,10 +251,10 @@ public class MechanicServicesPod {
         return new RequestQueryService( cassandraConfiguration.getKeyspace(), session );
     }
 
-//    @Bean
-//    public HazelcastRequestsManager hazelcastRequestsManager() {
-//        return new HazelcastRequestsManager( hazelcastInstance, rqs(), neuron );
-//    }
+    //    @Bean
+    //    public HazelcastRequestsManager hazelcastRequestsManager() {
+    //        return new HazelcastRequestsManager( hazelcastInstance, rqs(), neuron );
+    //    }
 
     @Bean
     public AuditQueryService auditQuerySerivce() {
@@ -266,4 +276,8 @@ public class MechanicServicesPod {
         return new ClusteringPartitioner( cassandraConfiguration.getKeyspace(), session, cgqs(), linkingGraph() );
     }
 
+    @Bean
+    public ReadBench readBench() {
+        return new ReadBench( session, null, null );
+    }
 }
