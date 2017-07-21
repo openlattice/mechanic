@@ -19,8 +19,11 @@
 
 package com.dataloom.mechanic;
 
+import com.dataloom.data.mapstores.DataMapstore;
 import com.dataloom.hazelcast.pods.MapstoresPod;
+import com.dataloom.mechanic.benchmark.ReadBench;
 import com.dataloom.mechanic.pods.CassandraTablesPod;
+import com.dataloom.mechanic.pods.MechanicServicesPod;
 import com.dataloom.mechanic.pods.MechanicUpgradePod;
 import com.dataloom.mechanic.upgrades.DataTableMigrator;
 import com.dataloom.mechanic.upgrades.EdgeTypeMigrator;
@@ -48,6 +51,7 @@ public class Mechanic extends RhizomeApplicationServer {
             TypeCodecsPod.class,
             CassandraPod.class,
             MapstoresPod.class,
+            MechanicServicesPod.class,
             CassandraTablesPod.class,
             MechanicUpgradePod.class
     };
@@ -62,9 +66,11 @@ public class Mechanic extends RhizomeApplicationServer {
 
         logger.info( "Starting upgrade!" );
 
-        long count = mechanic.getContext().getBean( ManualPartitionOfDataTable.class ).migrate();;
+        //long count = mechanic.getContext().getBean( ManualPartitionOfDataTable.class ).migrate();;
+        ReadBench readBench = mechanic.getContext().getBean( ReadBench.class );
+        readBench.benchmark();
 
-        logger.info( "Upgrade complete! Migrated {} rows.", count );
+        logger.info( "Upgrade complete! Migrated {} rows.", 0 );
         mechanic.plowUnder();
     }
 
