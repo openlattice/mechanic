@@ -81,8 +81,8 @@ public class MechanicServicesPod {
     @Inject
     private ListeningExecutorService executor;
 
-    @Inject
-    Neuron neuron;
+//    @Inject
+//    Neuron neuron;
 
     @Inject
     private EventBus eventBus;
@@ -241,10 +241,10 @@ public class MechanicServicesPod {
         return new RequestQueryService( cassandraConfiguration.getKeyspace(), session );
     }
 
-    @Bean
-    public HazelcastRequestsManager hazelcastRequestsManager() {
-        return new HazelcastRequestsManager( hazelcastInstance, rqs(), neuron );
-    }
+//    @Bean
+//    public HazelcastRequestsManager hazelcastRequestsManager() {
+//        return new HazelcastRequestsManager( hazelcastInstance, rqs(), neuron );
+//    }
 
     @Bean
     public AuditQueryService auditQuerySerivce() {
