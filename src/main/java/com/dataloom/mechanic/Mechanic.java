@@ -19,24 +19,20 @@
 
 package com.dataloom.mechanic;
 
-import com.dataloom.data.mapstores.DataMapstore;
 import com.dataloom.hazelcast.pods.MapstoresPod;
+import com.dataloom.hazelcast.pods.SharedStreamSerializersPod;
 import com.dataloom.mechanic.benchmark.ReadBench;
 import com.dataloom.mechanic.pods.CassandraTablesPod;
 import com.dataloom.mechanic.pods.MechanicServicesPod;
 import com.dataloom.mechanic.pods.MechanicUpgradePod;
-import com.dataloom.mechanic.upgrades.DataTableMigrator;
-import com.dataloom.mechanic.upgrades.EdgeTypeMigrator;
-import com.dataloom.mechanic.upgrades.ManualPartitionOfDataTable;
 import com.kryptnostic.conductor.codecs.pods.TypeCodecsPod;
 import com.kryptnostic.rhizome.core.RhizomeApplicationServer;
 import com.kryptnostic.rhizome.hazelcast.serializers.RhizomeUtils;
 import com.kryptnostic.rhizome.pods.CassandraPod;
 import com.kryptnostic.rhizome.pods.hazelcast.RegistryBasedHazelcastInstanceConfigurationPod;
+import java.util.concurrent.ExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.ExecutionException;
 
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@kryptnostic.com&gt;
@@ -51,6 +47,7 @@ public class Mechanic extends RhizomeApplicationServer {
             TypeCodecsPod.class,
             CassandraPod.class,
             MapstoresPod.class,
+            SharedStreamSerializersPod.class,
             MechanicServicesPod.class,
             CassandraTablesPod.class,
             MechanicUpgradePod.class
