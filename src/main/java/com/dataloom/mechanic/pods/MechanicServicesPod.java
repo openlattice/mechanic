@@ -19,8 +19,6 @@
 
 package com.dataloom.mechanic.pods;
 
-import com.dataloom.auditing.AuditQueryService;
-import com.dataloom.auditing.HazelcastAuditLoggingService;
 import com.dataloom.authorization.AbstractSecurableObjectResolveTypeService;
 import com.dataloom.authorization.AuthorizationManager;
 import com.dataloom.authorization.AuthorizationQueryService;
@@ -29,7 +27,7 @@ import com.dataloom.authorization.HazelcastAbstractSecurableObjectResolveTypeSer
 import com.dataloom.authorization.HazelcastAclKeyReservationService;
 import com.dataloom.authorization.HazelcastAuthorizationService;
 import com.dataloom.authorization.Principals;
-import com.dataloom.clustering.ClusteringPartitioner;
+import com.dataloom.clustering.DistributedClusterer;
 import com.dataloom.data.serializers.FullQualifedNameJacksonDeserializer;
 import com.dataloom.data.serializers.FullQualifedNameJacksonSerializer;
 import com.dataloom.directory.UserDirectoryService;
@@ -42,15 +40,12 @@ import com.dataloom.linking.HazelcastLinkingGraphs;
 import com.dataloom.linking.HazelcastListingService;
 import com.dataloom.linking.components.Clusterer;
 import com.dataloom.mappers.ObjectMappers;
-import com.dataloom.mechanic.benchmark.ReadBench;
+import com.dataloom.mechanic.upgrades.CassandraToPostgres;
 import com.dataloom.organizations.HazelcastOrganizationService;
 import com.dataloom.organizations.roles.HazelcastRolesService;
 import com.dataloom.organizations.roles.RolesManager;
 import com.dataloom.organizations.roles.RolesQueryService;
 import com.dataloom.organizations.roles.TokenExpirationTracker;
-import com.dataloom.requests.HazelcastPermissionsRequestsService;
-import com.dataloom.requests.PermissionsRequestsManager;
-import com.dataloom.requests.PermissionsRequestsQueryService;
 import com.dataloom.requests.RequestQueryService;
 import com.datastax.driver.core.Session;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -172,7 +167,7 @@ public class MechanicServicesPod {
 
     @Bean
     public HazelcastLinkingGraphs linkingGraph() {
-        return new HazelcastLinkingGraphs( hazelcastInstance, clgqs() );
+        return new HazelcastLinkingGraphs( hazelcastInstance );
     }
 
     @Bean
@@ -234,19 +229,6 @@ public class MechanicServicesPod {
     }
 
     @Bean
-    public PermissionsRequestsQueryService permissionsRequestsQueryService() {
-        return new PermissionsRequestsQueryService( session );
-    }
-
-    @Bean
-    public PermissionsRequestsManager permissionsRequestsManager() {
-        return new HazelcastPermissionsRequestsService(
-                hazelcastInstance,
-                permissionsRequestsQueryService(),
-                authorizationManager() );
-    }
-
-    @Bean
     public RequestQueryService rqs() {
         return new RequestQueryService( cassandraConfiguration.getKeyspace(), session );
     }
@@ -257,27 +239,16 @@ public class MechanicServicesPod {
     //    }
 
     @Bean
-    public AuditQueryService auditQuerySerivce() {
-        return new AuditQueryService( cassandraConfiguration.getKeyspace(), session );
-    }
-
-    @Bean
-    public HazelcastAuditLoggingService auditLoggingService() {
-        return new HazelcastAuditLoggingService( hazelcastInstance, auditQuerySerivce(), eventBus );
-    }
-
-    @Bean
     public CassandraLinkingGraphsQueryService cgqs() {
         return new CassandraLinkingGraphsQueryService( cassandraConfiguration.getKeyspace(), session );
     }
 
-    @Bean
     public Clusterer clusterer() {
-        return new ClusteringPartitioner( cassandraConfiguration.getKeyspace(), session, cgqs(), linkingGraph() );
+        return new DistributedClusterer( hazelcastInstance );
     }
 
     @Bean
-    public ReadBench readBench() {
-        return new ReadBench( session, null, null );
+    public CassandraToPostgres ctp () {
+        return new CassandraToPostgres();
     }
 }

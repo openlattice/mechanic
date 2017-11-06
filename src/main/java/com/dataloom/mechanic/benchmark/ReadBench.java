@@ -42,41 +42,52 @@ import org.slf4j.LoggerFactory;
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
 public class ReadBench {
-    private static Logger logger = LoggerFactory.getLogger( ReadBench.class );
-    private final CassandraEntityDatastore ceds;
-    private final DatasourceManager        dm;
-    private final Session                  session;
-    private final PreparedStatement        readEntityKeysForEntitySetQuery;
-
-    public ReadBench( Session session, CassandraEntityDatastore ceds, DatasourceManager dm ) {
-        this.session = session;
-        this.ceds = ceds;
-        this.dm = dm;
-        this.readEntityKeysForEntitySetQuery = DataMapstore.prepareReadEntityKeysForEntitySetQuery( session );
-    }
-
-    public void benchmark() {
-        Stopwatch w = Stopwatch.createStarted();
-        long total = StreamUtil.stream( session.execute( DataMapstore.currentSyncs() ) )
-                //.limit(1);
-                .parallel()
-                .map( this::getEntityKeys )
-                .map( ResultSetFuture::getUninterruptibly )
-                .flatMap( StreamUtil::stream )
-                .map( RowAdapters::entityKeyFromData )
-                .unordered()
-                .distinct()
-                .count();
-        long elapsed = w.elapsed( TimeUnit.MILLISECONDS );
-        logger.info( "Read {} rows in {} ms", total, elapsed );
-    }
-
-    public ResultSetFuture getEntityKeys( Row row ) {
-        final UUID entitySetId = RowAdapters.entitySetId( row );
-        final UUID syncId = RowAdapters.currentSyncId( row );
-        return session.executeAsync( readEntityKeysForEntitySetQuery.bind()
-                .setUUID( CommonColumns.ENTITY_SET_ID.cql(), entitySetId )
-                .setUUID( SYNCID.cql(), syncId ) );
-    }
+//    private static Logger logger = LoggerFactory.getLogger( ReadBench.class );
+//    private final CassandraEntityDatastore ceds;
+//    private final DatasourceManager        dm;
+//    private final Session                  session;
+//    private final PreparedStatement        readEntityKeysForEntitySetQuery;
+//    private final PreparedStatement        readAll;
+//
+//    public ReadBench( Session session, CassandraEntityDatastore ceds, DatasourceManager dm ) {
+//        this.session = session;
+//        this.ceds = ceds;
+//        this.dm = dm;
+//        this.readEntityKeysForEntitySetQuery = DataMapstore.prepareReadEntityKeysForEntitySetQuery( session );
+//        this.readAll = session.prepare( "select * from data where entity_set_id = ? and syncid = ? allow filtering" );
+//    }
+//
+//    public void benchmark() {
+//        Stopwatch w = Stopwatch.createStarted();
+//        long total = StreamUtil.stream( session.execute( DataMapstore.currentSyncs() ) )
+//                //.limit(1);
+//                .parallel()
+//                .map( this::getEntityKeys )
+//                .map( ResultSetFuture::getUninterruptibly )
+//                .flatMap( StreamUtil::stream )
+//                .parallel()
+//                .map( RowAdapters::entityKeyFromData )
+//                .unordered()
+//                .distinct()
+//                .count();
+//        long elapsed = w.elapsed( TimeUnit.MILLISECONDS );
+//        logger.info( "Read {} rows in {} ms", total, elapsed );
+//    }
+//
+//    public ResultSetFuture getAllEntityKeys(Row row) {
+//        final UUID entitySetId = RowAdapters.entitySetId( row );
+//        final UUID syncId = RowAdapters.currentSyncId( row );
+//        return session.executeAsync( readAll.bind()
+//                .setUUID( CommonColumns.ENTITY_SET_ID.cql(), entitySetId )
+//                .setUUID( SYNCID.cql(), syncId ) );
+//    }
+//
+//    public ResultSetFuture getEntityKeys( Row row ) {
+//        final UUID entitySetId = RowAdapters.entitySetId( row );
+//        final UUID syncId = RowAdapters.currentSyncId( row );
+//        return session.executeAsync( readEntityKeysForEntitySetQuery.bind()
+//                .setUUID( CommonColumns.ENTITY_SET_ID.cql(), entitySetId )
+//                .setUUID( SYNCID.cql(), syncId ) );
+//    }
 
 }

@@ -25,11 +25,15 @@ import com.dataloom.mechanic.benchmark.ReadBench;
 import com.dataloom.mechanic.pods.CassandraTablesPod;
 import com.dataloom.mechanic.pods.MechanicServicesPod;
 import com.dataloom.mechanic.pods.MechanicUpgradePod;
+import com.dataloom.mechanic.upgrades.CassandraToPostgres;
 import com.kryptnostic.conductor.codecs.pods.TypeCodecsPod;
 import com.kryptnostic.rhizome.core.RhizomeApplicationServer;
 import com.kryptnostic.rhizome.hazelcast.serializers.RhizomeUtils;
 import com.kryptnostic.rhizome.pods.CassandraPod;
 import com.kryptnostic.rhizome.pods.hazelcast.RegistryBasedHazelcastInstanceConfigurationPod;
+import com.openlattice.jdbc.JdbcPod;
+import com.openlattice.postgres.PostgresPod;
+import java.sql.SQLException;
 import java.util.concurrent.ExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,24 +54,28 @@ public class Mechanic extends RhizomeApplicationServer {
             SharedStreamSerializersPod.class,
             MechanicServicesPod.class,
             CassandraTablesPod.class,
-            MechanicUpgradePod.class
+            MechanicUpgradePod.class,
+            JdbcPod.class,
+            PostgresPod.class
     };
 
     public Mechanic() {
         super( RhizomeUtils.Pods.concatenate( RhizomeApplicationServer.DEFAULT_PODS, rhizomePods, conductorPods ) );
     }
 
-    public static void main( String[] args ) throws InterruptedException, ExecutionException {
+    public static void main( String[] args ) throws InterruptedException, ExecutionException, SQLException {
         Mechanic mechanic = new Mechanic();
         mechanic.sprout( args );
 
         logger.info( "Starting upgrade!" );
-
+        CassandraToPostgres cassandraToPostgres = mechanic.getContext().getBean( CassandraToPostgres.class );
+        int count = cassandraToPostgres.migratePropertyTypes();;
+        //cassandraToPostgres.migratePermissions();
         //long count = mechanic.getContext().getBean( ManualPartitionOfDataTable.class ).migrate();;
-        ReadBench readBench = mechanic.getContext().getBean( ReadBench.class );
-        readBench.benchmark();
+        //ReadBench readBench = mechanic.getContext().getBean( ReadBench.class );
+        //readBench.benchmark();
 
-        logger.info( "Upgrade complete! Migrated {} rows.", 0 );
+        logger.info( "Upgrade complete! Migrated {} rows.", count );
         mechanic.plowUnder();
     }
 
