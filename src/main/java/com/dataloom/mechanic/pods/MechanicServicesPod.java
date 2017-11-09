@@ -19,23 +19,15 @@
 
 package com.dataloom.mechanic.pods;
 
-import com.dataloom.authorization.AbstractSecurableObjectResolveTypeService;
-import com.dataloom.authorization.AuthorizationManager;
-import com.dataloom.authorization.AuthorizationQueryService;
-import com.dataloom.authorization.EdmAuthorizationHelper;
-import com.dataloom.authorization.HazelcastAbstractSecurableObjectResolveTypeService;
-import com.dataloom.authorization.HazelcastAclKeyReservationService;
-import com.dataloom.authorization.HazelcastAuthorizationService;
-import com.dataloom.authorization.Principals;
+import com.dataloom.authorization.*;
 import com.dataloom.clustering.DistributedClusterer;
 import com.dataloom.data.serializers.FullQualifedNameJacksonDeserializer;
 import com.dataloom.data.serializers.FullQualifedNameJacksonSerializer;
 import com.dataloom.directory.UserDirectoryService;
-import com.dataloom.edm.properties.CassandraTypeManager;
+import com.dataloom.edm.properties.PostgresTypeManager;
 import com.dataloom.edm.schemas.SchemaQueryService;
 import com.dataloom.edm.schemas.cassandra.CassandraSchemaQueryService;
 import com.dataloom.edm.schemas.manager.HazelcastSchemaManager;
-import com.dataloom.linking.CassandraLinkingGraphsQueryService;
 import com.dataloom.linking.HazelcastLinkingGraphs;
 import com.dataloom.linking.HazelcastListingService;
 import com.dataloom.linking.components.Clusterer;
@@ -52,19 +44,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.hazelcast.core.HazelcastInstance;
-import com.kryptnostic.datastore.services.CassandraEntitySetManager;
 import com.kryptnostic.datastore.services.EdmManager;
 import com.kryptnostic.datastore.services.EdmService;
 import com.kryptnostic.datastore.services.ODataStorageService;
+import com.kryptnostic.datastore.services.PostgresEntitySetManager;
 import com.kryptnostic.rhizome.configuration.cassandra.CassandraConfiguration;
 import com.kryptnostic.rhizome.pods.CassandraPod;
+import com.zaxxer.hikari.HikariDataSource;
 import digital.loom.rhizome.authentication.Auth0Pod;
 import digital.loom.rhizome.configuration.auth0.Auth0Configuration;
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 
 @Configuration
 @Import( { CassandraPod.class, Auth0Pod.class } )
@@ -85,6 +79,9 @@ public class MechanicServicesPod {
     @Inject
     private ListeningExecutorService executor;
 
+    @Inject
+    private HikariDataSource hds;
+
     //    @Inject
     //    Neuron neuron;
 
@@ -101,7 +98,7 @@ public class MechanicServicesPod {
 
     @Bean
     public AuthorizationQueryService authorizationQueryService() {
-        return new AuthorizationQueryService( cassandraConfiguration.getKeyspace(), session, hazelcastInstance );
+        return new AuthorizationQueryService( hds, hazelcastInstance );
     }
 
     @Bean
@@ -120,28 +117,26 @@ public class MechanicServicesPod {
     }
 
     @Bean
-    public CassandraEntitySetManager entitySetManager() {
-        return new CassandraEntitySetManager( cassandraConfiguration.getKeyspace(), session, authorizationManager() );
+    public PostgresEntitySetManager entitySetManager() {
+        return new PostgresEntitySetManager( hds );
     }
 
     @Bean
     public HazelcastSchemaManager schemaManager() {
         return new HazelcastSchemaManager(
-                cassandraConfiguration.getKeyspace(),
                 hazelcastInstance,
                 schemaQueryService() );
     }
 
     @Bean
-    public CassandraTypeManager entityTypeManager() {
-        return new CassandraTypeManager( cassandraConfiguration.getKeyspace(), session );
+    public PostgresTypeManager entityTypeManager() {
+        return new PostgresTypeManager( hds );
     }
 
     @Bean
     public EdmManager dataModelService() {
         return new EdmService(
-                cassandraConfiguration.getKeyspace(),
-                session,
+                hds,
                 hazelcastInstance,
                 aclKeyReservationService(),
                 authorizationManager(),
@@ -161,27 +156,18 @@ public class MechanicServicesPod {
     }
 
     @Bean
-    public CassandraLinkingGraphsQueryService clgqs() {
-        return new CassandraLinkingGraphsQueryService( cassandraConfiguration.getKeyspace(), session );
-    }
-
-    @Bean
     public HazelcastLinkingGraphs linkingGraph() {
         return new HazelcastLinkingGraphs( hazelcastInstance );
     }
 
     @Bean
     public ODataStorageService odataStorageService() {
-        return new ODataStorageService(
-                cassandraConfiguration.getKeyspace(),
-                hazelcastInstance,
-                dataModelService(),
-                session );
+        return new ODataStorageService( hazelcastInstance, dataModelService() );
     }
 
     @Bean
     public RolesQueryService rolesQueryService() {
-        return new RolesQueryService( session );
+        return new RolesQueryService( hds );
     }
 
     @Bean
@@ -209,8 +195,6 @@ public class MechanicServicesPod {
     @Bean
     public HazelcastOrganizationService organizationsManager() {
         return new HazelcastOrganizationService(
-                cassandraConfiguration.getKeyspace(),
-                session,
                 hazelcastInstance,
                 aclKeyReservationService(),
                 authorizationManager(),
@@ -230,7 +214,7 @@ public class MechanicServicesPod {
 
     @Bean
     public RequestQueryService rqs() {
-        return new RequestQueryService( cassandraConfiguration.getKeyspace(), session );
+        return new RequestQueryService( hds );
     }
 
     //    @Bean
@@ -238,10 +222,6 @@ public class MechanicServicesPod {
     //        return new HazelcastRequestsManager( hazelcastInstance, rqs(), neuron );
     //    }
 
-    @Bean
-    public CassandraLinkingGraphsQueryService cgqs() {
-        return new CassandraLinkingGraphsQueryService( cassandraConfiguration.getKeyspace(), session );
-    }
 
     public Clusterer clusterer() {
         return new DistributedClusterer( hazelcastInstance );
