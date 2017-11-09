@@ -33,15 +33,18 @@ import com.kryptnostic.rhizome.pods.CassandraPod;
 import com.kryptnostic.rhizome.pods.hazelcast.RegistryBasedHazelcastInstanceConfigurationPod;
 import com.openlattice.jdbc.JdbcPod;
 import com.openlattice.postgres.PostgresPod;
+
 import java.sql.SQLException;
 import java.util.concurrent.ExecutionException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@kryptnostic.com&gt;
  */
-public class Mechanic extends RhizomeApplicationServer {
+public class
+Mechanic extends RhizomeApplicationServer {
     private static final Logger     logger      = LoggerFactory.getLogger( Mechanic.class );
     public static final  Class<?>[] rhizomePods = new Class<?>[] {
             CassandraPod.class,
@@ -69,13 +72,29 @@ public class Mechanic extends RhizomeApplicationServer {
 
         logger.info( "Starting upgrade!" );
         CassandraToPostgres cassandraToPostgres = mechanic.getContext().getBean( CassandraToPostgres.class );
-        int count = cassandraToPostgres.migratePropertyTypes();;
+        //  int count = cassandraToPostgres.migratePropertyTypes();
+
+        //        int count = cassandraToPostgres.migrateAclKeys();
+        //        int count = cassandraToPostgres.migrateEntityTypes();
+        //        int count = cassandraToPostgres.migrateEntitySets();
+        //        int count = cassandraToPostgres.migrateSchemas();
+        //        int count = cassandraToPostgres.migrateNames();
+        //        int count = cassandraToPostgres.migrateLinkedEntitySets();
+        //        int count = cassandraToPostgres.migratelinkingVertices();
+        //        int count = cassandraToPostgres.migrateAssociationTypes();
+        //        int count = cassandraToPostgres.migrateEntitySetPropertyMetadata();
+        //        int count = cassandraToPostgres.migrateEdmVersionsMapstore();
+        //        int count = cassandraToPostgres.migrateSyncIds();
+        //        int count = cassandraToPostgres.migrateRoles();
+        //        int count = cassandraToPostgres.migrateOrganizations();
+
         //cassandraToPostgres.migratePermissions();
         //long count = mechanic.getContext().getBean( ManualPartitionOfDataTable.class ).migrate();;
         //ReadBench readBench = mechanic.getContext().getBean( ReadBench.class );
         //readBench.benchmark();
 
-        logger.info( "Upgrade complete! Migrated {} rows.", count );
+//        logger.info( "Upgrade complete! Migrated {} rows.", count );
+
         mechanic.plowUnder();
     }
 

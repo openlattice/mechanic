@@ -41,9 +41,11 @@ import com.google.common.collect.ImmutableList;
 import com.kryptnostic.conductor.rpc.odata.Table;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.cassandra.RowAdapters;
+import com.kryptnostic.rhizome.configuration.cassandra.CassandraConfiguration;
 import com.kryptnostic.rhizome.hazelcast.objects.DelegatedStringSet;
 import com.kryptnostic.rhizome.hazelcast.objects.DelegatedUUIDSet;
 import com.kryptnostic.rhizome.mapstores.SelfRegisteringMapStore;
+import com.kryptnostic.rhizome.pods.CassandraPod;
 import com.openlattice.authorization.mapstores.PermissionMapstore;
 import com.openlattice.postgres.*;
 import com.openlattice.postgres.mapstores.*;
@@ -62,9 +64,11 @@ import java.util.concurrent.TimeUnit;
 public class CassandraToPostgres {
     private static final Logger logger = LoggerFactory.getLogger( CassandraToPostgres.class );
 
-    @Inject private MapstoresPod     mp;
-    @Inject private HikariDataSource hds;
-    @Inject private Session          session;
+    @Inject private MapstoresPod           mp;
+    @Inject private HikariDataSource       hds;
+    @Inject private Session                session;
+    @Inject
+    private         CassandraConfiguration cassandraConfiguration;
 
     public int migratePropertyTypes() {
         PropertyTypeMapstore ptm = new PropertyTypeMapstore( HazelcastMap.PROPERTY_TYPES.name(),
@@ -118,12 +122,6 @@ public class CassandraToPostgres {
         return count;
     }
 
-    public int migrateSecurableObjectTypes() throws SQLException {
-        SecurableObjectTypeMapstore pMap = new SecurableObjectTypeMapstore( hds );
-        SelfRegisteringMapStore<List<UUID>, SecurableObjectType> cMap = mp.securableObjectTypeMapstore();
-        return simpleMigrate( cMap, pMap, PostgresTable.SECURABLE_OBJECTS );
-    }
-
     public int migrateEntityTypes() throws SQLException {
         EntityTypeMapstore pMap = new EntityTypeMapstore( hds );
         SelfRegisteringMapStore<UUID, EntityType> cMap = mp.entityTypeMapstore();
@@ -173,13 +171,11 @@ public class CassandraToPostgres {
     }
 
     public int migrateRoles() throws SQLException {
-        // TODO test this
-
         PostgresTableDefinition postgresTable = PostgresTable.ROLES;
         List<PostgresColumnDefinition> postgresColumns = ImmutableList.of(
-                PostgresColumn.ID,
+                PostgresColumn.ROLE_ID,
                 PostgresColumn.ORGANIZATION_ID,
-                PostgresColumn.TITLE,
+                PostgresColumn.NULLABLE_TITLE,
                 PostgresColumn.DESCRIPTION,
                 PostgresColumn.PRINCIPAL_IDS );
         Table cassandraTable = Table.ROLES;
@@ -193,7 +189,7 @@ public class CassandraToPostgres {
             createStmt.execute( postgresTable.createTableQuery() );
 
             com.datastax.driver.core.ResultSet rs = session
-                    .execute( QueryBuilder.select().all().from( cassandraTable.name() ) );
+                    .execute( QueryBuilder.select().all().from( cassandraConfiguration.getKeyspace(), cassandraTable.name() ) );
             int count = 0;
             for ( Row row : rs ) {
                 UUID id = RowAdapters.id( row );
@@ -223,8 +219,6 @@ public class CassandraToPostgres {
     }
 
     public int migrateSyncIds() throws SQLException {
-        // TODO test this
-
         PostgresTableDefinition postgresTable = PostgresTable.SYNC_IDS;
         List<PostgresColumnDefinition> postgresColumns = ImmutableList.of(
                 PostgresColumn.ENTITY_SET_ID,
@@ -241,7 +235,7 @@ public class CassandraToPostgres {
             createStmt.execute( postgresTable.createTableQuery() );
 
             com.datastax.driver.core.ResultSet rs = session
-                    .execute( QueryBuilder.select().all().from( cassandraTable.name() ) );
+                    .execute( QueryBuilder.select().all().from( cassandraConfiguration.getKeyspace(), cassandraTable.name() ) );
             int count = 0;
             for ( Row row : rs ) {
                 UUID entitySetId = RowAdapters.entitySetId( row );
@@ -285,7 +279,7 @@ public class CassandraToPostgres {
             createStmt.execute( postgresTable.createTableQuery() );
 
             com.datastax.driver.core.ResultSet rs = session
-                    .execute( QueryBuilder.select().all().from( cassandraTable.name() ) );
+                    .execute( QueryBuilder.select().all().from( cassandraConfiguration.getKeyspace(), cassandraTable.name() ) );
             int count = 0;
             for ( Row row : rs ) {
                 UUID id = RowAdapters.id( row );
@@ -300,8 +294,9 @@ public class CassandraToPostgres {
                 ps.setString( 2, title );
                 ps.setString( 3, description );
                 ps.setArray( 4, emailsArr );
-                ps.setArray( 4, membersArr );
+                ps.setArray( 5, membersArr );
 
+                ps.execute();
                 count++;
             }
             ps.close();
@@ -312,12 +307,6 @@ public class CassandraToPostgres {
             logger.error( "Unable to migrate organizations", e );
             return 0;
         }
-    }
-
-    public int migrateVertexIdsAfterLinking() throws SQLException {
-        VertexIdsAfterLinkingMapstore pMap = new VertexIdsAfterLinkingMapstore( hds );
-        SelfRegisteringMapStore<LinkingVertexKey, UUID> cMap = mp.vertexIdsAfterLinkingMapstore();
-        return simpleMigrate( cMap, pMap, PostgresTable.VERTEX_IDS_AFTER_LINKING );
     }
 
     public int migrateEntitySetPropertyMetadata() throws SQLException {
