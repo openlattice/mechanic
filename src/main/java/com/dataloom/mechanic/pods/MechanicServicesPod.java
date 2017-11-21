@@ -19,8 +19,15 @@
 
 package com.dataloom.mechanic.pods;
 
-import com.dataloom.authorization.*;
+import com.dataloom.authorization.AbstractSecurableObjectResolveTypeService;
+import com.dataloom.authorization.AuthorizationManager;
+import com.dataloom.authorization.AuthorizationQueryService;
+import com.dataloom.authorization.EdmAuthorizationHelper;
+import com.dataloom.authorization.HazelcastAbstractSecurableObjectResolveTypeService;
+import com.dataloom.authorization.HazelcastAclKeyReservationService;
+import com.dataloom.authorization.HazelcastAuthorizationService;
 import com.dataloom.clustering.DistributedClusterer;
+import com.dataloom.data.DatasourceManager;
 import com.dataloom.data.serializers.FullQualifedNameJacksonDeserializer;
 import com.dataloom.data.serializers.FullQualifedNameJacksonSerializer;
 import com.dataloom.directory.UserDirectoryService;
@@ -34,10 +41,8 @@ import com.dataloom.linking.components.Clusterer;
 import com.dataloom.mappers.ObjectMappers;
 import com.dataloom.mechanic.upgrades.CassandraToPostgres;
 import com.dataloom.organizations.HazelcastOrganizationService;
-import com.dataloom.organizations.roles.HazelcastRolesService;
-import com.dataloom.organizations.roles.RolesManager;
-import com.dataloom.organizations.roles.RolesQueryService;
-import com.dataloom.organizations.roles.TokenExpirationTracker;
+import com.dataloom.organizations.roles.HazelcastPrincipalService;
+import com.dataloom.organizations.roles.SecurePrincipalsManager;
 import com.dataloom.requests.RequestQueryService;
 import com.datastax.driver.core.Session;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,12 +58,10 @@ import com.kryptnostic.rhizome.pods.CassandraPod;
 import com.zaxxer.hikari.HikariDataSource;
 import digital.loom.rhizome.authentication.Auth0Pod;
 import digital.loom.rhizome.configuration.auth0.Auth0Configuration;
+import javax.inject.Inject;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
 
 @Configuration
 @Import( { CassandraPod.class, Auth0Pod.class } )
@@ -134,6 +137,11 @@ public class MechanicServicesPod {
     }
 
     @Bean
+    public DatasourceManager datasourceManager() {
+        return new DatasourceManager( hds, hazelcastInstance );
+    }
+
+    @Bean
     public EdmManager dataModelService() {
         return new EdmService(
                 hds,
@@ -142,7 +150,8 @@ public class MechanicServicesPod {
                 authorizationManager(),
                 entitySetManager(),
                 entityTypeManager(),
-                schemaManager() );
+                schemaManager(),
+                datasourceManager() );
     }
 
     @Bean
@@ -166,30 +175,8 @@ public class MechanicServicesPod {
     }
 
     @Bean
-    public RolesQueryService rolesQueryService() {
-        return new RolesQueryService( hds );
-    }
-
-    @Bean
-    public TokenExpirationTracker tokenTracker() {
-        return new TokenExpirationTracker( hazelcastInstance );
-    }
-
-    @PostConstruct
-    public void setExpiringTokenTracker() {
-        Principals.setExpiringTokenTracker( tokenTracker() );
-    }
-
-    @Bean
-    public RolesManager rolesService() {
-        return new HazelcastRolesService(
-                hazelcastInstance,
-                rolesQueryService(),
-                aclKeyReservationService(),
-                tokenTracker(),
-                userDirectoryService(),
-                securableObjectTypes(),
-                authorizationManager() );
+    public SecurePrincipalsManager spm() {
+        return new HazelcastPrincipalService( hazelcastInstance, aclKeyReservationService(), authorizationManager() );
     }
 
     @Bean
@@ -199,7 +186,7 @@ public class MechanicServicesPod {
                 aclKeyReservationService(),
                 authorizationManager(),
                 userDirectoryService(),
-                rolesService() );
+                spm() );
     }
 
     @Bean
@@ -222,13 +209,12 @@ public class MechanicServicesPod {
     //        return new HazelcastRequestsManager( hazelcastInstance, rqs(), neuron );
     //    }
 
-
     public Clusterer clusterer() {
         return new DistributedClusterer( hazelcastInstance );
     }
 
     @Bean
-    public CassandraToPostgres ctp () {
+    public CassandraToPostgres ctp() {
         return new CassandraToPostgres();
     }
 }
