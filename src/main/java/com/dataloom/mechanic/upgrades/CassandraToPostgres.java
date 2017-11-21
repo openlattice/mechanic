@@ -94,7 +94,7 @@ public class CassandraToPostgres {
 //        logger.info( PostgresTable.ENTITY_TYPES.createTableQuery() );
         com.dataloom.edm.mapstores.PropertyTypeMapstore cptm = new com.dataloom.edm.mapstores.PropertyTypeMapstore(
                 session );
-        simpleMigrate(  cptm, ptm, PostgresTable.PROPERTY_TYPES );
+        return simpleMigrate(  cptm, ptm, PostgresTable.PROPERTY_TYPES );
 //        int count = 0;
 //        Stopwatch w = Stopwatch.createStarted();
 //        for ( UUID id : cptm.loadAllKeys() ) {
