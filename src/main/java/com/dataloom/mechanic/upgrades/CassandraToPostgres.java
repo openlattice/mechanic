@@ -85,22 +85,25 @@ public class CassandraToPostgres {
     @Inject
     private         CassandraConfiguration   cassandraConfiguration;
 
-    public int migratePropertyTypes() {
+    public int migratePropertyTypes() throws SQLException {
         com.openlattice.postgres.mapstores.PropertyTypeMapstore ptm = new com.openlattice.postgres.mapstores.PropertyTypeMapstore(
                 HazelcastMap.PROPERTY_TYPES.name(),
                 PostgresTable.PROPERTY_TYPES,
                 hds );
+//        logger.info( PostgresTable.PROPERTY_TYPES.createTableQuery() );
+//        logger.info( PostgresTable.ENTITY_TYPES.createTableQuery() );
         com.dataloom.edm.mapstores.PropertyTypeMapstore cptm = new com.dataloom.edm.mapstores.PropertyTypeMapstore(
                 session );
-        int count = 0;
-        Stopwatch w = Stopwatch.createStarted();
-        for ( UUID id : cptm.loadAllKeys() ) {
-            logger.info( "Migrating property type: {}", id );
-            ptm.store( id, cptm.load( id ) );
-            count++;
-        }
-        logger.info( "Migrated {} property types in {} ms", count, w.elapsed( TimeUnit.MILLISECONDS ) );
-        return count;
+        simpleMigrate(  cptm, ptm, PostgresTable.PROPERTY_TYPES );
+//        int count = 0;
+//        Stopwatch w = Stopwatch.createStarted();
+//        for ( UUID id : cptm.loadAllKeys() ) {
+//            logger.info( "Migrating property type: {}", id );
+//            ptm.store( id, cptm.load( id ) );
+//            count++;
+//        }
+//        logger.info( "Migrated {} property types in {} ms", count, w.elapsed( TimeUnit.MILLISECONDS ) );
+//        return count;
     }
 
     public int migratePermissions() throws SQLException {
