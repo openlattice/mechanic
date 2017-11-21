@@ -87,7 +87,8 @@ Mechanic extends RhizomeApplicationServer {
 //        logger.info( "Migrated {} edm versions mapstore", cassandraToPostgres.migrateEdmVersionsMapstore() );
 //        logger.info( "Migrated {} sync ids", cassandraToPostgres.migrateSyncIds() );
 //        logger.info( "Migrated {} organizations", cassandraToPostgres.migrateOrganizations() );
-        logger.info( "Migrated {} linked entity types", cassandraToPostgres.migrateLinkedEntityTypes() );
+        logger.info( "Migrated {} linked entity types", cassandraToPostgres.migratePermissions() );
+//        logger.info( "Migrated {} linked entity types", cassandraToPostgres.migrateLinkedEntityTypes() );
 //        logger.info( "Migrated {} entity key ids", cassandraToPostgres.migrateEntityKeyIds() );
         //cassandraToPostgres.migratePermissions();
         //long count = mechanic.getContext().getBean( ManualPartitionOfDataTable.class ).migrate();;
