@@ -39,7 +39,6 @@ import com.dataloom.linking.HazelcastLinkingGraphs;
 import com.dataloom.linking.HazelcastListingService;
 import com.dataloom.linking.components.Clusterer;
 import com.dataloom.mappers.ObjectMappers;
-import com.dataloom.mechanic.upgrades.CassandraToPostgres;
 import com.dataloom.organizations.HazelcastOrganizationService;
 import com.dataloom.organizations.roles.HazelcastPrincipalService;
 import com.dataloom.organizations.roles.SecurePrincipalsManager;
@@ -213,8 +212,4 @@ public class MechanicServicesPod {
         return new DistributedClusterer( hazelcastInstance );
     }
 
-    @Bean
-    public CassandraToPostgres ctp() {
-        return new CassandraToPostgres();
-    }
 }

@@ -1,5 +1,6 @@
 package com.dataloom.mechanic.pods;
 
+import com.dataloom.mechanic.upgrades.CassandraToPostgres;
 import com.dataloom.mechanic.upgrades.ManualPartitionOfDataTable;
 import com.datastax.driver.core.Session;
 import com.google.common.eventbus.EventBus;
@@ -17,8 +18,8 @@ public class MechanicUpgradePod {
     @Inject
     private CassandraConfiguration cassandraConfiguration;
 
-    @Inject
-    private HazelcastInstance hazelcastInstance;
+//    @Inject
+//    private HazelcastInstance hazelcastInstance;
 
     @Inject
     private Session session;
@@ -29,6 +30,11 @@ public class MechanicUpgradePod {
     @Inject
     private EventBus eventBus;
 
+
+    @Bean
+    public CassandraToPostgres ctp() {
+        return new CassandraToPostgres();
+    }
     //    @Bean
     //    public DataTableMigrator migrator() {
     //        return new DataTableMigrator( session, cassandraConfiguration.getKeyspace() , executor );

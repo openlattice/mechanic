@@ -20,18 +20,16 @@
 package com.dataloom.mechanic;
 
 import com.dataloom.hazelcast.pods.MapstoresPod;
-import com.dataloom.hazelcast.pods.SharedStreamSerializersPod;
 import com.dataloom.mechanic.pods.CassandraTablesPod;
-import com.dataloom.mechanic.pods.MechanicServicesPod;
 import com.dataloom.mechanic.pods.MechanicUpgradePod;
 import com.dataloom.mechanic.upgrades.CassandraToPostgres;
 import com.kryptnostic.conductor.codecs.pods.TypeCodecsPod;
 import com.kryptnostic.rhizome.core.RhizomeApplicationServer;
 import com.kryptnostic.rhizome.hazelcast.serializers.RhizomeUtils;
 import com.kryptnostic.rhizome.pods.CassandraPod;
-import com.kryptnostic.rhizome.pods.hazelcast.RegistryBasedHazelcastInstanceConfigurationPod;
 import com.openlattice.jdbc.JdbcPod;
 import com.openlattice.postgres.PostgresPod;
+import digital.loom.rhizome.authentication.Auth0Pod;
 import java.sql.SQLException;
 import java.util.concurrent.ExecutionException;
 import org.slf4j.Logger;
@@ -43,16 +41,18 @@ import org.slf4j.LoggerFactory;
 public class
 Mechanic extends RhizomeApplicationServer {
     public static final  Class<?>[] rhizomePods   = new Class<?>[] {
-            CassandraPod.class,
-            RegistryBasedHazelcastInstanceConfigurationPod.class };
+            CassandraPod.class//,
+            //            RegistryBasedHazelcastInstanceConfigurationPod.class
+    };
     public static final  Class<?>[] conductorPods = new Class<?>[] {
             TypeCodecsPod.class,
             CassandraPod.class,
-            //MapstoresPod.class,
-            SharedStreamSerializersPod.class,
-            MechanicServicesPod.class,
+            MapstoresPod.class,
+            //            SharedStreamSerializersPod.class,
+            //            MechanicServicesPod.class,
             CassandraTablesPod.class,
-            MechanicUpgradePod.class,
+                        MechanicUpgradePod.class,
+            Auth0Pod.class,
             JdbcPod.class,
             PostgresPod.class
     };
@@ -82,11 +82,12 @@ Mechanic extends RhizomeApplicationServer {
         logger.info( "Migrated {} linked entity sets", cassandraToPostgres.migrateLinkedEntitySets() );
         logger.info( "Migrated {} linking vertices", cassandraToPostgres.migratelinkingVertices() );
         logger.info( "Migrated {} association types", cassandraToPostgres.migrateAssociationTypes() );
-        logger.info( "Migrated {} entity set property metadata", cassandraToPostgres.migrateEntitySetPropertyMetadata() );
+        logger.info( "Migrated {} entity set property metadata",
+                cassandraToPostgres.migrateEntitySetPropertyMetadata() );
         logger.info( "Migrated {} edm versions mapstore", cassandraToPostgres.migrateEdmVersionsMapstore() );
         logger.info( "Migrated {} sync ids", cassandraToPostgres.migrateSyncIds() );
         logger.info( "Migrated {} organizations", cassandraToPostgres.migrateOrganizations() );
-        logger.info( "Migrated {} entity key ids", cassandraToPostgres.migrateEntityKeyIds());
+        logger.info( "Migrated {} entity key ids", cassandraToPostgres.migrateEntityKeyIds() );
         //cassandraToPostgres.migratePermissions();
         //long count = mechanic.getContext().getBean( ManualPartitionOfDataTable.class ).migrate();;
         //ReadBench readBench = mechanic.getContext().getBean( ReadBench.class );
