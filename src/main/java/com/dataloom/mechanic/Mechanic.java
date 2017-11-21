@@ -51,7 +51,7 @@ Mechanic extends RhizomeApplicationServer {
             //            SharedStreamSerializersPod.class,
             //            MechanicServicesPod.class,
             CassandraTablesPod.class,
-                        MechanicUpgradePod.class,
+            MechanicUpgradePod.class,
             Auth0Pod.class,
             JdbcPod.class,
             PostgresPod.class

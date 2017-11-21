@@ -7,12 +7,15 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.hazelcast.core.HazelcastInstance;
 import com.kryptnostic.rhizome.configuration.cassandra.CassandraConfiguration;
+import com.kryptnostic.rhizome.pods.CassandraPod;
 import javax.inject.Inject;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@kryptnostic.com&gt;
  */
+@Import({ CassandraPod.class })
 public class MechanicUpgradePod {
 
     @Inject
