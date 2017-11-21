@@ -21,8 +21,6 @@
 package com.dataloom.mechanic.upgrades;
 
 import com.dataloom.authorization.AceKey;
-import com.dataloom.authorization.DelegatedPermissionEnumSet;
-import com.dataloom.authorization.securable.SecurableObjectType;
 import com.dataloom.edm.EntitySet;
 import com.dataloom.edm.set.EntitySetPropertyKey;
 import com.dataloom.edm.set.EntitySetPropertyMetadata;
@@ -42,21 +40,43 @@ import com.kryptnostic.conductor.rpc.odata.Table;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.cassandra.RowAdapters;
 import com.kryptnostic.rhizome.configuration.cassandra.CassandraConfiguration;
-import com.kryptnostic.rhizome.hazelcast.objects.DelegatedStringSet;
-import com.kryptnostic.rhizome.hazelcast.objects.DelegatedUUIDSet;
 import com.kryptnostic.rhizome.mapstores.SelfRegisteringMapStore;
-import com.kryptnostic.rhizome.pods.CassandraPod;
+import com.openlattice.authorization.AceValue;
 import com.openlattice.authorization.mapstores.PermissionMapstore;
-import com.openlattice.postgres.*;
-import com.openlattice.postgres.mapstores.*;
+import com.openlattice.postgres.PostgresArrays;
+import com.openlattice.postgres.PostgresColumn;
+import com.openlattice.postgres.PostgresColumnDefinition;
+import com.openlattice.postgres.PostgresTable;
+import com.openlattice.postgres.PostgresTableDefinition;
+import com.openlattice.postgres.mapstores.AbstractBasePostgresMapstore;
+import com.openlattice.postgres.mapstores.AclKeysMapstore;
+import com.openlattice.postgres.mapstores.AssociationTypeMapstore;
+import com.openlattice.postgres.mapstores.EdmVersionsMapstore;
+import com.openlattice.postgres.mapstores.EntitySetMapstore;
+import com.openlattice.postgres.mapstores.EntitySetPropertyMetadataMapstore;
+import com.openlattice.postgres.mapstores.EntityTypeMapstore;
+import com.openlattice.postgres.mapstores.LinkedEntitySetsMapstore;
+import com.openlattice.postgres.mapstores.LinkingVerticesMapstore;
+import com.openlattice.postgres.mapstores.NamesMapstore;
+import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
+import com.openlattice.postgres.mapstores.SchemasMapstore;
+import com.openlattice.rhizome.hazelcast.DelegatedStringSet;
+import com.openlattice.rhizome.hazelcast.DelegatedUUIDSet;
 import com.zaxxer.hikari.HikariDataSource;
+import java.sql.Array;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import javax.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.inject.Inject;
-import java.sql.*;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
@@ -92,7 +112,7 @@ public class CassandraToPostgres {
         conn.close();
 
         PermissionMapstore ptm = new PermissionMapstore( hds );
-        SelfRegisteringMapStore<AceKey, DelegatedPermissionEnumSet> cptm = mp.permissionMapstore();
+        SelfRegisteringMapStore<AceKey, AceValue> cptm = mp.permissionMapstore();
         int count = 0;
         Stopwatch w = Stopwatch.createStarted();
         for ( AceKey id : cptm.loadAllKeys() ) {
@@ -189,7 +209,8 @@ public class CassandraToPostgres {
             createStmt.execute( postgresTable.createTableQuery() );
 
             com.datastax.driver.core.ResultSet rs = session
-                    .execute( QueryBuilder.select().all().from( cassandraConfiguration.getKeyspace(), cassandraTable.name() ) );
+                    .execute( QueryBuilder.select().all()
+                            .from( cassandraConfiguration.getKeyspace(), cassandraTable.name() ) );
             int count = 0;
             for ( Row row : rs ) {
                 UUID id = RowAdapters.id( row );
@@ -235,7 +256,8 @@ public class CassandraToPostgres {
             createStmt.execute( postgresTable.createTableQuery() );
 
             com.datastax.driver.core.ResultSet rs = session
-                    .execute( QueryBuilder.select().all().from( cassandraConfiguration.getKeyspace(), cassandraTable.name() ) );
+                    .execute( QueryBuilder.select().all()
+                            .from( cassandraConfiguration.getKeyspace(), cassandraTable.name() ) );
             int count = 0;
             for ( Row row : rs ) {
                 UUID entitySetId = RowAdapters.entitySetId( row );
@@ -279,7 +301,8 @@ public class CassandraToPostgres {
             createStmt.execute( postgresTable.createTableQuery() );
 
             com.datastax.driver.core.ResultSet rs = session
-                    .execute( QueryBuilder.select().all().from( cassandraConfiguration.getKeyspace(), cassandraTable.name() ) );
+                    .execute( QueryBuilder.select().all()
+                            .from( cassandraConfiguration.getKeyspace(), cassandraTable.name() ) );
             int count = 0;
             for ( Row row : rs ) {
                 UUID id = RowAdapters.id( row );
