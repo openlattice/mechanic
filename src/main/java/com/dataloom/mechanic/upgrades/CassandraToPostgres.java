@@ -27,6 +27,7 @@ import com.dataloom.edm.mapstores.EdmVersionMapstore;
 import com.dataloom.edm.schemas.mapstores.SchemaMapstore;
 import com.dataloom.hazelcast.HazelcastMap;
 import com.dataloom.hazelcast.pods.MapstoresPod;
+import com.dataloom.linking.mapstores.LinkedEntityTypesMapstore;
 import com.dataloom.streams.StreamUtil;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
@@ -56,6 +57,7 @@ import com.openlattice.postgres.mapstores.LinkedEntitySetsMapstore;
 import com.openlattice.postgres.mapstores.LinkingVerticesMapstore;
 import com.openlattice.postgres.mapstores.NamesMapstore;
 import com.openlattice.postgres.mapstores.SchemasMapstore;
+import com.openlattice.rhizome.hazelcast.DelegatedUUIDSet;
 import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Array;
 import java.sql.Connection;
@@ -85,7 +87,7 @@ public class CassandraToPostgres {
     @Inject private Session                  session;
     @Inject
     private         CassandraConfiguration   cassandraConfiguration;
-    @Inject private PostgresTableManager ptm;
+    @Inject private PostgresTableManager     ptm;
 
     public int migratePropertyTypes() throws SQLException {
         com.openlattice.postgres.mapstores.PropertyTypeMapstore ptm = new com.openlattice.postgres.mapstores.PropertyTypeMapstore(
@@ -93,19 +95,19 @@ public class CassandraToPostgres {
                 PostgresTable.PROPERTY_TYPES,
                 hds );
         logger.info( PostgresTable.IDS.createTableQuery() );
-//        logger.info( PostgresTable.ENTITY_TYPES.createTableQuery() );
+        //        logger.info( PostgresTable.ENTITY_TYPES.createTableQuery() );
         com.dataloom.edm.mapstores.PropertyTypeMapstore cptm = new com.dataloom.edm.mapstores.PropertyTypeMapstore(
                 session );
-        return simpleMigrate(  cptm, ptm, PostgresTable.PROPERTY_TYPES );
-//        int count = 0;
-//        Stopwatch w = Stopwatch.createStarted();
-//        for ( UUID id : cptm.loadAllKeys() ) {
-//            logger.info( "Migrating property type: {}", id );
-//            ptm.store( id, cptm.load( id ) );
-//            count++;
-//        }
-//        logger.info( "Migrated {} property types in {} ms", count, w.elapsed( TimeUnit.MILLISECONDS ) );
-//        return count;
+        return simpleMigrate( cptm, ptm, PostgresTable.PROPERTY_TYPES );
+        //        int count = 0;
+        //        Stopwatch w = Stopwatch.createStarted();
+        //        for ( UUID id : cptm.loadAllKeys() ) {
+        //            logger.info( "Migrating property type: {}", id );
+        //            ptm.store( id, cptm.load( id ) );
+        //            count++;
+        //        }
+        //        logger.info( "Migrated {} property types in {} ms", count, w.elapsed( TimeUnit.MILLISECONDS ) );
+        //        return count;
     }
 
     public int migratePermissions() throws SQLException {
@@ -130,10 +132,17 @@ public class CassandraToPostgres {
 
         int count = 0;
         Stopwatch w = Stopwatch.createStarted();
-        List<ListenableFuture<?>> futures = new ArrayList<>( 900000 );
+        List<ListenableFuture<?>> futures = new ArrayList<>( 1024 );
+        final int loadSize = 50000;
+        List<K> keys = new ArrayList<K>( 50000 );
         for ( K key : cMap.loadAllKeys() ) {
-            futures.add( executorService.submit( () -> pMap.store( key, cMap.load( key ) ) ) );
-            count++;
+            keys.add( key );
+            if ( keys.size() == 50000 ) {
+                List<K> keyCapture = keys;
+                futures.add( executorService.submit( () -> pMap.storeAll( cMap.loadAll( keyCapture ) ) ) );
+                count += keys.size();
+                keys = new ArrayList<K>( 50000 );
+            }
         }
         futures.forEach( StreamUtil::getUninterruptibly );
         logger.info( "{}: Migrated {} values in {} ms", pMap.getMapName(), count, w.elapsed( TimeUnit.MILLISECONDS ) );
@@ -307,6 +316,14 @@ public class CassandraToPostgres {
 
         PostgresEntityKeyIdsMapstore ekIds = new PostgresEntityKeyIdsMapstore( hds );
         return simpleMigrate( cMap, ekIds, PostgresTable.IDS );
+    }
+
+    public int migrateLinkedEntityTypes() throws SQLException {
+        SelfRegisteringMapStore<UUID, DelegatedUUIDSet> let = new LinkedEntityTypesMapstore( session );
+        com.openlattice.postgres.mapstores.LinkedEntityTypesMapstore pgMap =
+                new com.openlattice.postgres.mapstores.LinkedEntityTypesMapstore( hds );
+        return simpleMigrate( let, pgMap,PostgresTable.LINKED_ENTITY_TYPES );
+
     }
 
     public static String distributeOn( PostgresTableDefinition ptd ) {
