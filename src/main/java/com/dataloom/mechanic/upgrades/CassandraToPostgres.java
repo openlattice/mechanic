@@ -45,6 +45,7 @@ import com.openlattice.postgres.PostgresColumn;
 import com.openlattice.postgres.PostgresColumnDefinition;
 import com.openlattice.postgres.PostgresTable;
 import com.openlattice.postgres.PostgresTableDefinition;
+import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.AbstractBasePostgresMapstore;
 import com.openlattice.postgres.mapstores.AclKeysMapstore;
 import com.openlattice.postgres.mapstores.AssociationTypeMapstore;
@@ -84,13 +85,14 @@ public class CassandraToPostgres {
     @Inject private Session                  session;
     @Inject
     private         CassandraConfiguration   cassandraConfiguration;
+    @Inject private PostgresTableManager ptm;
 
     public int migratePropertyTypes() throws SQLException {
         com.openlattice.postgres.mapstores.PropertyTypeMapstore ptm = new com.openlattice.postgres.mapstores.PropertyTypeMapstore(
                 HazelcastMap.PROPERTY_TYPES.name(),
                 PostgresTable.PROPERTY_TYPES,
                 hds );
-//        logger.info( PostgresTable.PROPERTY_TYPES.createTableQuery() );
+        logger.info( PostgresTable.IDS.createTableQuery() );
 //        logger.info( PostgresTable.ENTITY_TYPES.createTableQuery() );
         com.dataloom.edm.mapstores.PropertyTypeMapstore cptm = new com.dataloom.edm.mapstores.PropertyTypeMapstore(
                 session );
@@ -118,9 +120,13 @@ public class CassandraToPostgres {
             SelfRegisteringMapStore<K, V> cMap,
             AbstractBasePostgresMapstore<K, V> pMap,
             PostgresTableDefinition table ) throws SQLException {
+        //Create distributed table first
         Connection conn = hds.getConnection();
         conn.createStatement().execute( table.createTableQuery() + distributeOn( table ) );
         conn.close();
+
+        //Will create indexes
+        ptm.registerTables( table );
 
         int count = 0;
         Stopwatch w = Stopwatch.createStarted();
