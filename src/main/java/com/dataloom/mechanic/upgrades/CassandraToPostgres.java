@@ -21,6 +21,9 @@
 package com.dataloom.mechanic.upgrades;
 
 import com.dataloom.authorization.AceKey;
+import com.dataloom.data.mapstores.EntityKeyIdsMapstore;
+import com.dataloom.data.mapstores.EntityKeysMapstore;
+import com.dataloom.data.mapstores.PostgresEntityKeyIdsMapstore;
 import com.dataloom.edm.EntitySet;
 import com.dataloom.edm.set.EntitySetPropertyKey;
 import com.dataloom.edm.set.EntitySetPropertyMetadata;
@@ -190,55 +193,6 @@ public class CassandraToPostgres {
         return simpleMigrate( cMap, pMap, PostgresTable.ASSOCIATION_TYPES );
     }
 
-    public int migrateRoles() throws SQLException {
-        PostgresTableDefinition postgresTable = PostgresTable.ROLES;
-        List<PostgresColumnDefinition> postgresColumns = ImmutableList.of(
-                PostgresColumn.ROLE_ID,
-                PostgresColumn.ORGANIZATION_ID,
-                PostgresColumn.NULLABLE_TITLE,
-                PostgresColumn.DESCRIPTION,
-                PostgresColumn.PRINCIPAL_IDS );
-        Table cassandraTable = Table.ROLES;
-        try (
-                Connection conn = hds.getConnection();
-                Statement createStmt = conn.createStatement();
-                PreparedStatement ps = conn
-                        .prepareStatement( postgresTable.insertQuery( Optional.empty(), postgresColumns ) )
-        ) {
-
-            createStmt.execute( postgresTable.createTableQuery() );
-
-            com.datastax.driver.core.ResultSet rs = session
-                    .execute( QueryBuilder.select().all()
-                            .from( cassandraConfiguration.getKeyspace(), cassandraTable.name() ) );
-            int count = 0;
-            for ( Row row : rs ) {
-                UUID id = RowAdapters.id( row );
-                UUID organizationId = RowAdapters.organizationId( row );
-                String title = RowAdapters.title( row );
-                String description = row.getString( CommonColumns.DESCRIPTION.cql() );
-                Set<String> users = row.getSet( CommonColumns.PRINCIPAL_IDS.cql(), String.class );
-
-                Array usersArr = PostgresArrays.createTextArray( ps.getConnection(), users.stream() );
-                ps.setObject( 1, id );
-                ps.setObject( 2, organizationId );
-                ps.setString( 3, title );
-                ps.setString( 4, description );
-                ps.setArray( 5, usersArr );
-
-                ps.execute();
-                count++;
-            }
-            ps.close();
-            conn.close();
-
-            return count;
-        } catch ( SQLException e ) {
-            logger.error( "Unable to migrate sync ids", e );
-            return 0;
-        }
-    }
-
     public int migrateSyncIds() throws SQLException {
         PostgresTableDefinition postgresTable = PostgresTable.SYNC_IDS;
         List<PostgresColumnDefinition> postgresColumns = ImmutableList.of(
@@ -343,5 +297,16 @@ public class CassandraToPostgres {
         EdmVersionsMapstore pMap = new EdmVersionsMapstore( hds );
         SelfRegisteringMapStore<String, UUID> cMap = mp.edmVersionMapstore();
         return simpleMigrate( cMap, pMap, PostgresTable.EDM_VERSIONS );
+    }
+
+    public int migrateEntityKeyIds() throws SQLException {
+        EntityKeysMapstore kcMap = new EntityKeysMapstore( HazelcastMap.KEYS.name(), session, Table.KEYS.getBuilder() );
+        EntityKeyIdsMapstore cMap = new EntityKeyIdsMapstore( kcMap,
+                HazelcastMap.IDS.name(),
+                session,
+                Table.IDS.getBuilder() );
+
+        PostgresEntityKeyIdsMapstore ekIds = new PostgresEntityKeyIdsMapstore( hds );
+        return simpleMigrate( cMap, ekIds, PostgresTable.IDS );
     }
 }

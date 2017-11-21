@@ -21,7 +21,6 @@ package com.dataloom.mechanic;
 
 import com.dataloom.hazelcast.pods.MapstoresPod;
 import com.dataloom.hazelcast.pods.SharedStreamSerializersPod;
-import com.dataloom.mechanic.benchmark.ReadBench;
 import com.dataloom.mechanic.pods.CassandraTablesPod;
 import com.dataloom.mechanic.pods.MechanicServicesPod;
 import com.dataloom.mechanic.pods.MechanicUpgradePod;
@@ -33,10 +32,8 @@ import com.kryptnostic.rhizome.pods.CassandraPod;
 import com.kryptnostic.rhizome.pods.hazelcast.RegistryBasedHazelcastInstanceConfigurationPod;
 import com.openlattice.jdbc.JdbcPod;
 import com.openlattice.postgres.PostgresPod;
-
 import java.sql.SQLException;
 import java.util.concurrent.ExecutionException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,12 +42,10 @@ import org.slf4j.LoggerFactory;
  */
 public class
 Mechanic extends RhizomeApplicationServer {
-    private static final Logger     logger      = LoggerFactory.getLogger( Mechanic.class );
-    public static final  Class<?>[] rhizomePods = new Class<?>[] {
+    public static final  Class<?>[] rhizomePods   = new Class<?>[] {
             CassandraPod.class,
             RegistryBasedHazelcastInstanceConfigurationPod.class };
-
-    public static final Class<?>[] conductorPods = new Class<?>[] {
+    public static final  Class<?>[] conductorPods = new Class<?>[] {
             TypeCodecsPod.class,
             CassandraPod.class,
             MapstoresPod.class,
@@ -61,9 +56,15 @@ Mechanic extends RhizomeApplicationServer {
             JdbcPod.class,
             PostgresPod.class
     };
+    private static final Logger     logger        = LoggerFactory.getLogger( Mechanic.class );
 
     public Mechanic() {
         super( RhizomeUtils.Pods.concatenate( RhizomeApplicationServer.DEFAULT_PODS, rhizomePods, conductorPods ) );
+    }
+
+    @Override
+    public void sprout( String... activeProfiles ) {
+        super.sprout( activeProfiles );
     }
 
     public static void main( String[] args ) throws InterruptedException, ExecutionException, SQLException {
@@ -72,35 +73,28 @@ Mechanic extends RhizomeApplicationServer {
 
         logger.info( "Starting upgrade!" );
         CassandraToPostgres cassandraToPostgres = mechanic.getContext().getBean( CassandraToPostgres.class );
-        //  int count = cassandraToPostgres.migratePropertyTypes();
-
-        //        int count = cassandraToPostgres.migrateAclKeys();
-        //        int count = cassandraToPostgres.migrateEntityTypes();
-        //        int count = cassandraToPostgres.migrateEntitySets();
-        //        int count = cassandraToPostgres.migrateSchemas();
-        //        int count = cassandraToPostgres.migrateNames();
-        //        int count = cassandraToPostgres.migrateLinkedEntitySets();
-        //        int count = cassandraToPostgres.migratelinkingVertices();
-        //        int count = cassandraToPostgres.migrateAssociationTypes();
-        //        int count = cassandraToPostgres.migrateEntitySetPropertyMetadata();
-        //        int count = cassandraToPostgres.migrateEdmVersionsMapstore();
-        //        int count = cassandraToPostgres.migrateSyncIds();
-        //        int count = cassandraToPostgres.migrateRoles();
-        //        int count = cassandraToPostgres.migrateOrganizations();
-
+        logger.info( "Migrated {} property types", cassandraToPostgres.migratePropertyTypes() );
+        logger.info( "Migrated {} acl keys.", cassandraToPostgres.migrateAclKeys() );
+        logger.info( "Migrated {} entity types", cassandraToPostgres.migrateEntityTypes() );
+        logger.info( "Migrated {} entity sets", cassandraToPostgres.migrateEntitySets() );
+        logger.info( "Migrated {} schemas", cassandraToPostgres.migrateSchemas() );
+        logger.info( "Migrated {} names", cassandraToPostgres.migrateNames() );
+        logger.info( "Migrated {} linked entity sets", cassandraToPostgres.migrateLinkedEntitySets() );
+        logger.info( "Migrated {} linking vertices", cassandraToPostgres.migratelinkingVertices() );
+        logger.info( "Migrated {} association types", cassandraToPostgres.migrateAssociationTypes() );
+        logger.info( "Migrated {} entity set property metadata", cassandraToPostgres.migrateEntitySetPropertyMetadata() );
+        logger.info( "Migrated {} edm versions mapstore", cassandraToPostgres.migrateEdmVersionsMapstore() );
+        logger.info( "Migrated {} sync ids", cassandraToPostgres.migrateSyncIds() );
+        logger.info( "Migrated {} organizations", cassandraToPostgres.migrateOrganizations() );
+        logger.info( "Migrated {} entity key ids", cassandraToPostgres.migrateEntityKeyIds());
         //cassandraToPostgres.migratePermissions();
         //long count = mechanic.getContext().getBean( ManualPartitionOfDataTable.class ).migrate();;
         //ReadBench readBench = mechanic.getContext().getBean( ReadBench.class );
         //readBench.benchmark();
 
-//        logger.info( "Upgrade complete! Migrated {} rows.", count );
+        logger.info( "Upgrade complete!" );
 
         mechanic.plowUnder();
-    }
-
-    @Override
-    public void sprout( String... activeProfiles ) {
-        super.sprout( activeProfiles );
     }
 
 }

@@ -20,23 +20,10 @@ hazelcast:
     seed-nodes: 
         - "localhost"
 
-spark:
-    appname: "Kryptnostic Spark Conductor"
-    port: 7077
-    master:
-        - "local[8]"
 
 hikari:
     jdbcUrl: jdbc:postgresql://localhost:5432/openlattice
-    #"jdbc:postgresql://wonderwoman.openlattice.com:30001,captainamerica.openlattice.com:30002/openlattice?ssl=true"
-    #dataSourceClassName: "org.postgresql.ds.PGSimpleDataSource"
     username: "mtamayo"
-    #username: "openlattice"
-    #password: "q6j>RgjfMm9fK7UAbDz"
-    #dataSource.ssl: true
-    #dataSource.sslMode: "verify-full"
-    #dataSource.user: "mtamayo"
-    #dataSource.databaseName: "openlattice"
     maximumPoolSize: 1
     #20 minutes
     connectionTimeout: 12000000
