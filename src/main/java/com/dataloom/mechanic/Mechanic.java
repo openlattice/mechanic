@@ -48,7 +48,7 @@ Mechanic extends RhizomeApplicationServer {
     public static final  Class<?>[] conductorPods = new Class<?>[] {
             TypeCodecsPod.class,
             CassandraPod.class,
-            MapstoresPod.class,
+            //MapstoresPod.class,
             SharedStreamSerializersPod.class,
             MechanicServicesPod.class,
             CassandraTablesPod.class,

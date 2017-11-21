@@ -24,6 +24,6 @@ hazelcast:
 hikari:
     jdbcUrl: jdbc:postgresql://localhost:5432/openlattice
     username: "mtamayo"
-    maximumPoolSize: 1
+    maximumPoolSize: 20
     #20 minutes
     connectionTimeout: 12000000
