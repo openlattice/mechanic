@@ -20,26 +20,13 @@
 
 package com.dataloom.mechanic.upgrades;
 
-import com.dataloom.authorization.AceKey;
-import com.dataloom.authorization.DelegatedPermissionEnumSet;
 import com.dataloom.data.mapstores.EntityKeyIdsMapstore;
 import com.dataloom.data.mapstores.EntityKeysMapstore;
 import com.dataloom.data.mapstores.PostgresEntityKeyIdsMapstore;
-
-import com.dataloom.edm.EntitySet;
 import com.dataloom.edm.mapstores.EdmVersionMapstore;
-import com.dataloom.edm.mapstores.EntityTypeMapstore;
-import com.dataloom.edm.mapstores.PropertyTypeMapstore;
 import com.dataloom.edm.schemas.mapstores.SchemaMapstore;
-import com.dataloom.edm.set.EntitySetPropertyKey;
-import com.dataloom.edm.set.EntitySetPropertyMetadata;
-import com.dataloom.edm.type.AssociationType;
-import com.dataloom.edm.type.EntityType;
-import com.dataloom.edm.type.PropertyType;
 import com.dataloom.hazelcast.HazelcastMap;
 import com.dataloom.hazelcast.pods.MapstoresPod;
-import com.dataloom.linking.LinkingVertex;
-import com.dataloom.linking.LinkingVertexKey;
 import com.dataloom.streams.StreamUtil;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
@@ -53,14 +40,9 @@ import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.cassandra.RowAdapters;
 import com.kryptnostic.rhizome.configuration.cassandra.CassandraConfiguration;
 import com.kryptnostic.rhizome.mapstores.SelfRegisteringMapStore;
-import com.openlattice.authorization.AceValue;
-import com.openlattice.authorization.mapstores.PermissionMapstore;
 import com.openlattice.postgres.PostgresArrays;
 import com.openlattice.postgres.PostgresColumn;
 import com.openlattice.postgres.PostgresColumnDefinition;
-import com.kryptnostic.rhizome.pods.CassandraPod;
-import com.openlattice.authorization.AceValue;
-
 import com.openlattice.postgres.PostgresTable;
 import com.openlattice.postgres.PostgresTableDefinition;
 import com.openlattice.postgres.mapstores.AbstractBasePostgresMapstore;
@@ -69,15 +51,9 @@ import com.openlattice.postgres.mapstores.AssociationTypeMapstore;
 import com.openlattice.postgres.mapstores.EdmVersionsMapstore;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
 import com.openlattice.postgres.mapstores.EntitySetPropertyMetadataMapstore;
-import com.openlattice.postgres.mapstores.EntityTypeMapstore;
 import com.openlattice.postgres.mapstores.LinkedEntitySetsMapstore;
 import com.openlattice.postgres.mapstores.LinkingVerticesMapstore;
 import com.openlattice.postgres.mapstores.NamesMapstore;
-import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
-import com.openlattice.postgres.mapstores.SchemasMapstore;
-import com.openlattice.rhizome.hazelcast.DelegatedStringSet;
-import com.openlattice.rhizome.hazelcast.DelegatedUUIDSet;
-import com.openlattice.postgres.mapstores.EntitySetMapstore;
 import com.openlattice.postgres.mapstores.SchemasMapstore;
 import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Array;
@@ -110,10 +86,12 @@ public class CassandraToPostgres {
     private         CassandraConfiguration   cassandraConfiguration;
 
     public int migratePropertyTypes() {
-        com.openlattice.postgres.mapstores.PropertyTypeMapstore ptm = new com.openlattice.postgres.mapstores.PropertyTypeMapstore( HazelcastMap.PROPERTY_TYPES.name(),
+        com.openlattice.postgres.mapstores.PropertyTypeMapstore ptm = new com.openlattice.postgres.mapstores.PropertyTypeMapstore(
+                HazelcastMap.PROPERTY_TYPES.name(),
                 PostgresTable.PROPERTY_TYPES,
                 hds );
-        com.dataloom.edm.mapstores.PropertyTypeMapstore cptm = new com.dataloom.edm.mapstores.PropertyTypeMapstore( session);
+        com.dataloom.edm.mapstores.PropertyTypeMapstore cptm = new com.dataloom.edm.mapstores.PropertyTypeMapstore(
+                session );
         int count = 0;
         Stopwatch w = Stopwatch.createStarted();
         for ( UUID id : cptm.loadAllKeys() ) {
@@ -126,8 +104,10 @@ public class CassandraToPostgres {
     }
 
     public int migratePermissions() throws SQLException {
-        com.openlattice.authorization.mapstores.PermissionMapstore ptm = new com.openlattice.authorization.mapstores.PermissionMapstore( hds );
-        com.dataloom.authorization.mapstores.PermissionMapstore cptm = new com.dataloom.authorization.mapstores.PermissionMapstore( session );
+        com.openlattice.authorization.mapstores.PermissionMapstore ptm = new com.openlattice.authorization.mapstores.PermissionMapstore(
+                hds );
+        com.dataloom.authorization.mapstores.PermissionMapstore cptm = new com.dataloom.authorization.mapstores.PermissionMapstore(
+                session );
         return simpleMigrate( cptm, ptm, PostgresTable.PERMISSIONS );
     }
 
@@ -184,19 +164,22 @@ public class CassandraToPostgres {
 
     public int migrateLinkedEntitySets() throws SQLException {
         LinkedEntitySetsMapstore pMap = new LinkedEntitySetsMapstore( hds );
-        com.dataloom.linking.mapstores.LinkedEntitySetsMapstore cMap = new com.dataloom.linking.mapstores.LinkedEntitySetsMapstore( session );
+        com.dataloom.linking.mapstores.LinkedEntitySetsMapstore cMap = new com.dataloom.linking.mapstores.LinkedEntitySetsMapstore(
+                session );
         return simpleMigrate( cMap, pMap, PostgresTable.LINKED_ENTITY_SETS );
     }
 
     public int migratelinkingVertices() throws SQLException {
         LinkingVerticesMapstore pMap = new LinkingVerticesMapstore( hds );
-        com.dataloom.linking.mapstores.LinkingVerticesMapstore cMap = new com.dataloom.linking.mapstores.LinkingVerticesMapstore( session );
+        com.dataloom.linking.mapstores.LinkingVerticesMapstore cMap = new com.dataloom.linking.mapstores.LinkingVerticesMapstore(
+                session );
         return simpleMigrate( cMap, pMap, PostgresTable.LINKING_VERTICES );
     }
 
     public int migrateAssociationTypes() throws SQLException {
         AssociationTypeMapstore pMap = new AssociationTypeMapstore( hds );
-        com.dataloom.edm.mapstores.AssociationTypeMapstore cMap = new com.dataloom.edm.mapstores.AssociationTypeMapstore( session );
+        com.dataloom.edm.mapstores.AssociationTypeMapstore cMap = new com.dataloom.edm.mapstores.AssociationTypeMapstore(
+                session );
         return simpleMigrate( cMap, pMap, PostgresTable.ASSOCIATION_TYPES );
     }
 
@@ -295,7 +278,8 @@ public class CassandraToPostgres {
 
     public int migrateEntitySetPropertyMetadata() throws SQLException {
         EntitySetPropertyMetadataMapstore pMap = new EntitySetPropertyMetadataMapstore( hds );
-        com.dataloom.edm.mapstores.EntitySetPropertyMetadataMapstore cMap = new com.dataloom.edm.mapstores.EntitySetPropertyMetadataMapstore( session );
+        com.dataloom.edm.mapstores.EntitySetPropertyMetadataMapstore cMap = new com.dataloom.edm.mapstores.EntitySetPropertyMetadataMapstore(
+                session );
         return simpleMigrate( cMap, pMap, PostgresTable.ENTITY_SET_PROPERTY_METADATA );
     }
 
