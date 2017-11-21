@@ -20,17 +20,16 @@
 package com.dataloom.mechanic.pods;
 
 import com.dataloom.authentication.LoomAuth0AuthenticationProvider;
-import com.dataloom.organizations.roles.TokenExpirationTracker;
+import com.dataloom.organizations.roles.SecurePrincipalsManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digital.loom.rhizome.authentication.Auth0SecurityPod;
 import digital.loom.rhizome.authentication.ConfigurableAuth0AuthenticationProvider;
+import javax.inject.Inject;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-
-import javax.inject.Inject;
 
 @Configuration
 @EnableGlobalMethodSecurity(
@@ -42,12 +41,11 @@ public class MechanicSecurityPod extends Auth0SecurityPod {
     @Inject
     ObjectMapper defaultObjectMapper;
 
-    @Inject
-    TokenExpirationTracker tokenTracker;
+    @Inject SecurePrincipalsManager spm;
 
     @Override
     protected ConfigurableAuth0AuthenticationProvider getAuthenticationProvider() {
-        return new LoomAuth0AuthenticationProvider( getAuthenticationApiClient(), tokenTracker );
+        return new LoomAuth0AuthenticationProvider( getAuthenticationApiClient(), spm );
     }
 
     @Override
