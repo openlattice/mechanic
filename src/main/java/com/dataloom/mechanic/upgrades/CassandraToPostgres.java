@@ -34,11 +34,15 @@ import com.dataloom.hazelcast.HazelcastMap;
 import com.dataloom.hazelcast.pods.MapstoresPod;
 import com.dataloom.linking.LinkingVertex;
 import com.dataloom.linking.LinkingVertexKey;
+import com.dataloom.streams.StreamUtil;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
 import com.kryptnostic.conductor.rpc.odata.Table;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.cassandra.RowAdapters;
@@ -71,6 +75,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -87,6 +92,7 @@ import org.slf4j.LoggerFactory;
 public class CassandraToPostgres {
     private static final Logger logger = LoggerFactory.getLogger( CassandraToPostgres.class );
 
+    @Inject private ListeningExecutorService executorService;
     @Inject private MapstoresPod           mp;
     @Inject private HikariDataSource       hds;
     @Inject private Session                session;
@@ -137,10 +143,12 @@ public class CassandraToPostgres {
 
         int count = 0;
         Stopwatch w = Stopwatch.createStarted();
+        List<ListenableFuture<?>> futures = new ArrayList<>(900000);
         for ( K key : cMap.loadAllKeys() ) {
-            pMap.store( key, cMap.load( key ) );
+            futures.add( executorService.submit( () -> pMap.store( key, cMap.load( key ) ) ) );
             count++;
         }
+        futures.forEach( StreamUtil::getUninterruptibly );
         logger.info( "{}: Migrated {} values in {} ms", pMap.getMapName(), count, w.elapsed( TimeUnit.MILLISECONDS ) );
         return count;
     }
