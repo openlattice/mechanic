@@ -123,30 +123,29 @@ public class CassandraToPostgres {
             AbstractBasePostgresMapstore<K, V> pMap,
             PostgresTableDefinition table ) throws SQLException {
         //Create distributed table first
-        Connection conn = hds.getConnection();
-        conn.createStatement().execute( table.createTableQuery() + distributeOn( table ) );
-        conn.close();
+        try ( Connection conn = hds.getConnection(); Statement st = conn.createStatement() ) {
+            st.execute( table.createTableQuery() + distributeOn( table ) );
 
-        //Will create indexes
-        ptm.registerTables( table );
+            //Will create indexes
+            ptm.registerTables( table );
 
-        int count = 0;
-        Stopwatch w = Stopwatch.createStarted();
-        List<ListenableFuture<?>> futures = new ArrayList<>( 1024 );
-        final int loadSize = 50000;
-        List<K> keys = new ArrayList<K>( 50000 );
-        for ( K key : cMap.loadAllKeys() ) {
-            keys.add( key );
-            if ( keys.size() == 50000 ) {
-                List<K> keyCapture = keys;
-                futures.add( executorService.submit( () -> pMap.storeAll( cMap.loadAll( keyCapture ) ) ) );
-                count += keys.size();
-                keys = new ArrayList<K>( 50000 );
+            int count = 0;
+            Stopwatch w = Stopwatch.createStarted();
+            List<ListenableFuture<?>> futures = new ArrayList<>( 1 << 24 );
+            for ( K key : cMap.loadAllKeys() ) {
+                futures.add( executorService.submit( () -> pMap.store( key, cMap.load( key ) ) ) );
+                count++;
             }
+            futures.forEach( StreamUtil::getUninterruptibly );
+            logger.info( "{}: Migrated {} values in {} ms",
+                    pMap.getMapName(),
+                    count,
+                    w.elapsed( TimeUnit.MILLISECONDS ) );
+            return count;
+        } catch ( SQLException ex ) {
+            logger.error( "Failed migrating {}", table, ex );
+            return 0;
         }
-        futures.forEach( StreamUtil::getUninterruptibly );
-        logger.info( "{}: Migrated {} values in {} ms", pMap.getMapName(), count, w.elapsed( TimeUnit.MILLISECONDS ) );
-        return count;
     }
 
     public int migrateEntityTypes() throws SQLException {
@@ -322,7 +321,7 @@ public class CassandraToPostgres {
         SelfRegisteringMapStore<UUID, DelegatedUUIDSet> let = new LinkedEntityTypesMapstore( session );
         com.openlattice.postgres.mapstores.LinkedEntityTypesMapstore pgMap =
                 new com.openlattice.postgres.mapstores.LinkedEntityTypesMapstore( hds );
-        return simpleMigrate( let, pgMap,PostgresTable.LINKED_ENTITY_TYPES );
+        return simpleMigrate( let, pgMap, PostgresTable.LINKED_ENTITY_TYPES );
 
     }
 
