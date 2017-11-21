@@ -40,7 +40,6 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.kryptnostic.conductor.rpc.odata.Table;
@@ -93,11 +92,11 @@ public class CassandraToPostgres {
     private static final Logger logger = LoggerFactory.getLogger( CassandraToPostgres.class );
 
     @Inject private ListeningExecutorService executorService;
-    @Inject private MapstoresPod           mp;
-    @Inject private HikariDataSource       hds;
-    @Inject private Session                session;
+    @Inject private MapstoresPod             mp;
+    @Inject private HikariDataSource         hds;
+    @Inject private Session                  session;
     @Inject
-    private         CassandraConfiguration cassandraConfiguration;
+    private         CassandraConfiguration   cassandraConfiguration;
 
     public int migratePropertyTypes() {
         PropertyTypeMapstore ptm = new PropertyTypeMapstore( HazelcastMap.PROPERTY_TYPES.name(),
@@ -138,12 +137,12 @@ public class CassandraToPostgres {
             AbstractBasePostgresMapstore<K, V> pMap,
             PostgresTableDefinition table ) throws SQLException {
         Connection conn = hds.getConnection();
-        conn.createStatement().execute( table.createTableQuery() );
+        conn.createStatement().execute( table.createTableQuery() + distributeOn( table ) );
         conn.close();
 
         int count = 0;
         Stopwatch w = Stopwatch.createStarted();
-        List<ListenableFuture<?>> futures = new ArrayList<>(900000);
+        List<ListenableFuture<?>> futures = new ArrayList<>( 900000 );
         for ( K key : cMap.loadAllKeys() ) {
             futures.add( executorService.submit( () -> pMap.store( key, cMap.load( key ) ) ) );
             count++;
@@ -316,5 +315,20 @@ public class CassandraToPostgres {
 
         PostgresEntityKeyIdsMapstore ekIds = new PostgresEntityKeyIdsMapstore( hds );
         return simpleMigrate( cMap, ekIds, PostgresTable.IDS );
+    }
+
+    public static String distributeOn( PostgresTableDefinition ptd ) {
+        for ( PostgresColumnDefinition pcd : PostgresTable.HASH_ON ) {
+            if ( ptd.getPrimaryKey().contains( pcd ) ) {
+                return " distribute by HASH(" + pcd.getName() + ")";
+            } else if ( ptd.getColumns().contains( pcd ) ) {
+                logger.warn( "Distributing on non-primary key column {} for table {}", pcd, ptd );
+                return " distribute by HASH(" + pcd.getName() + ")";
+            } else {
+                logger.warn( "Unable to find distribution column for table {}.", ptd );
+                return "";
+            }
+        }
+        return "";
     }
 }
