@@ -155,11 +155,14 @@ public class CassandraToPostgres {
     public int migrateSecurableObjectTypes() {
         ResultSet rs = session.execute( "select distinct acl_keys, securable_object_type from sparks.permissions;" );
         SecurableObjectTypeMapstore sotm = new SecurableObjectTypeMapstore( hds );
+        int count = 0;
         for ( Row row : rs ) {
             AclKey aclKey = new AclKey( row.getList( "acl_keys", UUID.class ) );
             SecurableObjectType objectType = RowAdapters.securableObjectType( row );
             sotm.store( aclKey, objectType );
+            count++;
         }
+        return count;
     }
 
     public int migrateEntityTypes() throws SQLException {
