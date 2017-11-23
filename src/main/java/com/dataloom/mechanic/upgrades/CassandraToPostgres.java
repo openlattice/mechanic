@@ -20,6 +20,7 @@
 
 package com.dataloom.mechanic.upgrades;
 
+import com.dataloom.authorization.securable.SecurableObjectType;
 import com.dataloom.data.mapstores.EntityKeyIdsMapstore;
 import com.dataloom.data.mapstores.EntityKeysMapstore;
 import com.dataloom.data.mapstores.PostgresEntityKeyIdsMapstore;
@@ -29,6 +30,7 @@ import com.dataloom.hazelcast.HazelcastMap;
 import com.dataloom.hazelcast.pods.MapstoresPod;
 import com.dataloom.linking.mapstores.LinkedEntityTypesMapstore;
 import com.dataloom.streams.StreamUtil;
+import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
@@ -41,6 +43,7 @@ import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.cassandra.RowAdapters;
 import com.kryptnostic.rhizome.configuration.cassandra.CassandraConfiguration;
 import com.kryptnostic.rhizome.mapstores.SelfRegisteringMapStore;
+import com.openlattice.authorization.AclKey;
 import com.openlattice.postgres.PostgresArrays;
 import com.openlattice.postgres.PostgresColumn;
 import com.openlattice.postgres.PostgresColumnDefinition;
@@ -57,6 +60,7 @@ import com.openlattice.postgres.mapstores.LinkedEntitySetsMapstore;
 import com.openlattice.postgres.mapstores.LinkingVerticesMapstore;
 import com.openlattice.postgres.mapstores.NamesMapstore;
 import com.openlattice.postgres.mapstores.SchemasMapstore;
+import com.openlattice.postgres.mapstores.SecurableObjectTypeMapstore;
 import com.openlattice.rhizome.hazelcast.DelegatedUUIDSet;
 import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Array;
@@ -145,6 +149,16 @@ public class CassandraToPostgres {
         } catch ( SQLException ex ) {
             logger.error( "Failed migrating {}", table, ex );
             return 0;
+        }
+    }
+
+    public int migrateSecurableObjectTypes() {
+        ResultSet rs = session.execute( "select distinct acl_keys, securable_object_type from sparks.permissions;" );
+        SecurableObjectTypeMapstore sotm = new SecurableObjectTypeMapstore( hds );
+        for ( Row row : rs ) {
+            AclKey aclKey = new AclKey( row.getList( "acl_keys", UUID.class ) );
+            SecurableObjectType objectType = RowAdapters.securableObjectType( row );
+            sotm.store( aclKey, objectType );
         }
     }
 
