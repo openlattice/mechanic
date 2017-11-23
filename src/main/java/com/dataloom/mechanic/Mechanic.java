@@ -75,25 +75,25 @@ Mechanic extends RhizomeApplicationServer {
         CassandraToPostgres cassandraToPostgres = mechanic.getContext().getBean( CassandraToPostgres.class );
 
         //CORE
-//        logger.info( "Migrated {} property types", cassandraToPostgres.migratePropertyTypes() );
-//        logger.info( "Migrated {} acl keys.", cassandraToPostgres.migrateAclKeys() );
-//        logger.info( "Migrated {} entity types", cassandraToPostgres.migrateEntityTypes() );
-//        logger.info( "Migrated {} names", cassandraToPostgres.migrateNames() );
-//        logger.info( "Migrated {} association types", cassandraToPostgres.migrateAssociationTypes() );
-//        logger.info( "Migrated {} entity set property metadata",
-//                cassandraToPostgres.migrateEntitySetPropertyMetadata() );
-//        logger.info( "Migrated {} linked entity types", cassandraToPostgres.migratePermissions() );
-//        logger.info( "Migrated {} entity key ids", cassandraToPostgres.migrateEntityKeyIds() );
-//        logger.info( "Migrated {} entity sets", cassandraToPostgres.migrateEntitySets() );
-//        logger.info( "Migrated {} sync ids", cassandraToPostgres.migrateSyncIds() );
-//        logger.info( "Migrated {} organizations", cassandraToPostgres.migrateOrganizations() );
+        logger.info( "Migrated {} property types", cassandraToPostgres.migratePropertyTypes() );
+        logger.info( "Migrated {} acl keys.", cassandraToPostgres.migrateAclKeys() );
+        logger.info( "Migrated {} entity types", cassandraToPostgres.migrateEntityTypes() );
+        logger.info( "Migrated {} names", cassandraToPostgres.migrateNames() );
+        logger.info( "Migrated {} association types", cassandraToPostgres.migrateAssociationTypes() );
+        logger.info( "Migrated {} entity set property metadata",
+                cassandraToPostgres.migrateEntitySetPropertyMetadata() );
+        logger.info( "Migrated {} linked entity types", cassandraToPostgres.migratePermissions() );
+        //        logger.info( "Migrated {} entity key ids", cassandraToPostgres.migrateEntityKeyIds() );
+        logger.info( "Migrated {} entity sets", cassandraToPostgres.migrateEntitySets() );
+        logger.info( "Migrated {} sync ids", cassandraToPostgres.migrateSyncIds() );
+        logger.info( "Migrated {} organizations", cassandraToPostgres.migrateOrganizations() );
         logger.info( "Migrated {} securable object types", cassandraToPostgres.migrateSecurableObjectTypes() );
         //Secondary
-        //        logger.info( "Migrated {} schemas", cassandraToPostgres.migrateSchemas() );
-        //        logger.info( "Migrated {} linked entity sets", cassandraToPostgres.migrateLinkedEntitySets() );
-        //        logger.info( "Migrated {} linking vertices", cassandraToPostgres.migratelinkingVertices() );
+        logger.info( "Migrated {} schemas", cassandraToPostgres.migrateSchemas() );
+        logger.info( "Migrated {} linked entity sets", cassandraToPostgres.migrateLinkedEntitySets() );
+        logger.info( "Migrated {} linking vertices", cassandraToPostgres.migratelinkingVertices() );
         //        logger.info( "Migrated {} edm versions mapstore", cassandraToPostgres.migrateEdmVersionsMapstore() );
-        //        logger.info( "Migrated {} linked entity types", cassandraToPostgres.migrateLinkedEntityTypes() );
+        logger.info( "Migrated {} linked entity types", cassandraToPostgres.migrateLinkedEntityTypes() );
         //cassandraToPostgres.migratePermissions();
         //long count = mechanic.getContext().getBean( ManualPartitionOfDataTable.class ).migrate();;
         //ReadBench readBench = mechanic.getContext().getBean( ReadBench.class );
