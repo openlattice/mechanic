@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017. Kryptnostic, Inc (dba Loom)
+ * Copyright (C) 2017. OpenLattice, Inc
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * You can contact the owner of the copyright at support@thedataloom.com
+ * You can contact the owner of the copyright at support@openlattice.com
  */
 
 plugins {
@@ -97,10 +97,11 @@ dependencies {
         compile project(":courier")
     } else {
         logger.quiet(project.name + " using jar dependencies.")
-        compile "com.kryptnostic:rhizome:${rhizome_version}"
-        compile "com.kryptnostic:conductor-client:${conductor_client_version}"
         compile "com.kryptnostic:kindling:${kindling_version}"
         compile "com.kryptnostic:courier:${courier_version}"
+
+        compile "com.openlattice:conductor-client:${conductor_client_version}"
+        compile "com.openlattice:rhizome:${rhizome_version}"
     }
     /*
      * TESTING
@@ -122,4 +123,4 @@ eclipse {
     ext.targetCompatibility=JavaVersion.VERSION_1_8
 }
 
-eclipse.classpath.plusConfigurations += [configurations.provided] 
+eclipse.classpath.plusConfigurations += [configurations.provided]
