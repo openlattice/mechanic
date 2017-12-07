@@ -33,7 +33,7 @@ ext.scmUrl = 'scm:git:https://github.com/dataloom/mechanic.git'
 ext.connectionUrl = 'scm:git:https://github.com/dataloom/mechanic.git'
 ext.developerConnectionUrl = 'scm:git:https://github.com/dataloom/mechanic.git'
 
-apply from: "https://raw.githubusercontent.com/kryptnostic/gradles/master/kryptnostic.gradle"
+apply from: "https://raw.githubusercontent.com/openlattice/gradles/master/openlattice.gradle"
 
 mainClassName = "com.dataloom.mechanic.Mechanic"
 
@@ -97,10 +97,11 @@ dependencies {
         compile project(":courier")
     } else {
         logger.quiet(project.name + " using jar dependencies.")
-        compile "com.kryptnostic:rhizome:${rhizome_version}"
-        compile "com.kryptnostic:conductor-client:${conductor_client_version}"
         compile "com.kryptnostic:kindling:${kindling_version}"
         compile "com.kryptnostic:courier:${courier_version}"
+
+        compile "com.openlattice:conductor-client:${conductor_client_version}"
+        compile "com.openlattice:rhizome:${rhizome_version}"
     }
     /*
      * TESTING
@@ -122,4 +123,4 @@ eclipse {
     ext.targetCompatibility=JavaVersion.VERSION_1_8
 }
 
-eclipse.classpath.plusConfigurations += [configurations.provided] 
+eclipse.classpath.plusConfigurations += [configurations.provided]
