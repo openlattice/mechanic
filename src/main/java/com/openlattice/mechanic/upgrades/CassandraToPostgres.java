@@ -18,9 +18,10 @@
  *
  */
 
-package com.dataloom.mechanic.upgrades;
+package com.openlattice.mechanic.upgrades;
 
-import com.dataloom.authorization.securable.SecurableObjectType;
+import com.openlattice.authorization.mapstores.CassandraPermissionMapstore;
+import com.openlattice.authorization.securable.SecurableObjectType;
 import com.dataloom.data.mapstores.EntityKeyIdsMapstore;
 import com.dataloom.data.mapstores.EntityKeysMapstore;
 import com.dataloom.data.mapstores.PostgresEntityKeyIdsMapstore;
@@ -38,9 +39,9 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.kryptnostic.conductor.rpc.odata.Table;
-import com.kryptnostic.datastore.cassandra.CommonColumns;
-import com.kryptnostic.datastore.cassandra.RowAdapters;
+import com.openlattice.conductor.codecs.odata.Table;
+import com.openlattice.datastore.cassandra.CommonColumns;
+import com.openlattice.datastore.cassandra.RowAdapters;
 import com.kryptnostic.rhizome.configuration.cassandra.CassandraConfiguration;
 import com.kryptnostic.rhizome.mapstores.SelfRegisteringMapStore;
 import com.openlattice.authorization.AclKey;
@@ -117,7 +118,7 @@ public class CassandraToPostgres {
     public int migratePermissions() throws SQLException {
         com.openlattice.authorization.mapstores.PermissionMapstore ptm = new com.openlattice.authorization.mapstores.PermissionMapstore(
                 hds );
-        com.dataloom.authorization.mapstores.PermissionMapstore cptm = new com.dataloom.authorization.mapstores.PermissionMapstore(
+        CassandraPermissionMapstore cptm = new CassandraPermissionMapstore(
                 session );
         return simpleMigrate( cptm, ptm, PostgresTable.PERMISSIONS );
     }

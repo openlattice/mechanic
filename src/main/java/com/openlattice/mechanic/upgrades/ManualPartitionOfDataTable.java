@@ -18,7 +18,7 @@
  *
  */
 
-package com.dataloom.mechanic.upgrades;
+package com.openlattice.mechanic.upgrades;
 
 import com.dataloom.streams.StreamUtil;
 import com.datastax.driver.core.BoundStatement;
@@ -35,9 +35,9 @@ import com.google.common.collect.Sets;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.kryptnostic.conductor.rpc.odata.Table;
-import com.kryptnostic.datastore.cassandra.CommonColumns;
-import com.kryptnostic.datastore.cassandra.RowAdapters;
+import com.openlattice.conductor.codecs.odata.Table;
+import com.openlattice.datastore.cassandra.CommonColumns;
+import com.openlattice.datastore.cassandra.RowAdapters;
 import java.nio.ByteBuffer;
 import java.util.Set;
 import java.util.UUID;

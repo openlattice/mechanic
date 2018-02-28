@@ -18,38 +18,20 @@
  *
  */
 
-package com.dataloom.mechanic.benchmark;
-
-import static com.kryptnostic.datastore.cassandra.CommonColumns.SYNCID;
-
-import com.dataloom.data.DatasourceManager;
-import com.dataloom.data.mapstores.DataMapstore;
-import com.dataloom.data.storage.CassandraEntityDatastore;
-import com.dataloom.streams.StreamUtil;
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.ResultSetFuture;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
-import com.google.common.base.Stopwatch;
-import com.kryptnostic.datastore.cassandra.CommonColumns;
-import com.kryptnostic.datastore.cassandra.RowAdapters;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+package com.openlattice.mechanic.benchmark;
 
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
 public class ReadBench {
 //    private static Logger logger = LoggerFactory.getLogger( ReadBench.class );
-//    private final CassandraEntityDatastore ceds;
+//    private final HazelcastEntityDatastore ceds;
 //    private final DatasourceManager        dm;
 //    private final Session                  session;
 //    private final PreparedStatement        readEntityKeysForEntitySetQuery;
 //    private final PreparedStatement        readAll;
 //
-//    public ReadBench( Session session, CassandraEntityDatastore ceds, DatasourceManager dm ) {
+//    public ReadBench( Session session, HazelcastEntityDatastore ceds, DatasourceManager dm ) {
 //        this.session = session;
 //        this.ceds = ceds;
 //        this.dm = dm;

@@ -18,17 +18,13 @@
  *
  */
 
-package com.dataloom.mechanic.integrity;
+package com.openlattice.mechanic.integrity;
 
-import com.dataloom.edm.EntitySet;
-import com.dataloom.edm.type.PropertyType;
+import com.openlattice.edm.type.PropertyType;
 import com.dataloom.hazelcast.pods.MapstoresPod;
-import com.datastax.driver.core.Session;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.kryptnostic.rhizome.configuration.cassandra.CassandraConfiguration;
 import com.kryptnostic.rhizome.mapstores.SelfRegisteringMapStore;
 import com.openlattice.postgres.PostgresTableManager;
-import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
 import com.zaxxer.hikari.HikariDataSource;
 import java.util.UUID;
 import javax.inject.Inject;

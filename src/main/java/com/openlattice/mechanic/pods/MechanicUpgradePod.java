@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017. Kryptnostic, Inc (dba Loom)
+ * Copyright (C) 2018. OpenLattice, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,22 +14,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * You can contact the owner of the copyright at support@thedataloom.com
+ * You can contact the owner of the copyright at support@openlattice.com
+ *
  */
 
-package com.dataloom.mechanic.pods;
+package com.openlattice.mechanic.pods;
 
-import com.kryptnostic.conductor.rpc.odata.Table;
-import com.kryptnostic.rhizome.configuration.cassandra.TableDefSource;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import com.google.common.eventbus.EventBus;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import javax.inject.Inject;
 
-import java.util.Arrays;
+/**
+ * @author Matthew Tamayo-Rios &lt;matthew@kryptnostic.com&gt;
+ */
+public class MechanicUpgradePod {
 
-@Configuration
-public class CassandraTablesPod {
-    @Bean
-    public TableDefSource loomTables() {
-        return () -> Arrays.asList( Table.values() ).stream().map( Table::asTableDef );
-    }
+    @Inject
+    private ListeningExecutorService executor;
+
+    @Inject
+    private EventBus eventBus;
+
+
+
 }
