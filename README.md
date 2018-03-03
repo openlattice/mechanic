@@ -1,2 +1,2 @@
 # mechanic
-Upgrade internal data models, tune operations, and perform integrity checks.
+Responsibl for upgrades, tuning, and integrity checks.
