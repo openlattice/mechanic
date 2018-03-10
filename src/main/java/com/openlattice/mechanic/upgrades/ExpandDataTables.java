@@ -23,18 +23,23 @@ package com.openlattice.mechanic.upgrades;
 
 import com.dataloom.mappers.ObjectMappers;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.openlattice.data.EntityDataMetadata;
+import com.openlattice.data.PropertyMetadata;
 import com.openlattice.data.hazelcast.DataKey;
-import com.openlattice.data.mapstores.DataMapstore;
+import com.openlattice.data.mapstores.PostgresDataMapstore;
 import com.openlattice.datastore.cassandra.CassandraSerDesFactory;
-import com.openlattice.datastore.services.EdmService;
 import com.openlattice.edm.EntitySet;
 import com.openlattice.edm.PostgresEdmManager;
 import com.openlattice.edm.type.EntityType;
 import com.openlattice.edm.type.PropertyType;
+import com.openlattice.postgres.mapstores.EntitySetMapstore;
+import com.openlattice.postgres.mapstores.EntityTypeMapstore;
+import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
 import com.openlattice.postgres.mapstores.data.DataMapstoreProxy;
 import com.openlattice.postgres.mapstores.data.EntityDataMapstore;
 import com.openlattice.postgres.mapstores.data.PropertyDataMapstore;
+import com.zaxxer.hikari.HikariDataSource;
 import java.nio.ByteBuffer;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
@@ -48,36 +53,54 @@ import org.slf4j.LoggerFactory;
  */
 public class ExpandDataTables {
     private static final Logger logger = LoggerFactory.getLogger( ExpandDataTables.class );
-    private final DataMapstore       dataMapstore;
-    private final DataMapstoreProxy  dmProxy;
-    private final PostgresEdmManager pgEdmManager;
-    private final EdmService         edm;
+    private final PostgresDataMapstore dataMapstore;
+    private final DataMapstoreProxy    dmProxy;
+    private final PostgresEdmManager   pgEdmManager;
+    private final PropertyTypeMapstore ptm;
+    private final EntityTypeMapstore   etm;
+    private final EntitySetMapstore    esm;
 
     public ExpandDataTables(
-            DataMapstore dataMapstore,
-            DataMapstoreProxy dmProxy, PostgresEdmManager pgEdmManager,
-            EdmService edm ) {
+            PostgresDataMapstore dataMapstore,
+            DataMapstoreProxy dmProxy,
+            PostgresEdmManager pgEdmManager,
+            PropertyTypeMapstore ptm, EntityTypeMapstore etm, EntitySetMapstore esm ) {
         this.dataMapstore = dataMapstore;
         this.dmProxy = dmProxy;
         this.pgEdmManager = pgEdmManager;
-        this.edm = edm;
+        this.ptm = ptm;
+        this.etm = etm;
+        this.esm = esm;
     }
 
-    public void clearTables() {
-
-    }
-
-    public void migrateEdm() throws SQLException {
-        logger.info( "Starting creation of edm tables."
-        for ( EntitySet es : edm.getEntitySets() ) {
-            EntityType et = edm.getEntityType( es.getEntityTypeId() );
-            final Collection<PropertyType> propertyTypes = edm.getPropertyTypes( et.getProperties() );
-            pgEdmManager.createEntitySet( es, propertyTypes );
+    public void migrateEdm() {
+        logger.info( "Starting creation of edm tables." );
+        for ( EntitySet es : esm.loadAll( Lists.newArrayList( esm.loadAllKeys() ) ).values() ) {
+            logger.info( "Starting table creation for entity set: ", es.getName() );
+            EntityType et = etm.load( es.getEntityTypeId() );
+            final Collection<PropertyType> propertyTypes = ptm.loadAll( et.getProperties() ).values();
+            try {
+                logger.info( "Deleting entity set tables for entity set {}.", es.getName() );
+                pgEdmManager.deleteEntitySet( es, propertyTypes );
+                logger.info( "Creating entity set tables for entity set {}.", es.getName() );
+                pgEdmManager.createEntitySet( es, propertyTypes );
+            } catch ( SQLException e ) {
+                logger.error( "Failed to create tables for entity set {}.", es, e );
+            }
+            logger.info( "Finished with table creation for entity set: {}", es.getName() );
         }
+        logger.info("Finished creation of edm tables");
     }
 
     public void migrate() {
+        migrateEdm();
+        PropertyMetadata pm = PropertyMetadata.newPropertyMetadata( OffsetDateTime.now() );
+        logger.info( "Starting migration of data keys." );
+        long count = 0;
         for ( DataKey dataKey : dataMapstore.loadAllKeys() ) {
+            if ( ( ( ++count ) % 10000 ) == 0 ) {
+                logger.info( "Migrated {} keys.", count );
+            }
             EntityDataMapstore entityDataMapstore = dmProxy.getMapstore( dataKey.getEntitySetId() );
             PropertyDataMapstore pdm = dmProxy
                     .getPropertyMapstore( dataKey.getEntitySetId(), dataKey.getPropertyTypeId() );
@@ -86,9 +109,11 @@ public class ExpandDataTables {
             ByteBuffer buffer = dataMapstore.load( dataKey );
             Object obj = CassandraSerDesFactory.deserializeValue( ObjectMappers.getJsonMapper(),
                     buffer,
-                    edm.getPropertyType( dataKey.getPropertyTypeId() ).getDatatype(),
+                    ptm.load( dataKey.getPropertyTypeId() ).getDatatype(),
                     dataKey.getEntityId() );
-            pdm.store( entityKeyId, ImmutableMap.of() );
+
+            pdm.store( entityKeyId, ImmutableMap.of( obj, pm ) );
         }
+        logger.info( "Finish migration of data keys." );
     }
 }
