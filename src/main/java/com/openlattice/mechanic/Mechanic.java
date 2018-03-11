@@ -20,46 +20,79 @@
 
 package com.openlattice.mechanic;
 
-import com.kryptnostic.rhizome.core.RhizomeApplicationServer;
+import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles;
+import com.kryptnostic.rhizome.core.Rhizome;
+import com.kryptnostic.rhizome.pods.AsyncPod;
+import com.kryptnostic.rhizome.pods.ConfigurationPod;
+import com.kryptnostic.rhizome.startup.Requirement;
 import com.openlattice.auth0.Auth0Pod;
 import com.openlattice.hazelcast.pods.MapstoresPod;
 import com.openlattice.jdbc.JdbcPod;
 import com.openlattice.mechanic.pods.MechanicUpgradePod;
+import com.openlattice.mechanic.upgrades.ExpandDataTables;
 import com.openlattice.postgres.PostgresPod;
 import java.sql.SQLException;
 import java.util.concurrent.ExecutionException;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
 public class
-Mechanic extends RhizomeApplicationServer {
-    public static final  Class<?>[] conductorPods = new Class<?>[] {
+Mechanic {
+    private static final Class<?>[]                         mechanicPods = new Class<?>[] {
             Auth0Pod.class,
             JdbcPod.class,
             PostgresPod.class,
             MapstoresPod.class,
-            MechanicUpgradePod.class
+            MechanicUpgradePod.class,
+            AsyncPod.class,
+            ConfigurationPod.class
     };
-    private static final Logger     logger        = LoggerFactory.getLogger( Mechanic.class );
+    private static final Logger                             logger       = LoggerFactory.getLogger( Mechanic.class );
+    private final        AnnotationConfigApplicationContext context      = new AnnotationConfigApplicationContext();
 
     public Mechanic() {
-        super( conductorPods );
+        this.context.register( mechanicPods );
     }
 
-    @Override
     public void sprout( String... activeProfiles ) {
-        super.sprout( activeProfiles );
+        boolean awsProfile = false;
+        boolean localProfile = false;
+        for ( String profile : activeProfiles ) {
+            if ( StringUtils.equals( Profiles.AWS_CONFIGURATION_PROFILE, profile ) ) {
+                awsProfile = true;
+            }
+
+            if ( StringUtils.equals( Profiles.LOCAL_CONFIGURATION_PROFILE, profile ) ) {
+                localProfile = true;
+            }
+
+            context.getEnvironment().addActiveProfile( profile );
+        }
+
+        if ( !awsProfile && !localProfile ) {
+            context.getEnvironment().addActiveProfile( Profiles.LOCAL_CONFIGURATION_PROFILE );
+        }
+
+        /*if ( additionalPods.size() > 0 ) {
+            context.register( additionalPods.toArray( new Class<?>[] {} ) );
+        }*/
+        context.refresh();
+
+        if ( context.isRunning() && startupRequirementsSatisfied( context ) ) {
+            Rhizome.showBanner();
+        }
     }
 
     public static void main( String[] args ) throws InterruptedException, ExecutionException, SQLException {
         Mechanic mechanic = new Mechanic();
         mechanic.sprout( args );
-
-        logger.info( "Starting upgrade!" );
-        //mechanic.getContext().getBean(  )
+        ExpandDataTables expander = mechanic.context.getBean( ExpandDataTables.class );
+        expander.migrate();
 
         //        CassandraToPostgres cassandraToPostgres = mechanic.getContext().getBean( CassandraToPostgres.class );
 
@@ -89,8 +122,13 @@ Mechanic extends RhizomeApplicationServer {
         //readBench.benchmark();
 
         logger.info( "Upgrade complete!" );
-
-        mechanic.plowUnder();
+        mechanic.context.close();
     }
 
+    public static boolean startupRequirementsSatisfied( AnnotationConfigApplicationContext context ) {
+        return context.getBeansOfType( Requirement.class )
+                .values()
+                .parallelStream()
+                .allMatch( Requirement::isSatisfied );
+    }
 }

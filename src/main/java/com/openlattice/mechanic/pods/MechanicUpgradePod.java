@@ -22,7 +22,20 @@ package com.openlattice.mechanic.pods;
 
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.openlattice.data.mapstores.PostgresDataMapstore;
+import com.openlattice.edm.PostgresEdmManager;
+import com.openlattice.hazelcast.pods.MapstoresPod;
+import com.openlattice.mechanic.upgrades.ExpandDataTables;
+import com.openlattice.postgres.PostgresTableManager;
+import com.openlattice.postgres.mapstores.EntitySetMapstore;
+import com.openlattice.postgres.mapstores.EntityTypeMapstore;
+import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
+import com.openlattice.postgres.mapstores.data.DataMapstoreProxy;
+import com.zaxxer.hikari.HikariDataSource;
+import java.sql.SQLException;
 import javax.inject.Inject;
+import org.jdbi.v3.core.Jdbi;
+import org.springframework.context.annotation.Bean;
 
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
@@ -30,11 +43,31 @@ import javax.inject.Inject;
 public class MechanicUpgradePod {
 
     @Inject
+    HikariDataSource hikariDataSource;
+
+    @Inject
     private ListeningExecutorService executor;
 
     @Inject
     private EventBus eventBus;
 
+    @Inject
+    private MapstoresPod mapstoresPod;
 
+    @Bean
+    public Jdbi jdbi() {
+        return Jdbi.create( hikariDataSource );
+    }
+
+    @Bean
+    public ExpandDataTables edt() throws SQLException {
+        return new ExpandDataTables(
+                (PostgresDataMapstore) mapstoresPod.dataMapstore(),
+                (DataMapstoreProxy) mapstoresPod.entityDataMapstore(),
+                new PostgresEdmManager( new PostgresTableManager( hikariDataSource ), hikariDataSource ),
+                (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
+                (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
+                (EntitySetMapstore) mapstoresPod.entitySetMapstore() );
+    }
 
 }
