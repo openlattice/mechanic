@@ -22,11 +22,11 @@
 package com.openlattice.mechanic.upgrades;
 
 import com.dataloom.mappers.ObjectMappers;
+import com.dataloom.streams.StreamUtil;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.openlattice.data.EntityDataMetadata;
 import com.openlattice.data.PropertyMetadata;
-import com.openlattice.data.hazelcast.DataKey;
 import com.openlattice.data.mapstores.PostgresDataMapstore;
 import com.openlattice.datastore.cassandra.CassandraSerDesFactory;
 import com.openlattice.edm.EntitySet;
@@ -39,12 +39,13 @@ import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
 import com.openlattice.postgres.mapstores.data.DataMapstoreProxy;
 import com.openlattice.postgres.mapstores.data.EntityDataMapstore;
 import com.openlattice.postgres.mapstores.data.PropertyDataMapstore;
-import com.zaxxer.hikari.HikariDataSource;
 import java.nio.ByteBuffer;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
+import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +54,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ExpandDataTables {
     private static final Logger logger = LoggerFactory.getLogger( ExpandDataTables.class );
+    private static final UUID complaintNumberPropertyTypeId = UUID.fromString( "998bc748-4f40-4f5d-98ed-91ac4dab28a1" );
     private final PostgresDataMapstore dataMapstore;
     private final DataMapstoreProxy    dmProxy;
     private final PostgresEdmManager   pgEdmManager;
@@ -89,31 +91,42 @@ public class ExpandDataTables {
             }
             logger.info( "Finished with table creation for entity set: {}", es.getName() );
         }
-        logger.info("Finished creation of edm tables");
+        logger.info( "Finished creation of edm tables" );
     }
 
     public void migrate() {
         migrateEdm();
         PropertyMetadata pm = PropertyMetadata.newPropertyMetadata( OffsetDateTime.now() );
         logger.info( "Starting migration of data keys." );
-        long count = 0;
-        for ( DataKey dataKey : dataMapstore.loadAllKeys() ) {
-            if ( ( ( ++count ) % 10000 ) == 0 ) {
-                logger.info( "Migrated {} keys.", count );
-            }
-            EntityDataMapstore entityDataMapstore = dmProxy.getMapstore( dataKey.getEntitySetId() );
-            PropertyDataMapstore pdm = dmProxy
-                    .getPropertyMapstore( dataKey.getEntitySetId(), dataKey.getPropertyTypeId() );
-            UUID entityKeyId = dataKey.getId();
-            entityDataMapstore.store( entityKeyId, EntityDataMetadata.newEntityDataMetadata( OffsetDateTime.now() ) );
-            ByteBuffer buffer = dataMapstore.load( dataKey );
-            Object obj = CassandraSerDesFactory.deserializeValue( ObjectMappers.getJsonMapper(),
-                    buffer,
-                    ptm.load( dataKey.getPropertyTypeId() ).getDatatype(),
-                    dataKey.getEntityId() );
-
-            pdm.store( entityKeyId, ImmutableMap.of( obj, pm ) );
-        }
+        final AtomicLong count = new AtomicLong( 0 );
+        StreamUtil.stream( dataMapstore.loadAllKeys() )
+                .parallel()
+                .forEach( dataKey -> {
+                    if ( ( count.incrementAndGet() % 10000 ) == 0 ) {
+                        logger.info( "Migrated {} keys.", count );
+                    }
+                    EntityDataMapstore entityDataMapstore = dmProxy.getMapstore( dataKey.getEntitySetId() );
+                    PropertyDataMapstore pdm = dmProxy
+                            .getPropertyMapstore( dataKey.getEntitySetId(), dataKey.getPropertyTypeId() );
+                    UUID entityKeyId = dataKey.getId();
+                    entityDataMapstore
+                            .store( entityKeyId, EntityDataMetadata.newEntityDataMetadata( OffsetDateTime.now() ) );
+                    ByteBuffer buffer = dataMapstore.load( dataKey );
+                    final Object obj;
+                    if ( dataKey.getPropertyTypeId().equals( complaintNumberPropertyTypeId ) && buffer.array().length == 8 ) {
+                        logger.info( "Detected complaint number that is a long-- switching to alternate deserialization");
+                        obj = CassandraSerDesFactory.deserializeValue( ObjectMappers.getJsonMapper(),
+                                buffer,
+                                EdmPrimitiveTypeKind.Int64,
+                                dataKey.getEntityId() ).toString();
+                    } else {
+                        obj = CassandraSerDesFactory.deserializeValue( ObjectMappers.getJsonMapper(),
+                                buffer,
+                                ptm.load( dataKey.getPropertyTypeId() ).getDatatype(),
+                                dataKey.getEntityId() );
+                    }
+                    pdm.store( entityKeyId, ImmutableMap.of( obj, pm ) );
+                } );
         logger.info( "Finish migration of data keys." );
     }
 }
