@@ -24,6 +24,7 @@ package com.openlattice.mechanic.upgrades;
 import com.dataloom.mappers.ObjectMappers;
 import com.dataloom.streams.StreamUtil;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.openlattice.data.EntityDataMetadata;
 import com.openlattice.data.PropertyMetadata;
@@ -43,6 +44,7 @@ import java.nio.ByteBuffer;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.Collection;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
@@ -53,14 +55,17 @@ import org.slf4j.LoggerFactory;
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
 public class ExpandDataTables {
-    private static final Logger logger = LoggerFactory.getLogger( ExpandDataTables.class );
-    private static final UUID complaintNumberPropertyTypeId = UUID.fromString( "998bc748-4f40-4f5d-98ed-91ac4dab28a1" );
-    private final PostgresDataMapstore dataMapstore;
-    private final DataMapstoreProxy    dmProxy;
-    private final PostgresEdmManager   pgEdmManager;
-    private final PropertyTypeMapstore ptm;
-    private final EntityTypeMapstore   etm;
-    private final EntitySetMapstore    esm;
+    private static final Logger logger                        = LoggerFactory.getLogger( ExpandDataTables.class );
+    private static final UUID   complaintNumberPropertyTypeId = UUID
+            .fromString( "998bc748-4f40-4f5d-98ed-91ac4dab28a1" );
+
+    private final Map<UUID, PropertyType> propertTypes;
+    private final PostgresDataMapstore    dataMapstore;
+    private final DataMapstoreProxy       dmProxy;
+    private final PostgresEdmManager      pgEdmManager;
+    private final PropertyTypeMapstore    ptm;
+    private final EntityTypeMapstore      etm;
+    private final EntitySetMapstore       esm;
 
     public ExpandDataTables(
             PostgresDataMapstore dataMapstore,
@@ -73,6 +78,7 @@ public class ExpandDataTables {
         this.ptm = ptm;
         this.etm = etm;
         this.esm = esm;
+        this.propertTypes = ptm.loadAll( ImmutableSet.copyOf( ptm.loadAllKeys() ) );
     }
 
     public void migrateEdm() {
@@ -80,7 +86,7 @@ public class ExpandDataTables {
         for ( EntitySet es : esm.loadAll( Lists.newArrayList( esm.loadAllKeys() ) ).values() ) {
             logger.info( "Starting table creation for entity set: ", es.getName() );
             EntityType et = etm.load( es.getEntityTypeId() );
-            final Collection<PropertyType> propertyTypes = ptm.loadAll( et.getProperties() ).values();
+            final Collection<PropertyType> propertyTypes = propertTypes.values();
             try {
                 logger.info( "Deleting entity set tables for entity set {}.", es.getName() );
                 pgEdmManager.deleteEntitySet( es, propertyTypes );
@@ -113,8 +119,9 @@ public class ExpandDataTables {
                             .store( entityKeyId, EntityDataMetadata.newEntityDataMetadata( OffsetDateTime.now() ) );
                     ByteBuffer buffer = dataMapstore.load( dataKey );
                     final Object obj;
-                    if ( dataKey.getPropertyTypeId().equals( complaintNumberPropertyTypeId ) && buffer.array().length == 8 ) {
-                        logger.info( "Detected complaint number that is a long-- switching to alternate deserialization");
+                    if ( dataKey.getPropertyTypeId().equals( complaintNumberPropertyTypeId )
+                            && buffer.array().length == 8 ) {
+                        logger.info( "Detected complaint number that is a long-- switching to alternate deserialization" );
                         obj = CassandraSerDesFactory.deserializeValue( ObjectMappers.getJsonMapper(),
                                 buffer,
                                 EdmPrimitiveTypeKind.Int64,
@@ -125,7 +132,26 @@ public class ExpandDataTables {
                                 ptm.load( dataKey.getPropertyTypeId() ).getDatatype(),
                                 dataKey.getEntityId() );
                     }
-                    pdm.store( entityKeyId, ImmutableMap.of( obj, pm ) );
+
+                    PropertyType pt = propertTypes.get( dataKey.getPropertyTypeId() );
+
+                    switch ( pt.getDatatype() ) {
+                        case Date:
+                            pdm.store( entityKeyId, ImmutableMap.of( ( (OffsetDateTime) obj ).toLocalDate(), pm ) );
+                            break;
+                        case DateTimeOffset:
+                            pdm.store( entityKeyId, ImmutableMap.of( obj, pm ) );
+                            break;
+                        case TimeOfDay:
+                            logger.warn( "Entity key id {} had time property {}, which should be rarely if ever used.",
+                                    entityKeyId,
+                                    obj );
+                            pdm.store( entityKeyId, ImmutableMap.of( ( (OffsetDateTime) obj ).toLocalTime(), pm ) );
+                            break;
+                        default:
+                            pdm.store( entityKeyId, ImmutableMap.of( obj, pm ) );
+                    }
+
                 } );
         logger.info( "Finish migration of data keys." );
     }
