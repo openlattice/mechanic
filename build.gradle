@@ -41,6 +41,7 @@ apply plugin: 'kotlin'
 
 mainClassName = "com.openlattice.mechanic.Mechanic"
 
+def MECHANIC_ARGS = "$System.env.MECHANIC_ARGS"
 def MECHANIC_XMS = "$System.env.MECHANIC_XMS"
 def MECHANIC_XMX = "$System.env.MECHANIC_XMX"
 
@@ -58,16 +59,22 @@ applicationDefaultJvmArgs = [MECHANIC_XMS, MECHANIC_XMX, "-server"]
 sourceCompatibility=JavaVersion.VERSION_1_8
 targetCompatibility=JavaVersion.VERSION_1_8
 
-/*cd ..
-gw
+
 run {
   if (System.getProperty("exec.args")) {
     args System.getProperty("exec.args").split()
   }
 }
-*/
 
-run.args = ["postgres","local"]
+run {
+    if (MECHANIC_ARGS != null) {
+        args MECHANIC_ARGS.split();
+    } else if (System.getProperty("exec.args") != null) {
+        args System.getProperty("exec.args").split()
+    }
+}
+
+//run.args = ["postgres","local"]
 
 configurations {
     provided
