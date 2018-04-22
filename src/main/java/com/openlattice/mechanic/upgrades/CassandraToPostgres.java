@@ -32,7 +32,6 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.kryptnostic.rhizome.configuration.cassandra.CassandraConfiguration;
 import com.kryptnostic.rhizome.mapstores.SelfRegisteringMapStore;
 import com.openlattice.authorization.AclKey;
-import com.openlattice.authorization.mapstores.CassandraPermissionMapstore;
 import com.openlattice.authorization.securable.SecurableObjectType;
 import com.openlattice.conductor.codecs.odata.Table;
 import com.openlattice.data.mapstores.EntityKeyIdsMapstore;
@@ -113,13 +112,6 @@ public class CassandraToPostgres {
         //        return count;
     }
 
-    public int migratePermissions() throws SQLException {
-        com.openlattice.authorization.mapstores.PermissionMapstore ptm = new com.openlattice.authorization.mapstores.PermissionMapstore(
-                hds );
-        CassandraPermissionMapstore cptm = new CassandraPermissionMapstore(
-                session );
-        return simpleMigrate( cptm, ptm, PostgresTable.PERMISSIONS );
-    }
 
     public <K, V> int simpleMigrate(
             SelfRegisteringMapStore<K, V> cMap,
