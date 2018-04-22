@@ -1,2 +1,3 @@
 bucket: "lattice-test-config"
 folder: "mechanic-test"
+region: us-gov-west-1
