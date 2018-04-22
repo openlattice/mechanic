@@ -35,6 +35,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import java.sql.SQLException;
 import javax.inject.Inject;
 import org.jdbi.v3.core.Jdbi;
+import org.jdbi.v3.sqlobject.SqlObjectPlugin;
 import org.springframework.context.annotation.Bean;
 
 /**
@@ -56,7 +57,9 @@ public class MechanicUpgradePod {
 
     @Bean
     public Jdbi jdbi() {
-        return Jdbi.create( hikariDataSource );
+        Jdbi jdbi =  Jdbi.create( hikariDataSource );
+        jdbi.installPlugin( new SqlObjectPlugin() );
+        return jdbi;
     }
 
     @Bean
