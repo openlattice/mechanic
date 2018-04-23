@@ -61,12 +61,6 @@ targetCompatibility=JavaVersion.VERSION_1_8
 
 
 run {
-  if (System.getProperty("exec.args")) {
-    args System.getProperty("exec.args").split()
-  }
-}
-
-run {
     if (MECHANIC_ARGS != null) {
         args MECHANIC_ARGS.split();
     } else if (System.getProperty("exec.args") != null) {
