@@ -68,7 +68,7 @@ if (GC == 'null' || GC == null || GC == "") {
 println "Using java args for running ${projectName}: Xms=" + MECHANIC_XMS + ",Xmx=" + MECHANIC_XMX + ",-server"
 
 mainClassName = "com.openlattice.mechanic.Mechanic"
-applicationDefaultJvmArgs = [MECHANIC_XMS, MECHANIC_XMX, "-server"]
+applicationDefaultJvmArgs = [MECHANIC_XMS, MECHANIC_XMX, "-server", GC, PARALLEL]
 sourceCompatibility=JavaVersion.VERSION_1_8
 targetCompatibility=JavaVersion.VERSION_1_8
 
