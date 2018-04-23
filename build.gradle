@@ -65,7 +65,7 @@ if (GC == 'null' || GC == null || GC == "") {
     GC = "-XX:+UseG1GC"
 }
 
-println "Using java args for running ${projectName}: Xms=" + MECHANIC_XMS + ",Xmx=" + MECHANIC_XMX + ",-server"
+println "Using java args for running ${projectName}: " + Arrays.toString( applicationDefaultJvmArgs )
 
 mainClassName = "com.openlattice.mechanic.Mechanic"
 applicationDefaultJvmArgs = [MECHANIC_XMS, MECHANIC_XMX, "-server", GC, PARALLEL]
