@@ -39,8 +39,6 @@ ext.developerConnectionUrl = 'scm:git:https://github.com/openlattice/mechanic.gi
 apply from: "https://raw.githubusercontent.com/openlattice/gradles/master/openlattice.gradle"
 apply plugin: 'kotlin'
 
-mainClassName = "com.openlattice.mechanic.Mechanic"
-
 def MECHANIC_ARGS = "$System.env.MECHANIC_ARGS"
 def MECHANIC_XMS = "$System.env.MECHANIC_XMS"
 def MECHANIC_XMX = "$System.env.MECHANIC_XMX"
@@ -53,8 +51,9 @@ if( MECHANIC_XMX == 'null' || MECHANIC_XMX == null || MECHANIC_XMX == "" ) {
     MECHANIC_XMX = '-Xms4g'
 }
 
-println "Using java args for running ${projectName}: Xms=" + MECHANIC_XMS + ",Xmx=" + MECHANIC_XMX + " -server"
+println "Using java args for running ${projectName}: Xms=" + MECHANIC_XMS + ",Xmx=" + MECHANIC_XMX + ",-server"
 
+mainClassName = "com.openlattice.mechanic.Mechanic"
 applicationDefaultJvmArgs = [MECHANIC_XMS, MECHANIC_XMX, "-server"]
 sourceCompatibility=JavaVersion.VERSION_1_8
 targetCompatibility=JavaVersion.VERSION_1_8
