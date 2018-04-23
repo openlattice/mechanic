@@ -26,6 +26,7 @@ import com.dataloom.streams.StreamUtil;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import com.openlattice.data.EntityDataKey;
 import com.openlattice.data.EntityDataMetadata;
 import com.openlattice.data.PropertyMetadata;
 import com.openlattice.data.mapstores.PostgresDataMapstore;
@@ -111,10 +112,11 @@ public class ExpandDataTables {
                     if ( ( count.incrementAndGet() % 10000 ) == 0 ) {
                         logger.info( "Migrated {} keys.", count );
                     }
-                    EntityDataMapstore entityDataMapstore = dmProxy.getMapstore( dataKey.getEntitySetId() );
-                    PropertyDataMapstore pdm = dmProxy
-                            .getPropertyMapstore( dataKey.getEntitySetId(), dataKey.getPropertyTypeId() );
-                    UUID entityKeyId = dataKey.getId();
+                    final EntityDataMapstore entityDataMapstore = dmProxy.getMapstore( dataKey.getEntitySetId() );
+                    final PropertyDataMapstore pdm = dmProxy
+                            .getPropertyMapstore( dataKey.getPropertyTypeId() );
+                    final UUID entitySetId = dataKey.getEntitySetId();
+                    final UUID entityKeyId = dataKey.getId();
                     entityDataMapstore
                             .store( entityKeyId, EntityDataMetadata.newEntityDataMetadata( OffsetDateTime.now() ) );
                     ByteBuffer buffer = dataMapstore.load( dataKey );
@@ -133,24 +135,7 @@ public class ExpandDataTables {
                                 dataKey.getEntityId() );
                     }
 
-                    PropertyType pt = propertTypes.get( dataKey.getPropertyTypeId() );
-
-                    switch ( pt.getDatatype() ) {
-                        case Date:
-                            pdm.store( entityKeyId, ImmutableMap.of( ( (OffsetDateTime) obj ).toLocalDate(), pm ) );
-                            break;
-                        case DateTimeOffset:
-                            pdm.store( entityKeyId, ImmutableMap.of( obj, pm ) );
-                            break;
-                        case TimeOfDay:
-                            logger.warn( "Entity key id {} had time property {}, which should be rarely if ever used.",
-                                    entityKeyId,
-                                    obj );
-                            pdm.store( entityKeyId, ImmutableMap.of( ( (OffsetDateTime) obj ).toLocalTime(), pm ) );
-                            break;
-                        default:
-                            pdm.store( entityKeyId, ImmutableMap.of( obj, pm ) );
-                    }
+                    pdm.store( new EntityDataKey( entitySetId, entityKeyId ), ImmutableMap.of( obj, pm ) );
 
                 } );
         logger.info( "Finish migration of data keys." );
