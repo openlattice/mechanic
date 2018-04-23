@@ -42,6 +42,8 @@ apply plugin: 'kotlin'
 def MECHANIC_ARGS = "$System.env.MECHANIC_ARGS"
 def MECHANIC_XMS = "$System.env.MECHANIC_XMS"
 def MECHANIC_XMX = "$System.env.MECHANIC_XMX"
+def PARALLEL = "$System.env.PARALLELISM"
+def GC = "$System.env.GC"
 
 if( MECHANIC_XMS == 'null' || MECHANIC_XMS == null || MECHANIC_XMS == "" ) {
     MECHANIC_XMS = '-Xms1g'
@@ -49,6 +51,18 @@ if( MECHANIC_XMS == 'null' || MECHANIC_XMS == null || MECHANIC_XMS == "" ) {
 
 if( MECHANIC_XMX == 'null' || MECHANIC_XMX == null || MECHANIC_XMX == "" ) {
     MECHANIC_XMX = '-Xms4g'
+}
+
+if (MECHANIC_ARGS == 'null' || MECHANIC_ARGS == null || MECHANIC_ARGS == "") {
+    MECHANIC_ARGS = 'local postgres'
+}
+
+if( PARALLEL == 'null' || PARALLEL == null || PARALLEL == "" ) {
+    PARALLEL = "-Djava.util.concurrent.ForkJoinPool.common.parallelism=" + Runtime.runtime.availableProcessors()
+}
+
+if (GC == 'null' || GC == null || GC == "") {
+    GC = "-XX:+UseG1GC"
 }
 
 println "Using java args for running ${projectName}: Xms=" + MECHANIC_XMS + ",Xmx=" + MECHANIC_XMX + ",-server"
@@ -66,8 +80,6 @@ run {
         args System.getProperty("exec.args").split()
     }
 }
-
-//run.args = ["postgres","local"]
 
 configurations {
     provided
