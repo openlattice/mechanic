@@ -57,7 +57,7 @@ public class MechanicUpgradePod {
 
     @Bean
     public Jdbi jdbi() {
-        Jdbi jdbi =  Jdbi.create( hikariDataSource );
+        Jdbi jdbi = Jdbi.create( hikariDataSource );
         jdbi.installPlugin( new SqlObjectPlugin() );
         return jdbi;
     }
@@ -70,7 +70,7 @@ public class MechanicUpgradePod {
                 new PostgresEdmManager( new PostgresTableManager( hikariDataSource ), hikariDataSource ),
                 (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
                 (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
-                (EntitySetMapstore) mapstoresPod.entitySetMapstore() );
+                (EntitySetMapstore) mapstoresPod.entitySetMapstore(), executor );
     }
 
 }
