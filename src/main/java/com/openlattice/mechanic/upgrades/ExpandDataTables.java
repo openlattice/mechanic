@@ -106,9 +106,9 @@ public class ExpandDataTables {
             final Collection<PropertyType> propertyTypes = propertTypes.values();
             propertyTypes.stream()
                     .map( PropertyType::getId )
-                    .map(DataTables::propertyTableName )
+                    .map( DataTables::propertyTableName )
                     .map( DataTables::quote )
-                    .peek( table -> logger.info("Deleting table {}", table ) )
+                    .peek( table -> logger.info( "Deleting table {}", table ) )
                     .forEach( pgEdmManager::dropTable );
             try {
                 logger.info( "Deleting entity set tables for entity set {}.", es.getName() );
@@ -194,7 +194,8 @@ public class ExpandDataTables {
                                     entityKeyId,
                                     entitySetId,
                                     dataKey.getPropertyTypeId(),
-                                    new String( buffer.array(), Charsets.UTF_8 ) );
+                                    new String( buffer.array(), Charsets.UTF_8 ),
+                                    edp );
                         }
 
                     }
