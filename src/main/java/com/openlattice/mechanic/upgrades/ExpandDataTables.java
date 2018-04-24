@@ -40,6 +40,7 @@ import com.openlattice.edm.EntitySet;
 import com.openlattice.edm.PostgresEdmManager;
 import com.openlattice.edm.type.EntityType;
 import com.openlattice.edm.type.PropertyType;
+import com.openlattice.postgres.DataTables;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
 import com.openlattice.postgres.mapstores.EntityTypeMapstore;
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
@@ -102,6 +103,10 @@ public class ExpandDataTables {
             logger.info( "Starting table creation for entity set: ", es.getName() );
             EntityType et = etm.load( es.getEntityTypeId() );
             final Collection<PropertyType> propertyTypes = propertTypes.values();
+            propertyTypes.stream()
+                    .map( PropertyType::getId )
+                    .map(DataTables::propertyTableName )
+                    .forEach( pgEdmManager::dropTable );
             try {
                 logger.info( "Deleting entity set tables for entity set {}.", es.getName() );
                 pgEdmManager.deleteEntitySet( es, propertyTypes );
