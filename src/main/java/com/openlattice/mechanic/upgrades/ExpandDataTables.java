@@ -107,6 +107,7 @@ public class ExpandDataTables {
                     .map( PropertyType::getId )
                     .map(DataTables::propertyTableName )
                     .map( DataTables::quote )
+                    .peek( table -> logger.info("Deleting table {}", table ) )
                     .forEach( pgEdmManager::dropTable );
             try {
                 logger.info( "Deleting entity set tables for entity set {}.", es.getName() );
