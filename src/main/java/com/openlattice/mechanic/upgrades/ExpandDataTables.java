@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
@@ -145,6 +146,7 @@ public class ExpandDataTables {
         } catch ( InterruptedException e ) {
             logger.warn( "Unable to sleep." );
         }
+
         final int numProcs = Runtime.getRuntime().availableProcessors() - 1;
         final List<ListenableFuture> futures = new ArrayList<>( numProcs );
 
@@ -153,7 +155,7 @@ public class ExpandDataTables {
                 try {
                     for ( DataKey dataKey = dataKeys.take();
                             loading.get() || !dataKeys.isEmpty();
-                            dataKey = dataKeys.take() ) {
+                            dataKey = dataKeys.poll( 5, TimeUnit.MINUTES ) ) {
 
                         if ( ( migratedCount.incrementAndGet() % 10000 ) == 0 ) {
                             logger.info( "Migrated {} keys.", migratedCount );
