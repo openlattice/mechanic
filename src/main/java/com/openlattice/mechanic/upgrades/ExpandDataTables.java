@@ -100,16 +100,16 @@ public class ExpandDataTables {
 
     public void migrateEdm() {
         logger.info( "Starting creation of edm tables." );
+        final Collection<PropertyType> propertyTypes = propertTypes.values();
+        propertyTypes.stream()
+                .map( PropertyType::getId )
+                .map( DataTables::propertyTableName )
+                .map( DataTables::quote )
+                .peek( table -> logger.info( "Deleting table {}", table ) )
+                .forEach( pgEdmManager::dropTable );
+
         for ( EntitySet es : esm.loadAll( Lists.newArrayList( esm.loadAllKeys() ) ).values() ) {
             logger.info( "Starting table creation for entity set: ", es.getName() );
-            EntityType et = etm.load( es.getEntityTypeId() );
-            final Collection<PropertyType> propertyTypes = propertTypes.values();
-            propertyTypes.stream()
-                    .map( PropertyType::getId )
-                    .map( DataTables::propertyTableName )
-                    .map( DataTables::quote )
-                    .peek( table -> logger.info( "Deleting table {}", table ) )
-                    .forEach( pgEdmManager::dropTable );
             try {
                 logger.info( "Deleting entity set tables for entity set {}.", es.getName() );
                 pgEdmManager.deleteEntitySet( es, propertyTypes );
