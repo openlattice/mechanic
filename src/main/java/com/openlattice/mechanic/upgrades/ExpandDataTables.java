@@ -105,8 +105,13 @@ public class ExpandDataTables {
                 .map( PropertyType::getId )
                 .map( DataTables::propertyTableName )
                 .map( DataTables::quote )
-                .peek( table -> logger.info( "Deleting table {}", table ) )
+                .peek( id -> logger.info( "Deleting table {}", id ) )
                 .forEach( pgEdmManager::dropTable );
+
+        propertyTypes.stream()
+                .map( PropertyType::getId )
+                .peek( table -> logger.info( "Creating table for property type id {}", table ) )
+                .forEach( dmProxy::getPropertyMapstore);
 
         for ( EntitySet es : esm.loadAll( Lists.newArrayList( esm.loadAllKeys() ) ).values() ) {
             logger.info( "Starting table creation for entity set: ", es.getName() );
