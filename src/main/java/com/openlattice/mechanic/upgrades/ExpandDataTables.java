@@ -213,8 +213,11 @@ public class ExpandDataTables {
                             ptm.load( dataKey.getPropertyTypeId() ).getDatatype(),
                             dataKey.getEntityId() );
                 }
-                PropertyMetadata pm = PropertyMetadata.newPropertyMetadata( hashObject( obj ), OffsetDateTime.now() );
-                pdm.store( new EntityDataKey( entitySetId, entityKeyId ), ImmutableMap.of( obj, pm ) );
+                if ( obj != null ) {
+                    PropertyMetadata pm = PropertyMetadata
+                            .newPropertyMetadata( hashObject( obj ), OffsetDateTime.now() );
+                    pdm.store( new EntityDataKey( entitySetId, entityKeyId ), ImmutableMap.of( obj, pm ) );
+                }
             } catch ( Exception edp ) {
                 logger.error(
                         "Unable to process entity with id {} in entity set {} with property type {} and value {}",
