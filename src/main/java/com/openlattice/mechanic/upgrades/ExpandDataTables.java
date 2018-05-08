@@ -122,9 +122,9 @@ public class ExpandDataTables {
             logger.info( "Starting table creation for entity set: ", es.getName() );
             try {
                 logger.info( "Deleting entity set tables for entity set {}.", es.getName() );
-                pgEdmManager.deleteEntitySet( es, propertyTypes );
+                pgEdmManager.deleteEntitySet( es, ImmutableSet.of() );
                 logger.info( "Creating entity set tables for entity set {}.", es.getName() );
-                pgEdmManager.createEntitySet( es, propertyTypes );
+                pgEdmManager.createEntitySet( es, ImmutableSet.of() );
             } catch ( SQLException e ) {
                 logger.error( "Failed to create tables for entity set {}.", es, e );
             }
@@ -140,8 +140,6 @@ public class ExpandDataTables {
         final AtomicLong migratedCount = new AtomicLong( 0 );
         final List<OldPostgresData> oldData = new ArrayList<>( 24000000 );
         final List<UUID> syncIds = new ArrayList<>( 400 );
-        final AtomicLong loadedCount = new AtomicLong();
-        final AtomicBoolean loading = new AtomicBoolean( true );
 
         final String syncIdQuery = "SELECT DISTINCT current_sync_id FROM sync_ids";
 
@@ -149,10 +147,10 @@ public class ExpandDataTables {
                 final Statement stmt = connection.createStatement();
                 final ResultSet rs = stmt.executeQuery( syncIdQuery ) ) {
             while ( rs.next() ) {
-                syncIds.add( (UUID) rs.getObject( "current_sync_ids" ) );
+                syncIds.add( (UUID) rs.getObject( "current_sync_id" ) );
             }
         } catch ( SQLException e ) {
-            logger.error( "Unable to query for sync ids" );
+            logger.error( "Unable to query for sync ids", e );
         }
 
         final String sqlQuery = "select * from data where syncid = ?";
