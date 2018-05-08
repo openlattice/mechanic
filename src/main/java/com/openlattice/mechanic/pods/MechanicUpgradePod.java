@@ -65,6 +65,7 @@ public class MechanicUpgradePod {
     @Bean
     public ExpandDataTables edt() throws SQLException {
         return new ExpandDataTables(
+                hikariDataSource,
                 (PostgresDataMapstore) mapstoresPod.dataMapstore(),
                 (DataMapstoreProxy) mapstoresPod.entityDataMapstore(),
                 new PostgresEdmManager( new PostgresTableManager( hikariDataSource ), hikariDataSource ),
