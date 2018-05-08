@@ -21,6 +21,8 @@
 
 package com.openlattice.mechanic.upgrades;
 
+import static com.openlattice.data.PropertyMetadata.hashObject;
+
 import com.dataloom.mappers.ObjectMappers;
 import com.google.common.base.Charsets;
 import com.google.common.base.Stopwatch;
@@ -59,7 +61,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.slf4j.Logger;
@@ -135,7 +136,6 @@ public class ExpandDataTables {
 
     public void migrate() throws InterruptedException {
         migrateEdm();
-        PropertyMetadata pm = PropertyMetadata.newPropertyMetadata( OffsetDateTime.now() );
         logger.info( "Starting migration of data keys." );
         final AtomicLong migratedCount = new AtomicLong( 0 );
         final List<OldPostgresData> oldData = new ArrayList<>( 24000000 );
@@ -213,7 +213,7 @@ public class ExpandDataTables {
                             ptm.load( dataKey.getPropertyTypeId() ).getDatatype(),
                             dataKey.getEntityId() );
                 }
-
+                PropertyMetadata pm = PropertyMetadata.newPropertyMetadata( hashObject( obj ), OffsetDateTime.now() );
                 pdm.store( new EntityDataKey( entitySetId, entityKeyId ), ImmutableMap.of( obj, pm ) );
             } catch ( Exception edp ) {
                 logger.error(
