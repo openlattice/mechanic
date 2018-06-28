@@ -34,7 +34,6 @@ import com.openlattice.data.EntityDataKey;
 import com.openlattice.data.EntityDataMetadata;
 import com.openlattice.data.PropertyMetadata;
 import com.openlattice.data.hazelcast.DataKey;
-import com.openlattice.data.mapstores.PostgresDataMapstore;
 import com.openlattice.datastore.cassandra.CassandraSerDesFactory;
 import com.openlattice.edm.EntitySet;
 import com.openlattice.edm.PostgresEdmManager;
@@ -75,7 +74,6 @@ public class ExpandDataTables {
             .fromString( "998bc748-4f40-4f5d-98ed-91ac4dab28a1" );
 
     private final Map<UUID, PropertyType>  propertTypes;
-    private final PostgresDataMapstore     dataMapstore;
     private final DataMapstoreProxy        dmProxy;
     private final PostgresEdmManager       pgEdmManager;
     private final PropertyTypeMapstore     ptm;
@@ -86,7 +84,6 @@ public class ExpandDataTables {
 
     public ExpandDataTables(
             HikariDataSource hds,
-            PostgresDataMapstore dataMapstore,
             DataMapstoreProxy dmProxy,
             PostgresEdmManager pgEdmManager,
             PropertyTypeMapstore ptm,
@@ -94,7 +91,6 @@ public class ExpandDataTables {
             EntitySetMapstore esm,
             ListeningExecutorService executorService ) {
         this.hds = hds;
-        this.dataMapstore = dataMapstore;
         this.dmProxy = dmProxy;
         this.pgEdmManager = pgEdmManager;
         this.ptm = ptm;

@@ -22,7 +22,6 @@ package com.openlattice.mechanic.pods;
 
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.openlattice.data.mapstores.PostgresDataMapstore;
 import com.openlattice.edm.PostgresEdmManager;
 import com.openlattice.hazelcast.pods.MapstoresPod;
 import com.openlattice.mechanic.upgrades.ExpandDataTables;
@@ -66,7 +65,6 @@ public class MechanicUpgradePod {
     public ExpandDataTables edt() throws SQLException {
         return new ExpandDataTables(
                 hikariDataSource,
-                (PostgresDataMapstore) mapstoresPod.dataMapstore(),
                 (DataMapstoreProxy) mapstoresPod.entityDataMapstore(),
                 new PostgresEdmManager( new PostgresTableManager( hikariDataSource ), hikariDataSource ),
                 (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),

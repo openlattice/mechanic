@@ -34,14 +34,10 @@ import com.kryptnostic.rhizome.mapstores.SelfRegisteringMapStore;
 import com.openlattice.authorization.AclKey;
 import com.openlattice.authorization.securable.SecurableObjectType;
 import com.openlattice.conductor.codecs.odata.Table;
-import com.openlattice.data.mapstores.EntityKeyIdsMapstore;
-import com.openlattice.data.mapstores.EntityKeysMapstore;
-import com.openlattice.data.mapstores.PostgresEntityKeyIdsMapstore;
 import com.openlattice.datastore.cassandra.CommonColumns;
 import com.openlattice.datastore.cassandra.RowAdapters;
 import com.openlattice.edm.mapstores.EdmVersionMapstore;
 import com.openlattice.edm.schemas.mapstores.SchemaMapstore;
-import com.openlattice.hazelcast.HazelcastMap;
 import com.openlattice.hazelcast.pods.MapstoresPod;
 import com.openlattice.linking.mapstores.LinkedEntityTypesMapstore;
 import com.openlattice.postgres.PostgresArrays;
@@ -111,7 +107,6 @@ public class CassandraToPostgres {
         //        logger.info( "Migrated {} property types in {} ms", count, w.elapsed( TimeUnit.MILLISECONDS ) );
         //        return count;
     }
-
 
     public <K, V> int simpleMigrate(
             SelfRegisteringMapStore<K, V> cMap,
@@ -314,17 +309,6 @@ public class CassandraToPostgres {
         EdmVersionsMapstore pMap = new EdmVersionsMapstore( hds );
         EdmVersionMapstore cMap = new EdmVersionMapstore( session );
         return simpleMigrate( cMap, pMap, PostgresTable.EDM_VERSIONS );
-    }
-
-    public int migrateEntityKeyIds() throws SQLException {
-        EntityKeysMapstore kcMap = new EntityKeysMapstore( HazelcastMap.KEYS.name(), session, Table.KEYS.getBuilder() );
-        EntityKeyIdsMapstore cMap = new EntityKeyIdsMapstore( kcMap,
-                HazelcastMap.IDS.name(),
-                session,
-                Table.IDS.getBuilder() );
-
-        PostgresEntityKeyIdsMapstore ekIds = new PostgresEntityKeyIdsMapstore( hds );
-        return simpleMigrate( cMap, ekIds, PostgresTable.IDS );
     }
 
     public int migrateLinkedEntityTypes() throws SQLException {
