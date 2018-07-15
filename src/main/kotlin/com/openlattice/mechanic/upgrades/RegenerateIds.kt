@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions.checkState
 import com.google.common.base.Stopwatch
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.openlattice.data.EntityDataKey
+import com.openlattice.edm.PostgresEdmManager
 import com.openlattice.ids.HazelcastIdGenerationService.NUM_PARTITIONS
 import com.openlattice.ids.IdGeneratingEntryProcessor
 import com.openlattice.ids.IdGenerationMapstore
@@ -51,6 +52,7 @@ import java.util.function.Supplier
 private val logger = LoggerFactory.getLogger(RegenerateIds::class.java)
 
 class RegenerateIds(
+        private val pgEdmManager: PostgresEdmManager,
         private val hds: HikariDataSource,
         private val ptms: PropertyTypeMapstore,
         private val etms: EntityTypeMapstore,
@@ -63,6 +65,65 @@ class RegenerateIds(
     private val propertyTypes = ptms.loadAllKeys().map { it to ptms.load(it) }.toMap()
     private val ranges = idGen.loadAllKeys().map { it to idGen.load(it) }.toMap()
     private val r = Random()
+
+    init {
+        val connection = hds.connection
+        connection.use {
+
+            entitySets.forEach {
+                val entitySetId = it.key
+                val entitySet = it.value
+                val entitySetName = entitySet.name
+                val esTableName = quote(DataTables.entityTableName(entitySetId))
+                //Ensure that any required entity set tables exist
+                pgEdmManager.createEntitySet(
+                        it.value, entityTypes[it.value.entityTypeId]?.properties?.map { propertyTypes[it] })
+
+                //Remove any entity key ids from entity_key_ids that are connected to an actual entity.
+                val sql = "DELETE from entity_key_ids " +
+                        "WHERE entity_set_id =  '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
+
+                val stmt = connection.createStatement()
+                val w = Stopwatch.createStarted()
+                stmt.use {
+                    logger.info(
+                            "Deleting {} entity key ids not connected to {} in {} ms ",
+                            it.executeUpdate(sql),
+                            entitySetName,
+                            w.elapsed(TimeUnit.MILLISECONDS)
+                    )
+                }
+
+                //Remove any entity key ids from property types not connected to an actual entity.
+
+                val ptStmt = connection.createStatement()
+                w.reset()
+                w.start()
+                ptStmt.use {
+                    propertyTypes.forEach {
+                        val ptTableName = quote(DataTables.propertyTableName(it.key))
+                        val ptSql = "DELETE from $ptTableName " +
+                                "WHERE entity_set_id = '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
+                        pgEdmManager.createPropertyTypeTableIfNotExist(entitySet, it.value)
+                        logger.info(
+                                "Submitting delete for entity set{} and property type {}",
+                                entitySetName,
+                                it.value.type.fullQualifiedNameAsString
+                        )
+                        ptStmt.addBatch(ptSql)
+                    }
+                }
+                logger.info(
+                        "Deleting {} properties not connected to {} took {} ms",
+                        entitySetName,
+                        ptStmt.executeLargeBatch().sum(),
+                        w.elapsed(TimeUnit.MILLISECONDS)
+                )
+
+            }
+        }
+    }
+
     private val corruptEntitySets = entitySets.filter {
         logger.info("Checking entity set {}", it.value.name)
         !hasIdIntegrity(it.key)
@@ -210,13 +271,11 @@ class RegenerateIds(
         return PostgresIterable(
                 Supplier<StatementHolder> {
                     val connection = hds.connection
-                    connection.use {
-                        val stmt = connection.createStatement()
-                        val sql = "SELECT id FROM $esTableName " +
-                                "WHERE id NOT IN (SELECT id FROM entity_key_ids)"
-                        val rs = stmt.executeQuery(sql)
-                        StatementHolder(connection, stmt, rs)
-                    }
+                    val stmt = connection.createStatement()
+                    val sql = "SELECT id FROM $esTableName " +
+                            "WHERE id NOT IN (SELECT id FROM entity_key_ids)"
+                    val rs = stmt.executeQuery(sql)
+                    StatementHolder(connection, stmt, rs)
                 },
                 Function<ResultSet, EntityDataKey> {
                     val id = ResultSetAdapters.id(it)

@@ -22,9 +22,11 @@ package com.openlattice.mechanic.pods;
 
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.openlattice.edm.PostgresEdmManager;
 import com.openlattice.hazelcast.pods.MapstoresPod;
 import com.openlattice.ids.IdGenerationMapstore;
 import com.openlattice.mechanic.upgrades.RegenerateIds;
+import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
 import com.openlattice.postgres.mapstores.EntityTypeMapstore;
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
@@ -71,7 +73,11 @@ public class MechanicUpgradePod {
 
     @Bean
     public RegenerateIds regen() {
-        return new RegenerateIds( hikariDataSource,
+        PostgresEdmManager pgEdmManager = new PostgresEdmManager( new PostgresTableManager( hikariDataSource ),
+                hikariDataSource );
+        return new RegenerateIds(
+                pgEdmManager,
+                hikariDataSource,
                 (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
                 (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
                 (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
