@@ -64,8 +64,17 @@ class RegenerateIds(
     private val propertyTypes = ptms.loadAllKeys().map { it to ptms.load(it) }.toMap()
     private val ranges = idGen.loadAllKeys().map { it to idGen.load(it) }.toMap()
     private val r = Random()
+    private val corruptEntitySets = entitySets.filter {
+        logger.info("Checking entity set {}", it.value.name)
+        !hasIdIntegrity(it.key)
+    }.toMap()
 
     init {
+        corruptEntitySets
+                .asSequence()
+                .map { getCorruptEntityKeyIdStream(it.key) }
+                .forEach { addMissingEntityDataKeys(it) }
+
         hds.connection.use {
             it
                     .createStatement()
@@ -90,17 +99,6 @@ class RegenerateIds(
         }
     }
 
-    private val corruptEntitySets = entitySets.filter {
-        logger.info("Checking entity set {}", it.value.name)
-        !hasIdIntegrity(it.key)
-    }.toMap()
-
-    init {
-        corruptEntitySets
-                .asSequence()
-                .map { getCorruptEntityKeyIdStream(it.key) }
-                .forEach { addMissingEntityDataKeys(it) }
-    }
 
     fun assignNewEntityKeysIds(): Long {
         val assignedCount = AtomicLong()
