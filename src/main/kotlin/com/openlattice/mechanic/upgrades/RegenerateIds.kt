@@ -47,7 +47,6 @@ import java.util.function.Supplier
 
 /**
  *
- * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
 private val logger = LoggerFactory.getLogger(RegenerateIds::class.java)
 
@@ -81,7 +80,7 @@ class RegenerateIds(
                     .execute("create table if not exists id_migration( id uuid primary key, entity_set_id uuid)")
             it
                     .createStatement()
-                    .execute("create index if not exists entity_set_id_ix on id_migration(entity_set_id)")
+                    .execute("create index if not exists id_migration_entity_set_id_ix on id_migration(entity_set_id)")
 
             val migratingIdsCount = it
                     .createStatement()
@@ -181,7 +180,7 @@ class RegenerateIds(
     private fun countEntityKeysInIdTable(entitySetId: UUID): Long {
         return hds.connection.use {
             it.createStatement().use {
-                it.executeQuery("SELECT COUNT(*) FROM id_migration where entity_set_id = '$entitySetId'").use {
+                it.executeQuery("SELECT COUNT(*) FROM entity_set_ids where entity_set_id = '$entitySetId'").use {
                     return it.getLong("count")
                 }
             }
