@@ -75,26 +75,27 @@ class RegenerateIds(
                 .forEach { addMissingEntityDataKeys(it) }
 
         hds.connection.use {
+            val w = Stopwatch.createStarted()
             it
                     .createStatement()
-                    .execute("create table if not exists id_migration( id uuid primary key, entity_set_id uuid)")
-            it
-                    .createStatement()
-                    .execute("create index if not exists id_migration_entity_set_id_ix on id_migration(entity_set_id)")
+                    .execute(
+                            "create table if not exists id_migration as (SELECT id, entity_set_id from entity_key_ids)"
+                    )
+//                    .execute("create table if not exists id_migration( id uuid primary key, entity_set_id uuid)")
 
-            val migratingIdsCount = it
+            val queuedCount = it
                     .createStatement()
                     .executeQuery("select count(*) from id_migration")
                     .getLong("count")
 
-            if (migratingIdsCount == 0L) {
-                //Build list of ids to migrate.
-                val w = Stopwatch.createStarted()
-                val queuedCount = it.createStatement().use {
-                    it.executeUpdate("insert into id_migration select id, entity_set_id from entity_key_ids")
-                }
-                logger.info("Queued {} data keys for migration in {} ms", queuedCount, w.elapsed(TimeUnit.MILLISECONDS))
-            }
+//            if (migratingIdsCount == 0L) {
+            //Build list of ids to migrate.
+
+//                val queuedCount = it.createStatement().use {
+//                    it.executeUpdate("insert into id_migration select id, entity_set_id from entity_key_ids")
+//                }
+            logger.info("Queued {} data keys for migration in {} ms", queuedCount, w.elapsed(TimeUnit.MILLISECONDS))
+//            }
         }
     }
 
@@ -172,7 +173,13 @@ class RegenerateIds(
         val esTableName = quote(DataTables.entityTableName(entitySetId))
         hds.connection.use {
             it.createStatement().use {
-                it.executeQuery("SELECT COUNT(*) FROM $esTableName").use { return it.getLong("count") }
+                it.executeQuery("SELECT COUNT(*) FROM $esTableName").use {
+                    return if (it.next()) {
+                        it.getLong("count")
+                    } else {
+                        -2
+                    }
+                }
             }
         }
     }
@@ -180,8 +187,12 @@ class RegenerateIds(
     private fun countEntityKeysInIdTable(entitySetId: UUID): Long {
         return hds.connection.use {
             it.createStatement().use {
-                it.executeQuery("SELECT COUNT(*) FROM entity_set_ids where entity_set_id = '$entitySetId'").use {
-                    return it.getLong("count")
+                it.executeQuery("SELECT COUNT(*) FROM entity_key_ids where entity_set_id = '$entitySetId'").use {
+                    return if (it.next()) {
+                        it.getLong("count")
+                    } else {
+                        -1
+                    }
                 }
             }
         }
