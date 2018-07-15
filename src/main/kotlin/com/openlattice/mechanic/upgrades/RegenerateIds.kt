@@ -112,14 +112,13 @@ class RegenerateIds(
                         )
                         ptStmt.addBatch(ptSql)
                     }
+                    logger.info(
+                            "Deleting {} properties not connected to {} took {} ms",
+                            entitySetName,
+                            ptStmt.executeBatch().sum(),
+                            w.elapsed(TimeUnit.MILLISECONDS)
+                    )
                 }
-                logger.info(
-                        "Deleting {} properties not connected to {} took {} ms",
-                        entitySetName,
-                        ptStmt.executeLargeBatch().sum(),
-                        w.elapsed(TimeUnit.MILLISECONDS)
-                )
-
             }
         }
     }
