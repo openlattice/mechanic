@@ -22,16 +22,13 @@ package com.openlattice.mechanic.pods;
 
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.openlattice.edm.PostgresEdmManager;
 import com.openlattice.hazelcast.pods.MapstoresPod;
-import com.openlattice.mechanic.upgrades.ExpandDataTables;
-import com.openlattice.postgres.PostgresTableManager;
+import com.openlattice.ids.IdGenerationMapstore;
+import com.openlattice.mechanic.upgrades.RegenerateIds;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
 import com.openlattice.postgres.mapstores.EntityTypeMapstore;
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
-import com.openlattice.postgres.mapstores.data.DataMapstoreProxy;
 import com.zaxxer.hikari.HikariDataSource;
-import java.sql.SQLException;
 import javax.inject.Inject;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
@@ -61,15 +58,25 @@ public class MechanicUpgradePod {
         return jdbi;
     }
 
+    //    @Bean
+    //    public ExpandDataTables edt() throws SQLException {
+    //        return new ExpandDataTables(
+    //                hikariDataSource,
+    //                (DataMapstoreProxy) mapstoresPod.entityDataMapstore(),
+    //                new PostgresEdmManager( new PostgresTableManager( hikariDataSource ), hikariDataSource ),
+    //                (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
+    //                (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
+    //                (EntitySetMapstore) mapstoresPod.entitySetMapstore(), executor );
+    //    }
+
     @Bean
-    public ExpandDataTables edt() throws SQLException {
-        return new ExpandDataTables(
-                hikariDataSource,
-                (DataMapstoreProxy) mapstoresPod.entityDataMapstore(),
-                new PostgresEdmManager( new PostgresTableManager( hikariDataSource ), hikariDataSource ),
+    public RegenerateIds regen() {
+        return new RegenerateIds( hikariDataSource,
                 (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
                 (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
-                (EntitySetMapstore) mapstoresPod.entitySetMapstore(), executor );
+                (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
+                (IdGenerationMapstore) mapstoresPod.idGenerationMapstore(),
+                executor );
     }
 
 }

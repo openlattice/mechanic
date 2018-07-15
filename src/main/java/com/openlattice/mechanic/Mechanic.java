@@ -20,6 +20,7 @@
 
 package com.openlattice.mechanic;
 
+import com.google.common.base.Stopwatch;
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles;
 import com.kryptnostic.rhizome.core.Rhizome;
 import com.kryptnostic.rhizome.pods.AsyncPod;
@@ -29,10 +30,11 @@ import com.openlattice.auth0.Auth0Pod;
 import com.openlattice.hazelcast.pods.MapstoresPod;
 import com.openlattice.jdbc.JdbcPod;
 import com.openlattice.mechanic.pods.MechanicUpgradePod;
-import com.openlattice.mechanic.upgrades.ExpandDataTables;
+import com.openlattice.mechanic.upgrades.RegenerateIds;
 import com.openlattice.postgres.PostgresPod;
 import java.sql.SQLException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,8 +93,11 @@ Mechanic {
     public static void main( String[] args ) throws InterruptedException, ExecutionException, SQLException {
         Mechanic mechanic = new Mechanic();
         mechanic.sprout( args );
-        ExpandDataTables expander = mechanic.context.getBean( ExpandDataTables.class );
-        expander.migrate();
+        //        ExpandDataTables expander = mechanic.context.getBean( ExpandDataTables.class );
+        RegenerateIds regen = mechanic.context.getBean( RegenerateIds.class );
+        Stopwatch w = Stopwatch.createStarted();
+        long assigned = regen.assignNewEntityKeysIds();
+        //expander.migrate();
 
         //        CassandraToPostgres cassandraToPostgres = mechanic.getContext().getBean( CassandraToPostgres.class );
 
@@ -120,7 +125,7 @@ Mechanic {
         //long count = mechanic.getContext().getBean( ManualPartitionOfDataTable.class ).migrate();;
         //ReadBench readBench = mechanic.getContext().getBean( ReadBench.class );
         //readBench.benchmark();
-
+        logger.info( "Assigned {} new ids in {} ms.", assigned, w.elapsed( TimeUnit.MILLISECONDS ) );
         logger.info( "Upgrade complete!" );
         mechanic.context.close();
     }
