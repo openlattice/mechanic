@@ -115,12 +115,12 @@ class RegenerateIds(
                     val stmt = it.createStatement()
                     stmt.use {
                         val esTableName = quote(DataTables.entityTableName(entitySetId))
-                        stmt.addBatch("UPDATE $esTableName SET id = '$newEntityKeyId' WHERE id = $entityKeyId")
+                        stmt.addBatch("UPDATE $esTableName SET id = '$newEntityKeyId' WHERE id = '$entityKeyId'")
                         val entityType = entityTypes[entitySets[entitySetId]?.entityTypeId]
                         entityType?.properties?.forEach {
                             val propertyTypeTable = quote(DataTables.propertyTableName(it))
                             stmt.addBatch(
-                                    "UPDATE $propertyTypeTable SET id = '$newEntityKeyId' WHERE id = $entityKeyId"
+                                    "UPDATE $propertyTypeTable SET id = '$newEntityKeyId' WHERE id = '$entityKeyId'"
                             )
                         }
                         stmt.executeBatch()
