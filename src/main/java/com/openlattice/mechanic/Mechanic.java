@@ -94,11 +94,11 @@ public class Mechanic {
     public static void main( String[] args ) throws InterruptedException, ExecutionException, SQLException {
         Mechanic mechanic = new Mechanic();
         mechanic.sprout( args );
-        Console console = System.console();
-
-        if ( console == null ) {
-             logger.error("Cannot be run in non-interactive mode.");
-        }
+//        Console console = System.console();
+//
+//        if ( console == null ) {
+//             logger.error("Cannot be run in non-interactive mode.");
+//        }
 
         Stopwatch w = Stopwatch.createStarted();
         IntegrityChecks checks = mechanic.context.getBean( IntegrityChecks.class );
