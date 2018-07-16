@@ -104,7 +104,8 @@ public class Mechanic {
         IntegrityChecks checks = mechanic.context.getBean( IntegrityChecks.class );
         checks.ensureEntityKeyIdsSynchronized();
         RegenerateIds regen = mechanic.context.getBean( RegenerateIds.class );
-        long assigned = regen.assignNewEntityKeysIds();
+        regen.assignNewEntityKeysIds();
+//        long assigned = regen.assignNewEntityKeysIds();
         //expander.migrate();
 
         //        CassandraToPostgres cassandraToPostgres = mechanic.getContext().getBean( CassandraToPostgres.class );
@@ -133,7 +134,7 @@ public class Mechanic {
         //long count = mechanic.getContext().getBean( ManualPartitionOfDataTable.class ).migrate();;
         //ReadBench readBench = mechanic.getContext().getBean( ReadBench.class );
         //readBench.benchmark();
-        logger.info( "Assigned {} new ids in {} ms.", assigned, w.elapsed( TimeUnit.MILLISECONDS ) );
+//        logger.info( "Assigned {} new ids in {} ms.", assigned, w.elapsed( TimeUnit.MILLISECONDS ) );
         logger.info( "Upgrade complete!" );
         mechanic.context.close();
     }
