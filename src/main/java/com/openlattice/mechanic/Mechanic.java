@@ -101,8 +101,8 @@ public class Mechanic {
         }
 
         Stopwatch w = Stopwatch.createStarted();
-//        IntegrityChecks checks = mechanic.context.getBean( IntegrityChecks.class );
-//        checks.ensureEntityKeyIdsSynchronized();
+        IntegrityChecks checks = mechanic.context.getBean( IntegrityChecks.class );
+        checks.ensureEntityKeyIdsSynchronized();
         RegenerateIds regen = mechanic.context.getBean( RegenerateIds.class );
         regen.assignNewEntityKeysIds();
 //        long assigned = regen.assignNewEntityKeysIds();

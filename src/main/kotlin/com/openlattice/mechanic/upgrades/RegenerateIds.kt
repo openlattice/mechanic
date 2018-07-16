@@ -75,9 +75,14 @@ class RegenerateIds(
                     .execute(
                             "create table if not exists id_migration( id uuid primary key, entity_set_id uuid, new_id uuid )"
                     )
-            val existing = it.createStatement()
+            val rs = it.createStatement()
                     .executeQuery("select count(*) from id_migration")
-                    .getLong("count")
+            val existing = if (rs.next()) {
+                rs
+                        .getLong("count")
+            } else {
+                0
+            }
 
             //Only do re-assignment process is starting from 0
             val queuedCount =

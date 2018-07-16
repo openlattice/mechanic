@@ -64,67 +64,62 @@ class IntegrityChecks(
     }.toMap()
 
     fun ensureEntityKeyIdsSynchronized() {
-//        corruptEntitySets
-//                .asSequence()
-//                .map { getCorruptEntityKeyIdStream(it.key) }
-//                .forEach { addMissingEntityDataKeys(it) }
+        entitySets.forEach {
+            val entitySetId = it.key
+            val entitySet = it.value
+            val entitySetName = entitySet.name
+            val esTableName = quote(DataTables.entityTableName(entitySetId))
 
-        val connection = hds.connection
-        connection.use {
+            //Ensure that any required entity set tables exist
+            pgEdmManager.createEntitySet(
+                    it.value, entityTypes[it.value.entityTypeId]?.properties?.map { propertyTypes[it] })
 
-            entitySets.forEach {
-                val entitySetId = it.key
-                val entitySet = it.value
-                val entitySetName = entitySet.name
-                val esTableName = quote(DataTables.entityTableName(entitySetId))
-                //Ensure that any required entity set tables exist
-                pgEdmManager.createEntitySet(
-                        it.value, entityTypes[it.value.entityTypeId]?.properties?.map { propertyTypes[it] })
+            //Remove any entity key ids from entity_key_ids that aren't connected to an actual entity.
+            val sql = "DELETE from entity_key_ids " +
+                    "WHERE entity_set_id =  '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
 
-                //Remove any entity key ids from entity_key_ids that aren't connected to an actual entity.
-                val sql = "DELETE from entity_key_ids " +
-                        "WHERE entity_set_id =  '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
-
-                val stmt = connection.createStatement()
-                val w = Stopwatch.createStarted()
-                stmt.use {
-                    logger.info(
-                            "Deleting {} entity key ids not connected to {} in {} ms ",
-                            it.executeUpdate(sql),
-                            entitySetName,
-                            w.elapsed(TimeUnit.MILLISECONDS)
-                    )
-                }
-
-                //Remove any entity key ids from property types not connected to an actual entity.
-
-                val ptStmt = connection.createStatement()
-                w.reset()
-                w.start()
-                ptStmt.use {
-                    propertyTypes.forEach {
-                        val ptTableName = quote(DataTables.propertyTableName(it.key))
-                        val ptSql = "DELETE from $ptTableName " +
-                                "WHERE entity_set_id = '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
-
-                        val ptSql2 = "DELETE from id_migration " +
-                                "WHERE entity_set_id = '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
-                        pgEdmManager.createPropertyTypeTableIfNotExist(entitySet, it.value)
+            executor.execute {
+                hds.connection.use {
+                    val w = Stopwatch.createStarted()
+                    it.createStatement().use {
                         logger.info(
-                                "Submitting delete for entity set{} and property type {}",
+                                "Deleting {} entity key ids not connected to {} in {} ms ",
+                                it.executeUpdate(sql),
                                 entitySetName,
-                                it.value.type.fullQualifiedNameAsString
+                                w.elapsed(TimeUnit.MILLISECONDS)
                         )
-                        ptStmt.addBatch(ptSql)
-                        ptStmt.addBatch(ptSql2)
-
                     }
-                    logger.info(
-                            "Deleting {} properties not connected to {} took {} ms",
-                            entitySetName,
-                            ptStmt.executeBatch().sum(),
-                            w.elapsed(TimeUnit.MILLISECONDS)
-                    )
+
+                    //Remove any entity key ids from property types not connected to an actual entity.
+
+                    val ptStmt = it.createStatement()
+                    w.reset()
+                    w.start()
+                    ptStmt.use {
+                        propertyTypes.forEach {
+                            val ptTableName = quote(DataTables.propertyTableName(it.key))
+                            val ptSql = "DELETE from $ptTableName " +
+                                    "WHERE entity_set_id = '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
+
+                            val ptSql2 = "DELETE from id_migration " +
+                                    "WHERE entity_set_id = '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
+                            pgEdmManager.createPropertyTypeTableIfNotExist(entitySet, it.value)
+                            logger.info(
+                                    "Submitting delete for entity set{} and property type {}",
+                                    entitySetName,
+                                    it.value.type.fullQualifiedNameAsString
+                            )
+                            ptStmt.addBatch(ptSql)
+                            ptStmt.addBatch(ptSql2)
+
+                        }
+                        logger.info(
+                                "Deleting {} properties not connected to {} took {} ms",
+                                entitySetName,
+                                ptStmt.executeBatch().sum(),
+                                w.elapsed(TimeUnit.MILLISECONDS)
+                        )
+                    }
                 }
             }
         }
