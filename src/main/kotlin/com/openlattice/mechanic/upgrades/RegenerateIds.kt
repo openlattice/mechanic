@@ -66,101 +66,30 @@ class RegenerateIds(
     private val ranges = idGen.loadAllKeys().map { it to idGen.load(it) }.toMap()
     private val r = Random()
 
-    init {
-        val connection = hds.connection
-        connection.use {
-
-            entitySets.forEach {
-                val entitySetId = it.key
-                val entitySet = it.value
-                val entitySetName = entitySet.name
-                val esTableName = quote(DataTables.entityTableName(entitySetId))
-                //Ensure that any required entity set tables exist
-                pgEdmManager.createEntitySet(
-                        it.value, entityTypes[it.value.entityTypeId]?.properties?.map { propertyTypes[it] })
-
-                //Remove any entity key ids from entity_key_ids that are connected to an actual entity.
-                val sql = "DELETE from entity_key_ids " +
-                        "WHERE entity_set_id =  '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
-
-                val stmt = connection.createStatement()
-                val w = Stopwatch.createStarted()
-                stmt.use {
-                    logger.info(
-                            "Deleting {} entity key ids not connected to {} in {} ms ",
-                            it.executeUpdate(sql),
-                            entitySetName,
-                            w.elapsed(TimeUnit.MILLISECONDS)
-                    )
-                }
-
-                //Remove any entity key ids from property types not connected to an actual entity.
-
-                val ptStmt = connection.createStatement()
-                w.reset()
-                w.start()
-                ptStmt.use {
-                    propertyTypes.forEach {
-                        val ptTableName = quote(DataTables.propertyTableName(it.key))
-                        val ptSql = "DELETE from $ptTableName " +
-                                "WHERE entity_set_id = '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
-                        pgEdmManager.createPropertyTypeTableIfNotExist(entitySet, it.value)
-                        logger.info(
-                                "Submitting delete for entity set{} and property type {}",
-                                entitySetName,
-                                it.value.type.fullQualifiedNameAsString
-                        )
-                        ptStmt.addBatch(ptSql)
-                    }
-                    logger.info(
-                            "Deleting {} properties not connected to {} took {} ms",
-                            entitySetName,
-                            ptStmt.executeBatch().sum(),
-                            w.elapsed(TimeUnit.MILLISECONDS)
-                    )
-                }
-            }
-        }
-    }
-
-    private val corruptEntitySets = entitySets.filter {
-        logger.info("Checking entity set {}", it.value.name)
-        !hasIdIntegrity(it.key)
-    }.toMap()
-
-    init {
-        corruptEntitySets
-                .asSequence()
-                .map { getCorruptEntityKeyIdStream(it.key) }
-                .forEach { addMissingEntityDataKeys(it) }
-
+    fun assignNewEntityKeysIds(): Long {
         hds.connection.use {
             val w = Stopwatch.createStarted()
+            //The reason we allow a primary key to exist is to speed updates that mark a data key as processed.
             it
                     .createStatement()
-                    .execute(
-                            "create table if not exists id_migration as (SELECT id, entity_set_id from entity_key_ids)"
-                    )
-//                    .execute("create table if not exists id_migration( id uuid primary key, entity_set_id uuid)")
-
-            val queuedCount = it
-                    .createStatement()
+                    .execute("create table if not exists id_migration( id uuid primary key, entity_set_id uuid)")
+            val existing = it.createStatement()
                     .executeQuery("select count(*) from id_migration")
                     .getLong("count")
 
-//            if (migratingIdsCount == 0L) {
-            //Build list of ids to migrate.
+            //Only do re-assignment process is starting from 0
+            val queuedCount =
+                    if (existing > 0) {
+                        existing
+                    } else {
+                        it.createStatement().use {
+                            it.executeUpdate("insert into id_migration select id, entity_set_id from entity_key_ids")
+                        }.toLong()
+                    }
 
-//                val queuedCount = it.createStatement().use {
-//                    it.executeUpdate("insert into id_migration select id, entity_set_id from entity_key_ids")
-//                }
             logger.info("Queued {} data keys for migration in {} ms", queuedCount, w.elapsed(TimeUnit.MILLISECONDS))
-//            }
         }
-    }
 
-
-    fun assignNewEntityKeysIds(): Long {
         val assignedCount = AtomicLong()
         val dataKeys = getEntityKeyIdStream()
         dataKeys.forEach {
@@ -181,6 +110,7 @@ class RegenerateIds(
                                     "UPDATE $propertyTypeTable SET id = '$newEntityKeyId' WHERE id = '$entityKeyId'"
                             )
                         }
+                        stmt.addBatch("DELETE FROM id_migration where id = $entityKeyId")
                         stmt.executeBatch()
                     }
                 }
@@ -193,94 +123,6 @@ class RegenerateIds(
         }
 
         return assignedCount.get()
-    }
-
-    private fun addMissingEntityDataKeys(dataKeys: PostgresIterable<EntityDataKey>): Long {
-        //Add data key to processing queue
-        val queued = hds.connection.use {
-            val ps = it.prepareStatement("INSERT INTO id_migration (id, entity_set_id) VALUES (?,?)")
-            ps.use {
-                dataKeys.forEach {
-                    ps.setObject(1, it.entitySetId)
-                    ps.setObject(2, it.entityKeyId)
-                    ps.addBatch()
-                }
-                ps.executeLargeBatch().sum()
-            }
-        }
-
-        //Add data key to entity_key_ids table
-        val added = hds.connection.use {
-            val ps = it.prepareStatement("INSERT INTO entity_key_ids (entity_set_id, entity_id, id) VALUES (?,?,?)")
-            ps.use {
-                dataKeys.forEach {
-                    ps.setObject(1, it.entitySetId)
-                    ps.setString(2, it.entityKeyId.toString())
-                    ps.setObject(3, it.entityKeyId)
-                    ps.addBatch()
-                }
-                ps.executeLargeBatch().sum()
-            }
-        }
-        if (queued != added) {
-            logger.warn("Number queued is not equal to number added... something is going wrong.")
-        }
-
-        return queued
-    }
-
-    private fun countEntityKeysInEntityTable(entitySetId: UUID): Long {
-        val esTableName = quote(DataTables.entityTableName(entitySetId))
-        hds.connection.use {
-            it.createStatement().use {
-                it.executeQuery("SELECT COUNT(*) FROM $esTableName").use {
-                    return if (it.next()) {
-                        it.getLong("count")
-                    } else {
-                        -2
-                    }
-                }
-            }
-        }
-    }
-
-    private fun countEntityKeysInIdTable(entitySetId: UUID): Long {
-        return hds.connection.use {
-            it.createStatement().use {
-                it.executeQuery("SELECT COUNT(*) FROM entity_key_ids where entity_set_id = '$entitySetId'").use {
-                    return if (it.next()) {
-                        it.getLong("count")
-                    } else {
-                        -1
-                    }
-                }
-            }
-        }
-    }
-
-    private fun hasIdIntegrity(entitySetId: UUID): Boolean {
-        val idsTableCount = countEntityKeysInIdTable(entitySetId)
-        val esTableCount = countEntityKeysInEntityTable(entitySetId)
-        logger.info("Ids table = {}, ES table = {}", idsTableCount, esTableCount)
-        return idsTableCount == esTableCount
-    }
-
-    private fun getCorruptEntityKeyIdStream(entitySetId: UUID): PostgresIterable<EntityDataKey> {
-        val esTableName = quote(DataTables.entityTableName(entitySetId))
-        return PostgresIterable(
-                Supplier<StatementHolder> {
-                    val connection = hds.connection
-                    val stmt = connection.createStatement()
-                    val sql = "SELECT id FROM $esTableName " +
-                            "WHERE id NOT IN (SELECT id FROM entity_key_ids)"
-                    val rs = stmt.executeQuery(sql)
-                    StatementHolder(connection, stmt, rs)
-                },
-                Function<ResultSet, EntityDataKey> {
-                    val id = ResultSetAdapters.id(it)
-                    EntityDataKey(entitySetId, id)
-                }
-        )
     }
 
     private fun getEntityKeyIdStream(): PostgresIterable<EntityDataKey> {

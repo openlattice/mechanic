@@ -29,9 +29,11 @@ import com.kryptnostic.rhizome.startup.Requirement;
 import com.openlattice.auth0.Auth0Pod;
 import com.openlattice.hazelcast.pods.MapstoresPod;
 import com.openlattice.jdbc.JdbcPod;
+import com.openlattice.mechanic.integrity.IntegrityChecks;
 import com.openlattice.mechanic.pods.MechanicUpgradePod;
 import com.openlattice.mechanic.upgrades.RegenerateIds;
 import com.openlattice.postgres.PostgresPod;
+import java.io.Console;
 import java.sql.SQLException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -43,8 +45,7 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
-public class
-Mechanic {
+public class Mechanic {
     private static final Class<?>[]                         mechanicPods = new Class<?>[] {
             Auth0Pod.class,
             JdbcPod.class,
@@ -93,9 +94,16 @@ Mechanic {
     public static void main( String[] args ) throws InterruptedException, ExecutionException, SQLException {
         Mechanic mechanic = new Mechanic();
         mechanic.sprout( args );
-        //        ExpandDataTables expander = mechanic.context.getBean( ExpandDataTables.class );
-        RegenerateIds regen = mechanic.context.getBean( RegenerateIds.class );
+        Console console = System.console();
+
+        if ( console == null ) {
+             logger.error("Cannot be run in non-interactive mode.");
+        }
+
         Stopwatch w = Stopwatch.createStarted();
+        IntegrityChecks checks = mechanic.context.getBean( IntegrityChecks.class );
+        checks.ensureEntityKeyIdsSynchronized();
+        RegenerateIds regen = mechanic.context.getBean( RegenerateIds.class );
         long assigned = regen.assignNewEntityKeysIds();
         //expander.migrate();
 

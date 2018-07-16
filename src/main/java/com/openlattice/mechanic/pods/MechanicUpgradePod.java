@@ -25,6 +25,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.openlattice.edm.PostgresEdmManager;
 import com.openlattice.hazelcast.pods.MapstoresPod;
 import com.openlattice.ids.IdGenerationMapstore;
+import com.openlattice.mechanic.integrity.IntegrityChecks;
 import com.openlattice.mechanic.upgrades.RegenerateIds;
 import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
@@ -72,16 +73,31 @@ public class MechanicUpgradePod {
     //    }
 
     @Bean
+    public PostgresEdmManager pgEdmManager() {
+        return new PostgresEdmManager( new PostgresTableManager( hikariDataSource ), hikariDataSource );
+    }
+
+    @Bean
     public RegenerateIds regen() {
-        PostgresEdmManager pgEdmManager = new PostgresEdmManager( new PostgresTableManager( hikariDataSource ),
-                hikariDataSource );
+
         return new RegenerateIds(
-                pgEdmManager,
+                pgEdmManager(),
                 hikariDataSource,
                 (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
                 (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
                 (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
                 (IdGenerationMapstore) mapstoresPod.idGenerationMapstore(),
+                executor );
+    }
+
+    @Bean
+    public IntegrityChecks integrityChecks() {
+        return new IntegrityChecks(
+                pgEdmManager(),
+                hikariDataSource,
+                (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
+                (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
+                (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
                 executor );
     }
 
