@@ -106,6 +106,9 @@ class IntegrityChecks(
                         val ptTableName = quote(DataTables.propertyTableName(it.key))
                         val ptSql = "DELETE from $ptTableName " +
                                 "WHERE entity_set_id = '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
+
+                        val ptSql2 = "DELETE from id_migration " +
+                                "WHERE entity_set_id = '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
                         pgEdmManager.createPropertyTypeTableIfNotExist(entitySet, it.value)
                         logger.info(
                                 "Submitting delete for entity set{} and property type {}",
@@ -113,6 +116,8 @@ class IntegrityChecks(
                                 it.value.type.fullQualifiedNameAsString
                         )
                         ptStmt.addBatch(ptSql)
+                        ptStmt.addBatch(ptSql2)
+
                     }
                     logger.info(
                             "Deleting {} properties not connected to {} took {} ms",
