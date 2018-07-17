@@ -115,7 +115,7 @@ class RegenerateIds(
                     ps.setObject(1, newEntityKeyId)
                     ps.setObject(2, entityKeyId)
                     ps.addBatch()
-                    if (((++counter) % 10000) == 0) {
+                    if (((++counter) % 100000) == 0) {
                         ps.executeBatch()
                         logger.info("Assigned {} ids in {} ms", counter, w.elapsed(TimeUnit.MILLISECONDS))
                         //Periodically flush ranges.

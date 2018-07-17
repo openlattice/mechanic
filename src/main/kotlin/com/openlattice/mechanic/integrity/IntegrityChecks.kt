@@ -98,17 +98,22 @@ class IntegrityChecks(
                     ptStmt.use {
                         propertyTypes.forEach {
                             val ptTableName = quote(DataTables.propertyTableName(it.key))
-                            val ptSql = "DELETE FROM entity_key_ids " +
-                                    "WHERE id in (select id from " +
-                                    "(select entity_key_ids.entity_set_id, entity_key_ids.id, $esTableName.id as es_id from entity_key_ids LEFT JOIN $esTableName USING(id) " +
-                                    "WHERE entity_key_ids.entity_set_id = 'addfe773-ce01-423c-aadf-9cd1e122c881' AND $esTableName.id is null) as sq)"
-                                    //"DELETE from $ptTableName " +
-                                    //"WHERE entity_set_id = '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
-
-                            val ptSql2 = "DELETE from id_migration " +
+                            val ptSql = "DELETE from $ptTableName " +
                                     "WHERE entity_set_id = '$entitySetId' AND id in (select id from " +
                                     "(select entity_key_ids.entity_set_id, entity_key_ids.id, $esTableName.id as es_id from entity_key_ids LEFT JOIN $esTableName USING(id) " +
                                     "WHERE entity_key_ids.entity_set_id = 'addfe773-ce01-423c-aadf-9cd1e122c881' AND $esTableName.id is null) as sq)"
+                            val ptSql2 = "DELETE FROM entity_key_ids " +
+                                    "WHERE id in (select id from " +
+                                    "(select entity_key_ids.entity_set_id, entity_key_ids.id, $esTableName.id as es_id from entity_key_ids LEFT JOIN $esTableName USING(id) " +
+                                    "WHERE entity_key_ids.entity_set_id = 'addfe773-ce01-423c-aadf-9cd1e122c881' AND $esTableName.id is null) as sq)"
+                            val ptSql3 = "DELETE from id_migration " +
+                                    "WHERE entity_set_id = '$entitySetId' AND id in (select id from " +
+                                    "(select entity_key_ids.entity_set_id, entity_key_ids.id, $esTableName.id as es_id from entity_key_ids LEFT JOIN $esTableName USING(id) " +
+                                    "WHERE entity_key_ids.entity_set_id = 'addfe773-ce01-423c-aadf-9cd1e122c881' AND $esTableName.id is null) as sq)"
+
+                            //"DELETE from $ptTableName " +
+                            //"WHERE entity_set_id = '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
+
                             pgEdmManager.createPropertyTypeTableIfNotExist(entitySet, it.value)
                             logger.info(
                                     "Submitting delete for entity set{} and property type {}",
@@ -117,6 +122,7 @@ class IntegrityChecks(
                             )
                             ptStmt.addBatch(ptSql)
                             ptStmt.addBatch(ptSql2)
+                            ptStmt.addBatch(ptSql3)
 
                         }
                         logger.info(
