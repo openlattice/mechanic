@@ -237,6 +237,65 @@ class RegenerateIds(
         return ranges[rangeIndex.getAndIncrement() % NUM_PARTITIONS]!!.nextId()
     }
 
+    fun updatePropertyTables() {
+        hds.connection.use {
+            it.createStatement().use {
+                val stmt = it
+                propertyTypes.keys.forEach {
+                    val propertyTableName = quote(DataTables.propertyTableName(it))
+                    stmt.addBatch(
+                            "UPDATE $propertyTableName " +
+                                    "SET $propertyTableName.id = id_migration.new_id FROM id_migration " +
+                                    "WHERE $propertyTableName.id = id_migration.id"
+                    )
+                }
+                stmt.executeBatch()
+            }
+        }
+    }
+
+    fun updateEntityTables() {
+        hds.connection.use {
+            it.createStatement().use {
+                val stmt = it
+                entitySets.keys.forEach {
+                    val esTableName = quote(DataTables.entityTableName(it))
+                    stmt.addBatch(
+                            "UPDATE $esTableName " +
+                                    "SET $esTableName.id = id_migration.new_id FROM id_migration " +
+                                    "WHERE $esTableName.id = id_migration.id"
+                    )
+                }
+                stmt.executeBatch()
+            }
+        }
+    }
+
+    fun updateEdgesTables() {
+        hds.connection.use {
+            it.createStatement().use {
+                it.addBatch(
+                        "UPDATE edges " +
+                                "SET edges.src_entity_key_id = id_migration.new_id " +
+                                "FROM id_migration " +
+                                "WHERE edges.src_entity_key_id = id_migration.id"
+                )
+                it.addBatch(
+                        "UPDATE edges " +
+                                "SET edges.dst_entity_key_id = id_migration.new_id " +
+                                "FROM id_migration " +
+                                "WHERE edges.dst_entity_key_id = id_migration.id"
+                )
+                it.addBatch(
+                        "UPDATE edges " +
+                                "SET edges.edge_entity_key_id = id_migration.new_id " +
+                                "FROM id_migration " +
+                                "WHERE edges.edge_entity_key_id = id_migration.id"
+                )
+            }
+        }
+    }
+
     private fun getNextIds(count: Long): List<UUID> {
         checkState(count < Int.MAX_VALUE)
         val remainderToBeDistributed = count % NUM_PARTITIONS
