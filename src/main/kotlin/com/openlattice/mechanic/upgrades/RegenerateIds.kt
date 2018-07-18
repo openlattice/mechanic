@@ -128,7 +128,7 @@ class RegenerateIds(
         }
 
 
-        dataKeys.stream().forEach {
+        dataKeys.forEach {
             val counter = counterIndex.getAndIncrement()
             try {
                 locks[counter].lock()
@@ -207,7 +207,7 @@ class RegenerateIds(
                     val connection = hds.connection
                     connection.use {
                         val stmt = connection.createStatement()
-                        stmt.fetchSize = 100000
+                        stmt.fetchSize = 1000
                         val rs = stmt.executeQuery("SELECT id, entity_set_id FROM id_migration WHERE new_id IS NULL")
                         rs.fetchSize
                         StatementHolder(connection, stmt, rs)
