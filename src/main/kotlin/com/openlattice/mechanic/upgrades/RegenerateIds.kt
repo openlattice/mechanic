@@ -68,11 +68,11 @@ class RegenerateIds(
     private val entitySets = esms.loadAllKeys().map { it to esms.load(it) }.toMap()
     private val entityTypes = etms.loadAllKeys().map { it to etms.load(it) }.toMap()
     private val propertyTypes = ptms.loadAllKeys().map { it to ptms.load(it) }.toMap()
-    private val ranges = idGen.loadAllKeys().map { it to idGen.load(it) }.toMap()
+    private val ranges = idGen.loadAllKeys().map { it to idGen.load(it) }.toMap().toMutableMap()
+    private val rangeIndex = AtomicLong()
     private val r = Random()
 
     fun initRanges() {
-        val ranges: HashMap<Long, Range> = HashMap(NUM_PARTITIONS)
         for (i in 0L until NUM_PARTITIONS.toLong()) {
             ranges[i] = Range(i shl 48)
         }
@@ -234,7 +234,7 @@ class RegenerateIds(
     }
 
     private fun getNextId(): UUID {
-        return ranges[r.nextInt(NUM_PARTITIONS).toLong()]!!.nextId()
+        return ranges[rangeIndex.getAndIncrement() % NUM_PARTITIONS]!!.nextId()
     }
 
     private fun getNextIds(count: Long): List<UUID> {
