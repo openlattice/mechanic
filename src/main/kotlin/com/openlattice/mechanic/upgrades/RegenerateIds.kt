@@ -128,7 +128,6 @@ class RegenerateIds(
 
 
         var dataKeys = getUnassignedEntries(fetchSize).toList()
-
         while (!dataKeys.isEmpty()) {
             dataKeys.forEach {
                 val counter = counterIndex.getAndIncrement()
@@ -211,15 +210,11 @@ class RegenerateIds(
         return PostgresIterable(
                 Supplier<StatementHolder> {
                     val connection = hds.connection
-                    connection.use {
-                        val stmt = connection.createStatement()
-//                        stmt.fetchSize = fetchSize
-                        val rs = stmt.executeQuery(
-                                "SELECT id, entity_set_id FROM id_migration WHERE new_id IS NULL LIMIT $fetchSize"
-                        )
-                        rs.fetchSize
-                        StatementHolder(connection, stmt, rs)
-                    }
+                    val stmt = connection.createStatement()
+                    val rs = stmt.executeQuery(
+                            "SELECT id, entity_set_id FROM id_migration WHERE new_id IS NULL LIMIT $fetchSize"
+                    )
+                    StatementHolder(connection, stmt, rs)
                 },
                 Function<ResultSet, EntityDataKey> {
                     ResultSetAdapters.entityDataKey(it)
@@ -231,11 +226,9 @@ class RegenerateIds(
         return PostgresIterable(
                 Supplier<StatementHolder> {
                     val connection = hds.connection
-                    connection.use {
-                        val stmt = connection.createStatement()
-                        val rs = stmt.executeQuery("SELECT id, entity_set_id FROM id_migration")
-                        StatementHolder(connection, stmt, rs)
-                    }
+                    val stmt = connection.createStatement()
+                    val rs = stmt.executeQuery("SELECT id, entity_set_id FROM id_migration")
+                    StatementHolder(connection, stmt, rs)
                 },
                 Function<ResultSet, EntityDataKey> {
                     ResultSetAdapters.entityDataKey(it)
