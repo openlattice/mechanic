@@ -37,6 +37,7 @@ import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 import java.sql.ResultSet
 import java.util.*
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.function.Function
 import java.util.function.Supplier
@@ -64,6 +65,7 @@ class IntegrityChecks(
     }.toMap()
 
     fun ensureEntityKeyIdsSynchronized() {
+        val latches:MutableList<CountDownLatch> = mutableListOf()
         entitySets.forEach {
             val entitySetId = it.key
             val entitySet = it.value
@@ -77,7 +79,8 @@ class IntegrityChecks(
             //Remove any entity key ids from entity_key_ids that aren't connected to an actual entity.
             val sql = "DELETE from entity_key_ids " +
                     "WHERE entity_set_id =  '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
-
+            val latch = CountDownLatch(1)
+            latches.add(latch)
             executor.execute {
                 hds.connection.use {
                     val w = Stopwatch.createStarted()
@@ -133,9 +136,10 @@ class IntegrityChecks(
                         )
                     }
                 }
+                latch.countDown()
             }
         }
-
+        latches.forEach(CountDownLatch::await)
     }
 
     private fun addMissingEntityDataKeys(dataKeys: PostgresIterable<EntityDataKey>): Long {
