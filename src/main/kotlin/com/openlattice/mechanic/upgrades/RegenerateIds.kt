@@ -23,6 +23,7 @@ package com.openlattice.mechanic.upgrades
 
 import com.google.common.base.Preconditions.checkState
 import com.google.common.base.Stopwatch
+import com.google.common.collect.Lists
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.openlattice.data.EntityDataKey
 import com.openlattice.edm.PostgresEdmManager
@@ -114,12 +115,13 @@ class RegenerateIds(
 
         val insertNewId = "UPDATE id_migration SET new_id = ? WHERE id = ?"
         val counterIndex = AtomicInteger()
-        val fetchSize = 100000
+        val fetchSize = 500000
         val w = Stopwatch.createStarted()
 
         val workers = Runtime.getRuntime().availableProcessors()
         val locks: MutableList<Lock> = ArrayList(workers)
         val counters: MutableList<Int> = ArrayList(workers)
+        val batchSize = fetchSize / workers
 
         for (i in 0 until workers) {
             locks.add(ReentrantLock())
@@ -130,25 +132,29 @@ class RegenerateIds(
         var dataKeys = getUnassignedEntries(fetchSize).toList()
         while (!dataKeys.isEmpty()) {
             val counter = counterIndex.getAndIncrement() % workers
-            try {
-                locks[counter].lock()
-                executor.execute {
-                    hds.connection.use {
-                        val ps = it.prepareStatement(insertNewId)
-                        dataKeys.forEach {
-                            val entityKeyId = it.entityKeyId
-                            val newEntityKeyId = getNextId()
-                            ps.setObject(1, newEntityKeyId)
-                            ps.setObject(2, entityKeyId)
-                            ps.addBatch()
-                            ++counters[counter]
+            val batches = Lists.partition(dataKeys, batchSize)
+            batches.forEach {
+                val batch = it
+                try {
+                    locks[counter].lock()
+                    executor.execute {
+                        hds.connection.use {
+                            val ps = it.prepareStatement(insertNewId)
+                            batch.forEach {
+                                val entityKeyId = it.entityKeyId
+                                val newEntityKeyId = getNextId()
+                                ps.setObject(1, newEntityKeyId)
+                                ps.setObject(2, entityKeyId)
+                                ps.addBatch()
+                                ++counters[counter]
+                            }
+                            ps.executeBatch()
                         }
-                        ps.executeBatch()
+                        logger.info("Assigned {} ids in {} ms", counters.sum(), w.elapsed(TimeUnit.MILLISECONDS))
                     }
-                    logger.info("Assigned {} ids in {} ms", counters.sum(), w.elapsed(TimeUnit.MILLISECONDS))
+                } finally {
+                    locks[counter].unlock()
                 }
-            } finally {
-                locks[counter].unlock()
             }
             if (counterIndex.get() > 0 && counter == 0) {
                 idGen.storeAll(ranges)
