@@ -105,7 +105,7 @@ class RegenerateIds(
                         it.createStatement().use {
                             it.executeUpdate(
                                     "insert into id_migration (id, entity_set_id) select id, entity_set_id from entity_key_ids" +
-                                            "on conflict do nothing"
+                                            " on conflict do nothing"
                             )
                         }.toLong()
                     }
