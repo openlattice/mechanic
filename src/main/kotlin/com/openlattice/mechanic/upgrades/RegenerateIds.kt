@@ -29,6 +29,7 @@ import com.openlattice.edm.PostgresEdmManager
 import com.openlattice.ids.HazelcastIdGenerationService.NUM_PARTITIONS
 import com.openlattice.ids.IdGeneratingEntryProcessor
 import com.openlattice.ids.IdGenerationMapstore
+import com.openlattice.ids.Range
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.ResultSetAdapters
@@ -39,8 +40,6 @@ import com.openlattice.postgres.streams.PostgresIterable
 import com.openlattice.postgres.streams.StatementHolder
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
-import java.sql.Connection
-import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -70,6 +69,14 @@ class RegenerateIds(
     private val propertyTypes = ptms.loadAllKeys().map { it to ptms.load(it) }.toMap()
     private val ranges = idGen.loadAllKeys().map { it to idGen.load(it) }.toMap()
     private val r = Random()
+
+    fun initRanges() {
+        val ranges: HashMap<Long, Range> = HashMap(NUM_PARTITIONS)
+        for (i in 0L until NUM_PARTITIONS.toLong()) {
+            ranges[i] = Range(i shl 48)
+        }
+        idGen.storeAll(ranges)
+    }
 
     fun assignNewEntityKeysIds() {
         hds.connection.use {
@@ -107,21 +114,15 @@ class RegenerateIds(
 
         val insertNewId = "UPDATE id_migration SET new_id = ? WHERE id = ?"
         val counterIndex = AtomicInteger()
-        val batchSize = 100000
-        val fetchSize = 10000
+        val batchSize = 10000
+        val fetchSize = 100000
         val w = Stopwatch.createStarted()
 
         val workers = Runtime.getRuntime().availableProcessors()
-        val connections: MutableList<Connection> = ArrayList(workers)
-        val preparedStatements: MutableList<PreparedStatement> = ArrayList(workers)
         val locks: MutableList<Lock> = ArrayList(workers)
         val counters: MutableList<Int> = ArrayList(workers)
 
         for (i in 0 until workers) {
-            val connection = hds.connection
-            val ps = connection.prepareStatement(insertNewId)
-            connections.add(connection)
-            preparedStatements.add(ps)
             locks.add(ReentrantLock())
             counters.add(0)
         }
@@ -129,31 +130,29 @@ class RegenerateIds(
 
         var dataKeys = getUnassignedEntries(fetchSize).toList()
         while (!dataKeys.isEmpty()) {
-            dataKeys.forEach {
-                val counter = counterIndex.getAndIncrement()
-                try {
-                    locks[counter].lock()
-                    executor.execute {
-                        val ps = preparedStatements[counter]
-                        val entityKeyId = it.entityKeyId
-                        val newEntityKeyId = getNextId()
-                        ps.setObject(1, newEntityKeyId)
-                        ps.setObject(2, entityKeyId)
-                        ps.addBatch()
-
-                        if (counters[counter] >= batchSize) {
-                            ps.executeBatch()
-                            logger.info("Assigned {} ids in {} ms", counter, w.elapsed(TimeUnit.MILLISECONDS))
-//                        preparedStatements[counter] = connection.prepareStatement(insertNewId)
-                            counters[counter] = 0
-                            idGen.storeAll(ranges)
-                        } else {
+            val counter = counterIndex.getAndIncrement() % workers
+            try {
+                locks[counter].lock()
+                executor.execute {
+                    hds.connection.use {
+                        val ps = it.prepareStatement(insertNewId)
+                        dataKeys.forEach {
+                            val entityKeyId = it.entityKeyId
+                            val newEntityKeyId = getNextId()
+                            ps.setObject(1, newEntityKeyId)
+                            ps.setObject(2, entityKeyId)
+                            ps.addBatch()
                             ++counters[counter]
                         }
+                        ps.executeBatch()
                     }
-                } finally {
-                    locks[counter].unlock()
+                    logger.info("Assigned {} ids in {} ms", counters.sum(), w.elapsed(TimeUnit.MILLISECONDS))
                 }
+            } finally {
+                locks[counter].unlock()
+            }
+            if ((counterIndex.get() % 1000000) == 0) {
+                idGen.storeAll(ranges)
             }
             dataKeys = getUnassignedEntries(fetchSize).toList()
         }
@@ -163,13 +162,6 @@ class RegenerateIds(
 
         //Since every lock must be acquired in order for for each to proceed
         locks.forEach(Lock::lock)
-        preparedStatements.forEachIndexed { index, preparedStatement ->
-            if (counters[index] < batchSize) {
-                preparedStatement.executeBatch()
-                preparedStatement.close()
-            }
-        }
-        connections.forEach(Connection::close)
         idGen.storeAll(ranges)
     }
 

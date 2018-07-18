@@ -114,8 +114,13 @@ public class Mechanic {
                 .anyMatch( profile -> profile.equals( REGEN ) ) ) {
 
             RegenerateIds regen = mechanic.context.getBean( RegenerateIds.class );
+            if ( Stream.of( args ).anyMatch( arg -> arg.equals( "idgen" ) ) ) {
+                regen.initRanges();
+            }
             regen.assignNewEntityKeysIds();
+
         }
+
         //        long assigned = regen.assignNewEntityKeysIds();
         //expander.migrate();
 
@@ -148,6 +153,7 @@ public class Mechanic {
         //        logger.info( "Assigned {} new ids in {} ms.", assigned, w.elapsed( TimeUnit.MILLISECONDS ) );
         logger.info( "Upgrade complete!" );
         mechanic.context.close();
+        System.exit( 0 );
     }
 
     public static boolean startupRequirementsSatisfied( AnnotationConfigApplicationContext context ) {
