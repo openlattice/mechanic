@@ -105,11 +105,10 @@ class RegenerateIds(
             logger.info("Queued {} data keys for migration in {} ms", queuedCount, w.elapsed(TimeUnit.MILLISECONDS))
         }
 
-        val dataKeys = getUnassignedEntries()
-
         val insertNewId = "UPDATE id_migration SET new_id = ? WHERE id = ?"
         val counterIndex = AtomicInteger()
         val batchSize = 100000
+        val fetchSize = 10000
         val w = Stopwatch.createStarted()
 
         val workers = Runtime.getRuntime().availableProcessors()
@@ -128,29 +127,36 @@ class RegenerateIds(
         }
 
 
-        dataKeys.forEach {
-            val counter = counterIndex.getAndIncrement()
-            try {
-                locks[counter].lock()
-                executor.execute {
-                    val ps = preparedStatements[counter]
-                    val entityKeyId = it.entityKeyId
-                    val newEntityKeyId = getNextId()
-                    ps.setObject(1, newEntityKeyId)
-                    ps.setObject(2, entityKeyId)
-                    ps.addBatch()
+        var dataKeys = getUnassignedEntries(fetchSize).toList()
 
-                    if (counters[counter] >= batchSize) {
-                        ps.executeBatch()
-                        logger.info("Assigned {} ids in {} ms", counter, w.elapsed(TimeUnit.MILLISECONDS))
+        while (!dataKeys.isEmpty()) {
+            dataKeys.forEach {
+                val counter = counterIndex.getAndIncrement()
+                try {
+                    locks[counter].lock()
+                    executor.execute {
+                        val ps = preparedStatements[counter]
+                        val entityKeyId = it.entityKeyId
+                        val newEntityKeyId = getNextId()
+                        ps.setObject(1, newEntityKeyId)
+                        ps.setObject(2, entityKeyId)
+                        ps.addBatch()
+
+                        if (counters[counter] >= batchSize) {
+                            ps.executeBatch()
+                            logger.info("Assigned {} ids in {} ms", counter, w.elapsed(TimeUnit.MILLISECONDS))
 //                        preparedStatements[counter] = connection.prepareStatement(insertNewId)
-                        counters[counter] = 0
-                        idGen.storeAll(ranges)
+                            counters[counter] = 0
+                            idGen.storeAll(ranges)
+                        } else {
+                            ++counters[counter]
+                        }
                     }
+                } finally {
+                    locks[counter].unlock()
                 }
-            } finally {
-                locks[counter].unlock()
             }
+            dataKeys = getUnassignedEntries(fetchSize).toList()
         }
 
 //        executor.shutdown()
@@ -201,14 +207,16 @@ class RegenerateIds(
         return assignedCount.get()
     }
 
-    private fun getUnassignedEntries(): PostgresIterable<EntityDataKey> {
+    private fun getUnassignedEntries(fetchSize: Int): PostgresIterable<EntityDataKey> {
         return PostgresIterable(
                 Supplier<StatementHolder> {
                     val connection = hds.connection
                     connection.use {
                         val stmt = connection.createStatement()
-                        stmt.fetchSize = 1000
-                        val rs = stmt.executeQuery("SELECT id, entity_set_id FROM id_migration WHERE new_id IS NULL")
+//                        stmt.fetchSize = fetchSize
+                        val rs = stmt.executeQuery(
+                                "SELECT id, entity_set_id FROM id_migration WHERE new_id IS NULL LIMIT $fetchSize"
+                        )
                         rs.fetchSize
                         StatementHolder(connection, stmt, rs)
                     }
