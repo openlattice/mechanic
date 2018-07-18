@@ -118,7 +118,7 @@ class RegenerateIds(
         val locks: MutableList<Lock> = ArrayList(workers)
         val counters: MutableList<Int> = ArrayList(workers)
 
-        for (i in 1 until workers) {
+        for (i in 0 until workers) {
             val connection = hds.connection
             val ps = connection.prepareStatement(insertNewId)
             connections.add(connection)
@@ -127,7 +127,8 @@ class RegenerateIds(
             counters.add(0)
         }
 
-        dataKeys.forEach {
+
+        dataKeys.stream().forEach {
             val counter = counterIndex.getAndIncrement()
             try {
                 locks[counter].lock()
@@ -164,7 +165,6 @@ class RegenerateIds(
             }
         }
         connections.forEach(Connection::close)
-
         idGen.storeAll(ranges)
     }
 
