@@ -39,10 +39,15 @@ import com.openlattice.postgres.streams.PostgresIterable
 import com.openlattice.postgres.streams.StatementHolder
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
+import java.sql.Connection
+import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.util.*
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.locks.Lock
+import java.util.concurrent.locks.ReentrantLock
 import java.util.function.Function
 import java.util.function.Supplier
 
@@ -103,32 +108,64 @@ class RegenerateIds(
         val dataKeys = getUnassignedEntries()
 
         val insertNewId = "UPDATE id_migration SET new_id = ? WHERE id = ?"
-        var counter = 0
+        val counterIndex = AtomicInteger()
+        val batchSize = 100000
         val w = Stopwatch.createStarted()
-        hds.connection.use {
-            it.prepareStatement(insertNewId).use {
-                val ps = it
-                dataKeys.forEach {
 
+        val workers = Runtime.getRuntime().availableProcessors()
+        val connections: MutableList<Connection> = ArrayList(workers)
+        val preparedStatements: MutableList<PreparedStatement> = ArrayList(workers)
+        val locks: MutableList<Lock> = ArrayList(workers)
+        val counters: MutableList<Int> = ArrayList(workers)
+
+        for (i in 1 until workers) {
+            val connection = hds.connection
+            val ps = connection.prepareStatement(insertNewId)
+            connections.add(connection)
+            preparedStatements.add(ps)
+            locks.add(ReentrantLock())
+            counters.add(0)
+        }
+
+        dataKeys.forEach {
+            val counter = counterIndex.getAndIncrement()
+            try {
+                locks[counter].lock()
+                executor.execute {
+                    val ps = preparedStatements[counter]
                     val entityKeyId = it.entityKeyId
                     val newEntityKeyId = getNextId()
                     ps.setObject(1, newEntityKeyId)
                     ps.setObject(2, entityKeyId)
                     ps.addBatch()
-                    if (((++counter) % 100000) == 0) {
+
+                    if (counters[counter] >= batchSize) {
                         ps.executeBatch()
                         logger.info("Assigned {} ids in {} ms", counter, w.elapsed(TimeUnit.MILLISECONDS))
-                        //Periodically flush ranges.
+//                        preparedStatements[counter] = connection.prepareStatement(insertNewId)
+                        counters[counter] = 0
                         idGen.storeAll(ranges)
                     }
                 }
-
-                if ((counter % 100000) != 0) {
-                    ps.executeBatch()
-                }
-                idGen.storeAll(ranges)
+            } finally {
+                locks[counter].unlock()
             }
         }
+
+//        executor.shutdown()
+//        while( !executor.awaitTermination(1, TimeUnit.DAYS ) ){}
+
+        //Since every lock must be acquired in order for for each to proceed
+        locks.forEach(Lock::lock)
+        preparedStatements.forEachIndexed { index, preparedStatement ->
+            if (counters[index] < batchSize) {
+                preparedStatement.executeBatch()
+                preparedStatement.close()
+            }
+        }
+        connections.forEach(Connection::close)
+
+        idGen.storeAll(ranges)
     }
 
     fun updateExistingTables(): Long {

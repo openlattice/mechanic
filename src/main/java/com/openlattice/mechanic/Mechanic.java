@@ -20,6 +20,9 @@
 
 package com.openlattice.mechanic;
 
+import static com.openlattice.mechanic.pods.MechanicUpgradePod.INTEGRITY;
+import static com.openlattice.mechanic.pods.MechanicUpgradePod.REGEN;
+
 import com.google.common.base.Stopwatch;
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles;
 import com.kryptnostic.rhizome.core.Rhizome;
@@ -33,10 +36,9 @@ import com.openlattice.mechanic.integrity.IntegrityChecks;
 import com.openlattice.mechanic.pods.MechanicUpgradePod;
 import com.openlattice.mechanic.upgrades.RegenerateIds;
 import com.openlattice.postgres.PostgresPod;
-import java.io.Console;
 import java.sql.SQLException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,18 +96,27 @@ public class Mechanic {
     public static void main( String[] args ) throws InterruptedException, ExecutionException, SQLException {
         Mechanic mechanic = new Mechanic();
         mechanic.sprout( args );
-//        Console console = System.console();
-//
-//        if ( console == null ) {
-//             logger.error("Cannot be run in non-interactive mode.");
-//        }
+        //        Console console = System.console();
+        //
+        //        if ( console == null ) {
+        //             logger.error("Cannot be run in non-interactive mode.");
+        //        }
 
         Stopwatch w = Stopwatch.createStarted();
-        IntegrityChecks checks = mechanic.context.getBean( IntegrityChecks.class );
-        checks.ensureEntityKeyIdsSynchronized();
-        RegenerateIds regen = mechanic.context.getBean( RegenerateIds.class );
-        regen.assignNewEntityKeysIds();
-//        long assigned = regen.assignNewEntityKeysIds();
+        if ( Stream.of( mechanic.context.getEnvironment().getActiveProfiles() )
+                .anyMatch( profile -> profile.equals( INTEGRITY ) ) ) {
+
+            IntegrityChecks checks = mechanic.context.getBean( IntegrityChecks.class );
+            checks.ensureEntityKeyIdsSynchronized();
+        }
+
+        if ( Stream.of( mechanic.context.getEnvironment().getActiveProfiles() )
+                .anyMatch( profile -> profile.equals( REGEN ) ) ) {
+
+            RegenerateIds regen = mechanic.context.getBean( RegenerateIds.class );
+            regen.assignNewEntityKeysIds();
+        }
+        //        long assigned = regen.assignNewEntityKeysIds();
         //expander.migrate();
 
         //        CassandraToPostgres cassandraToPostgres = mechanic.getContext().getBean( CassandraToPostgres.class );
@@ -134,7 +145,7 @@ public class Mechanic {
         //long count = mechanic.getContext().getBean( ManualPartitionOfDataTable.class ).migrate();;
         //ReadBench readBench = mechanic.getContext().getBean( ReadBench.class );
         //readBench.benchmark();
-//        logger.info( "Assigned {} new ids in {} ms.", assigned, w.elapsed( TimeUnit.MILLISECONDS ) );
+        //        logger.info( "Assigned {} new ids in {} ms.", assigned, w.elapsed( TimeUnit.MILLISECONDS ) );
         logger.info( "Upgrade complete!" );
         mechanic.context.close();
     }

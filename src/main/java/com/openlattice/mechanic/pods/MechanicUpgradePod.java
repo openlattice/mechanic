@@ -36,12 +36,14 @@ import javax.inject.Inject;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Profile;
 
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
 public class MechanicUpgradePod {
-
+    public static final String INTEGRITY = "integrity";
+    public static final String REGEN     = "regen";
     @Inject
     HikariDataSource hikariDataSource;
 
@@ -78,6 +80,7 @@ public class MechanicUpgradePod {
     }
 
     @Bean
+    @Profile(REGEN)
     public RegenerateIds regen() {
 
         return new RegenerateIds(
@@ -91,6 +94,7 @@ public class MechanicUpgradePod {
     }
 
     @Bean
+    @Profile(INTEGRITY)
     public IntegrityChecks integrityChecks() {
         return new IntegrityChecks(
                 pgEdmManager(),
