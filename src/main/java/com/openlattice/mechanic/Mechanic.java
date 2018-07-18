@@ -103,30 +103,29 @@ public class Mechanic {
         //        }
 
         Stopwatch w = Stopwatch.createStarted();
-        IntegrityChecks checks = mechanic.context.getBean( IntegrityChecks.class );
 
         if ( Stream.of( mechanic.context.getEnvironment().getActiveProfiles() )
                 .anyMatch( profile -> profile.equals( INTEGRITY ) ) ) {
-
-
+            IntegrityChecks checks = mechanic.context.getBean( IntegrityChecks.class );
             checks.ensureEntityKeyIdsSynchronized();
         }
 
-        RegenerateIds regen = mechanic.context.getBean( RegenerateIds.class );
         if ( Stream.of( mechanic.context.getEnvironment().getActiveProfiles() )
                 .anyMatch( profile -> profile.equals( REGEN ) ) ) {
+            RegenerateIds regen = mechanic.context.getBean( RegenerateIds.class );
+
             if ( Stream.of( args ).anyMatch( arg -> arg.equals( "idgen" ) ) ) {
                 regen.initRanges();
             }
+
             regen.assignNewEntityKeysIds();
-        }
 
-        if ( Stream.of( args ).anyMatch( arg -> arg.equals( "upgrade" ) ) ) {
-            regen.updateEdgesTables();
-            regen.updateEntityTables();
-            regen.updatePropertyTables();
+            if ( Stream.of( args ).anyMatch( arg -> arg.equals( "upgrade" ) ) ) {
+                regen.updateEdgesTables();
+                regen.updateEntityTables();
+                regen.updatePropertyTables();
+            }
         }
-
 
         //        long assigned = regen.assignNewEntityKeysIds();
         //expander.migrate();
