@@ -156,11 +156,18 @@ class RegenerateIds(
                     locks[counter].unlock()
                 }
             }
+
+            logger.info(
+                    "Batch of size {} completed in {} ms, with counter index of {}!",
+                    dataKeys.size,
+                    w.elapsed(TimeUnit.MILLISECONDS), counterIndex.get()
+            )
+
             if (counterIndex.get() > 0 && counter == 0) {
                 idGen.storeAll(ranges)
             }
 
-            if( counterIndex.get() > 1000000 ){
+            if (counterIndex.get() > 2000000) {
                 break
             }
 
