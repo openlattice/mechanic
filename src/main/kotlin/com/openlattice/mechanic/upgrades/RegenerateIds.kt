@@ -303,6 +303,7 @@ class RegenerateIds(
                                 "FROM id_migration " +
                                 "WHERE edges.edge_entity_key_id = id_migration.id"
                 )
+                it.executeBatch()
             }
         }
     }

@@ -24,6 +24,7 @@ import static com.openlattice.mechanic.pods.MechanicUpgradePod.INTEGRITY;
 import static com.openlattice.mechanic.pods.MechanicUpgradePod.REGEN;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.util.concurrent.ListeningExecutorService;
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles;
 import com.kryptnostic.rhizome.core.Rhizome;
 import com.kryptnostic.rhizome.pods.AsyncPod;
@@ -37,6 +38,7 @@ import com.openlattice.mechanic.pods.MechanicUpgradePod;
 import com.openlattice.mechanic.upgrades.RegenerateIds;
 import com.openlattice.postgres.PostgresPod;
 import java.sql.SQLException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
@@ -120,16 +122,28 @@ public class Mechanic {
 
             regen.assignNewEntityKeysIds();
 
+            ListeningExecutorService executor = mechanic.context.getBean( ListeningExecutorService.class );
+
             if ( Stream.of( args ).anyMatch( arg -> arg.equals( "upgrade" ) ) ) {
-                logger.info( "Upgrade edge tables." );
-                regen.updateEdgesTables();
-                logger.info( "Upgrade entity tables." );
-                regen.updateEntityTables();
-                logger.info( "Upgrading property tables." );
-                regen.updatePropertyTables();
+                CountDownLatch latch = new CountDownLatch( 3 );
+                executor.execute( () -> {
+                    logger.info( "Upgrade edge tables." );
+                    regen.updateEdgesTables();
+                    latch.countDown();
+                } );
+                executor.execute( () -> {
+                    logger.info( "Upgrade entity tables." );
+                    regen.updateEntityTables();
+                    latch.countDown();
+                } );
+                executor.execute( () -> {
+                    logger.info( "Upgrading property tables." );
+                    regen.updatePropertyTables();
+                    latch.countDown();
+                } );
+                latch.await();
             }
         }
-
         //        long assigned = regen.assignNewEntityKeysIds();
         //expander.migrate();
 
