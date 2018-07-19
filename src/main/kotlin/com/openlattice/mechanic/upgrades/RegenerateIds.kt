@@ -167,11 +167,11 @@ class RegenerateIds(
                 idGen.storeAll(ranges)
             }
 
-            if (counterIndex.get() > 2000000) {
-                dataKeys = listOf()
-            } else {
-                dataKeys = getUnassignedEntries(fetchSize).toList()
+            if (counterIndex.get() > 12) {
+                break
             }
+
+            dataKeys = getUnassignedEntries(fetchSize).toList()
         }
 
 //        executor.shutdown()
