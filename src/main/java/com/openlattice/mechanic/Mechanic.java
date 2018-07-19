@@ -125,7 +125,12 @@ public class Mechanic {
             ListeningExecutorService executor = mechanic.context.getBean( ListeningExecutorService.class );
 
             if ( Stream.of( args ).anyMatch( arg -> arg.equals( "upgrade" ) ) ) {
-                CountDownLatch latch = new CountDownLatch( 3 );
+                CountDownLatch latch = new CountDownLatch( 4 );
+                executor.execute( () -> {
+                    logger.info( "Upgrading entity_key_ids table." );
+                    regen.updateEntityKeyIds();
+                    latch.countDown();
+                } );
                 executor.execute( () -> {
                     logger.info( "Upgrade edge tables." );
                     regen.updateEdgesTables();

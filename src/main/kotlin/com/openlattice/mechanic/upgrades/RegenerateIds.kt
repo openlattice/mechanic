@@ -256,7 +256,8 @@ class RegenerateIds(
                     val propertyTableName = quote(DataTables.propertyTableName(it))
                     stmt.addBatch(
                             "UPDATE $propertyTableName " +
-                                    "SET $propertyTableName.id = id_migration.new_id FROM id_migration " +
+                                    "SET id = new_id " +
+                                    "FROM id_migration " +
                                     "WHERE $propertyTableName.id = id_migration.id"
                     )
                 }
@@ -273,11 +274,25 @@ class RegenerateIds(
                     val esTableName = quote(DataTables.entityTableName(it))
                     stmt.addBatch(
                             "UPDATE $esTableName " +
-                                    "SET $esTableName.id = id_migration.new_id FROM id_migration " +
+                                    "SET id = new_id " +
+                                    "FROM id_migration " +
                                     "WHERE $esTableName.id = id_migration.id"
                     )
                 }
                 stmt.executeBatch()
+            }
+        }
+    }
+
+    fun updateEntityKeyIds() {
+        hds.connection.use {
+            it.createStatement().use {
+                it.executeUpdate(
+                        "UPDATE entity_key_ids " +
+                                "SET id = new_id " +
+                                "FROM id_migration " +
+                                "WHERE entity_key_ids.id = id_migration.id"
+                )
             }
         }
     }
@@ -287,19 +302,19 @@ class RegenerateIds(
             it.createStatement().use {
                 it.addBatch(
                         "UPDATE edges " +
-                                "SET edges.src_entity_key_id = id_migration.new_id " +
+                                "SET src_entity_key_id = id_migration.new_id " +
                                 "FROM id_migration " +
                                 "WHERE edges.src_entity_key_id = id_migration.id"
                 )
                 it.addBatch(
                         "UPDATE edges " +
-                                "SET edges.dst_entity_key_id = id_migration.new_id " +
+                                "SET dst_entity_key_id = id_migration.new_id " +
                                 "FROM id_migration " +
                                 "WHERE edges.dst_entity_key_id = id_migration.id"
                 )
                 it.addBatch(
                         "UPDATE edges " +
-                                "SET edges.edge_entity_key_id = id_migration.new_id " +
+                                "SET edge_entity_key_id = id_migration.new_id " +
                                 "FROM id_migration " +
                                 "WHERE edges.edge_entity_key_id = id_migration.id"
                 )
