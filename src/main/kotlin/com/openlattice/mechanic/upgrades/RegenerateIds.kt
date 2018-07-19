@@ -168,10 +168,10 @@ class RegenerateIds(
             }
 
             if (counterIndex.get() > 2000000) {
-                break
+                dataKeys = listOf()
+            } else {
+                dataKeys = getUnassignedEntries(fetchSize).toList()
             }
-
-            dataKeys = getUnassignedEntries(fetchSize).toList()
         }
 
 //        executor.shutdown()
