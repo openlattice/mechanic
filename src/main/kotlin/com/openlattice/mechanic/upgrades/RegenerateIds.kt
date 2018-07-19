@@ -43,6 +43,7 @@ import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 import java.sql.ResultSet
 import java.util.*
+import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -115,13 +116,14 @@ class RegenerateIds(
 
         val insertNewId = "UPDATE id_migration SET new_id = ? WHERE id = ?"
         val counterIndex = AtomicInteger()
-        val fetchSize = 1800000
+        val fetchSize = 3600000
         val w = Stopwatch.createStarted()
 
         val workers = Runtime.getRuntime().availableProcessors()
         val locks: MutableList<Lock> = ArrayList(workers)
         val counters: MutableList<Int> = ArrayList(workers)
         val batchSize = fetchSize / workers
+        val semaphore = Semaphore(workers )
 
         for (i in 0 until workers) {
             locks.add(ReentrantLock())
@@ -135,25 +137,22 @@ class RegenerateIds(
             val batches = Lists.partition(dataKeys, batchSize)
             batches.forEach {
                 val batch = it
-                try {
-                    locks[counter].lock()
-                    executor.execute {
-                        hds.connection.use {
-                            val ps = it.prepareStatement(insertNewId)
-                            batch.forEach {
-                                val entityKeyId = it.entityKeyId
-                                val newEntityKeyId = getNextId()
-                                ps.setObject(1, newEntityKeyId)
-                                ps.setObject(2, entityKeyId)
-                                ps.addBatch()
-                                ++counters[counter]
-                            }
-                            ps.executeBatch()
+                semaphore.acquireUninterruptibly()
+                executor.execute {
+                    hds.connection.use {
+                        val ps = it.prepareStatement(insertNewId)
+                        batch.forEach {
+                            val entityKeyId = it.entityKeyId
+                            val newEntityKeyId = getNextId()
+                            ps.setObject(1, newEntityKeyId)
+                            ps.setObject(2, entityKeyId)
+                            ps.addBatch()
+                            ++counters[counter]
                         }
-                        logger.info("Assigned {} ids in {} ms", counters.sum(), w.elapsed(TimeUnit.MILLISECONDS))
+                        ps.executeBatch()
                     }
-                } finally {
-                    locks[counter].unlock()
+                    logger.info("Assigned {} ids in {} ms", counters.sum(), w.elapsed(TimeUnit.MILLISECONDS))
+                    semaphore.release()
                 }
             }
 
@@ -167,7 +166,7 @@ class RegenerateIds(
                 idGen.storeAll(ranges)
             }
 
-            if (counterIndex.get() > 12) {
+            if (counterIndex.get() >= 10) {
                 break
             }
 
