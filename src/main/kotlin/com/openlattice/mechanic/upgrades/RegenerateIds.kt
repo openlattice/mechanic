@@ -128,7 +128,6 @@ class RegenerateIds(
             counters.add(0)
         }
 
-
         var dataKeys = getUnassignedEntries(fetchSize).toList()
         while (!dataKeys.isEmpty()) {
             val counter = counterIndex.getAndIncrement() % workers
@@ -164,7 +163,7 @@ class RegenerateIds(
                 idGen.storeAll(ranges)
             }
 
-            if (counterIndex.get() >= 10) {
+            if (counterIndex.get() >= 3) {
                 break
             }
 
