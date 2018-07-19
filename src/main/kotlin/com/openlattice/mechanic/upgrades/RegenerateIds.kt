@@ -90,7 +90,7 @@ class RegenerateIds(
                             "create table if not exists id_migration( id uuid primary key, entity_set_id uuid, new_id uuid )"
                     )
             val rs = it.createStatement()
-                    .executeQuery("select count(*) from id_migration")
+                    .executeQuery("select count(*) from id_migration where new_id is null")
             val existing = if (rs.next()) {
                 rs
                         .getLong("count")
@@ -153,21 +153,25 @@ class RegenerateIds(
                 }
             }
 
+            if (counterIndex.get() > 0 && counter == 0) {
+                idGen.storeAll(ranges)
+            }
+
+//            if (counterIndex.get() >= 3) {
+//                break
+//            }
+
+            semaphore.acquireUninterruptibly(workers)
+            dataKeys = getUnassignedEntries(fetchSize).toList()
+            semaphore.release(workers)
+
             logger.info(
                     "Batch of size {} completed in {} ms, with counter index of {}!",
                     dataKeys.size,
                     w.elapsed(TimeUnit.MILLISECONDS), counterIndex.get()
             )
-
-            if (counterIndex.get() > 0 && counter == 0) {
-                idGen.storeAll(ranges)
-            }
-
-            if (counterIndex.get() >= 3) {
-                break
-            }
-
-            dataKeys = getUnassignedEntries(fetchSize).toList()
+            //Let vacuum catch up
+            Thread.sleep(60000);
         }
 
 //        executor.shutdown()
