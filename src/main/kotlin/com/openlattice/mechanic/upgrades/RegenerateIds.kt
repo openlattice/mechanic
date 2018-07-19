@@ -115,7 +115,7 @@ class RegenerateIds(
 
         val insertNewId = "UPDATE id_migration SET new_id = ? WHERE id = ?"
         val counterIndex = AtomicInteger()
-        val fetchSize = 360000
+        val fetchSize = 1800000
         val w = Stopwatch.createStarted()
 
         val workers = Runtime.getRuntime().availableProcessors()
@@ -159,6 +159,11 @@ class RegenerateIds(
             if (counterIndex.get() > 0 && counter == 0) {
                 idGen.storeAll(ranges)
             }
+
+            if( counterIndex.get() > 20000000 ){
+                break
+            }
+
             dataKeys = getUnassignedEntries(fetchSize).toList()
         }
 
@@ -196,7 +201,6 @@ class RegenerateIds(
                     }
                 }
             }
-
 
         }
 
