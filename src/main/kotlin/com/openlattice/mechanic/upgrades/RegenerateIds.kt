@@ -47,8 +47,6 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.locks.Lock
-import java.util.concurrent.locks.ReentrantLock
 import java.util.function.Function
 import java.util.function.Supplier
 
@@ -122,7 +120,7 @@ class RegenerateIds(
         val workers = Runtime.getRuntime().availableProcessors()
         val counters: MutableList<Int> = ArrayList(workers)
         val batchSize = fetchSize / workers
-        val semaphore = Semaphore(workers )
+        val semaphore = Semaphore(workers)
 
         for (i in 0 until workers) {
             counters.add(0)
@@ -267,19 +265,22 @@ class RegenerateIds(
     }
 
     fun updateEntityTables() {
-        hds.connection.use {
-            it.createStatement().use {
-                val stmt = it
-                entitySets.keys.forEach {
-                    val esTableName = quote(DataTables.entityTableName(it))
-                    stmt.addBatch(
-                            "UPDATE $esTableName " +
-                                    "SET id = new_id " +
-                                    "FROM id_migration " +
-                                    "WHERE $esTableName.id = id_migration.id"
-                    )
+        entitySets.keys.forEach {
+            val esTableName = quote(DataTables.entityTableName(it))
+            val semaphore = Semaphore(Runtime.getRuntime().availableProcessors())
+
+            executor.execute {
+
+                hds.connection.use {
+                    it.createStatement().use {
+                        it.executeUpdate(
+                                "UPDATE $esTableName " +
+                                        "SET id = new_id " +
+                                        "FROM id_migration " +
+                                        "WHERE $esTableName.id = id_migration.id"
+                        )
+                    }
                 }
-                stmt.executeBatch()
             }
         }
     }
