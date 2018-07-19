@@ -120,13 +120,11 @@ class RegenerateIds(
         val w = Stopwatch.createStarted()
 
         val workers = Runtime.getRuntime().availableProcessors()
-        val locks: MutableList<Lock> = ArrayList(workers)
         val counters: MutableList<Int> = ArrayList(workers)
         val batchSize = fetchSize / workers
         val semaphore = Semaphore(workers )
 
         for (i in 0 until workers) {
-            locks.add(ReentrantLock())
             counters.add(0)
         }
 
@@ -177,7 +175,7 @@ class RegenerateIds(
 //        while( !executor.awaitTermination(1, TimeUnit.DAYS ) ){}
 
         //Since every lock must be acquired in order for for each to proceed
-        locks.forEach(Lock::lock)
+        semaphore.acquireUninterruptibly(workers)
         idGen.storeAll(ranges)
     }
 

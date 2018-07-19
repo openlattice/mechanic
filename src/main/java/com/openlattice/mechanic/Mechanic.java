@@ -121,8 +121,11 @@ public class Mechanic {
             regen.assignNewEntityKeysIds();
 
             if ( Stream.of( args ).anyMatch( arg -> arg.equals( "upgrade" ) ) ) {
+                logger.info( "Upgrade edge tables." );
                 regen.updateEdgesTables();
+                logger.info( "Upgrade entity tables." );
                 regen.updateEntityTables();
+                logger.info( "Upgrading property tables." );
                 regen.updatePropertyTables();
             }
         }
