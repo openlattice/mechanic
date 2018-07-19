@@ -120,7 +120,7 @@ public class Mechanic {
                 regen.initRanges();
             }
 
-            regen.assignNewEntityKeysIds();
+            //regen.assignNewEntityKeysIds();
 
             ListeningExecutorService executor = mechanic.context.getBean( ListeningExecutorService.class );
 
