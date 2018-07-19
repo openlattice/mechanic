@@ -160,7 +160,7 @@ class RegenerateIds(
                 idGen.storeAll(ranges)
             }
 
-            if( counterIndex.get() > 20000000 ){
+            if( counterIndex.get() > 1000000 ){
                 break
             }
 
