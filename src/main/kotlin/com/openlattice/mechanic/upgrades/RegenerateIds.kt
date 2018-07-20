@@ -265,7 +265,7 @@ class RegenerateIds(
                     it.createStatement().use {
                         it.executeUpdate(
                                 "UPDATE $ptt SET version = $version, versions = versions||$version " +
-                                        "WHERE entity_set_id = ${entitySet.id}"
+                                        "WHERE entity_set_id = '${entitySet.id}'"
                         )
                     }
                 }
