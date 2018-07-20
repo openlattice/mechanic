@@ -121,31 +121,31 @@ public class Mechanic {
             }
 
             //regen.assignNewEntityKeysIds();
-
+            regen.printPropertyTypeOder();
             ListeningExecutorService executor = mechanic.context.getBean( ListeningExecutorService.class );
 
             if ( Stream.of( args ).anyMatch( arg -> arg.equals( "upgrade" ) ) ) {
-                CountDownLatch latch = new CountDownLatch( 4 );
-                executor.execute( () -> {
-                    logger.info( "Upgrading entity_key_ids table." );
-                    regen.updateEntityKeyIds();
-                    latch.countDown();
-                } );
-                executor.execute( () -> {
-                    logger.info( "Upgrade edge tables." );
-                    regen.updateEdgesTables();
-                    latch.countDown();
-                } );
+                CountDownLatch latch = new CountDownLatch( 1 );
+//                executor.execute( () -> {
+//                    logger.info( "Upgrading entity_key_ids table." );
+//                    regen.updateEntityKeyIds();
+//                    latch.countDown();
+//                } );
+//                executor.execute( () -> {
+//                    logger.info( "Upgrade edge tables." );
+//                    regen.updateEdgesTables();
+//                    latch.countDown();
+//                } );
                 executor.execute( () -> {
                     logger.info( "Upgrade entity tables." );
                     regen.updateEntityTables();
                     latch.countDown();
                 } );
-                executor.execute( () -> {
-                    logger.info( "Upgrading property tables." );
-                    regen.updatePropertyTables();
-                    latch.countDown();
-                } );
+//                executor.execute( () -> {
+//                    logger.info( "Upgrading property tables." );
+//                    regen.updatePropertyTables();
+//                    latch.countDown();
+//                } );
                 latch.await();
             }
         }

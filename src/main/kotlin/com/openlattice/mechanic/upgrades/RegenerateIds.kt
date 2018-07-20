@@ -264,13 +264,16 @@ class RegenerateIds(
         }
     }
 
+    fun printPropertyTypeOder() {
+        propertyTypes.forEach { k,v -> logger.info( "$k - ${v.type.fullQualifiedNameAsString}") }
+    }
+
     fun updateEntityTables() {
+        val semaphore = Semaphore(Runtime.getRuntime().availableProcessors())
         entitySets.keys.forEach {
             val esTableName = quote(DataTables.entityTableName(it))
-            val semaphore = Semaphore(Runtime.getRuntime().availableProcessors())
-
+            semaphore.acquire()
             executor.execute {
-
                 hds.connection.use {
                     it.createStatement().use {
                         it.executeUpdate(
@@ -281,8 +284,10 @@ class RegenerateIds(
                         )
                     }
                 }
+                semaphore.release();
             }
         }
+        semaphore.acquire(Runtime.getRuntime().availableProcessors())
     }
 
     fun updateEntityKeyIds() {
