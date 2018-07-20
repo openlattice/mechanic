@@ -274,12 +274,13 @@ class RegenerateIds(
             val esTableName = quote(DataTables.entityTableName(it))
             val entitySet = entitySets[it]!!
             val entityType = entityTypes[entitySet.entityTypeId]!!
-            val propertyTypes = entityType.properties.map {
-                logger.info(
-                        "Entity set = {}, Entity Type id = {}, Property type id = {}", entitySet.id, entityType.id, it
-                )
-                propertyTypes[it]
-            }
+            val propertyTypes = listof()
+//            entityType.properties.map {
+//                logger.info(
+//                        "Entity set = {}, Entity Type id = {}, Property type id = {}", entitySet.id, entityType.id, it
+//                )
+//                propertyTypes[it]
+//            }
 
             semaphore.acquire()
             executor.execute {
