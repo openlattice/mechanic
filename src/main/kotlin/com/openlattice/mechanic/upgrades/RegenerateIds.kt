@@ -265,15 +265,18 @@ class RegenerateIds(
     }
 
     fun printPropertyTypeOder() {
-        propertyTypes.forEach { k,v -> logger.info( "$k - ${v.type.fullQualifiedNameAsString}") }
+        propertyTypes.forEach { k, v -> logger.info("$k - ${v.type.fullQualifiedNameAsString}") }
     }
 
     fun updateEntityTables() {
         val semaphore = Semaphore(Runtime.getRuntime().availableProcessors())
         entitySets.keys.forEach {
             val esTableName = quote(DataTables.entityTableName(it))
+            val entitySet = entitySets[it]!!
+            val propertyTypes = entityTypes[it].properties.map(propertyTypes::get)
             semaphore.acquire()
             executor.execute {
+                pgEdmManager.createEntitySet(entitySet, propertyTypes)
                 hds.connection.use {
                     it.createStatement().use {
                         it.executeUpdate(
@@ -284,7 +287,7 @@ class RegenerateIds(
                         )
                     }
                 }
-                semaphore.release();
+                semaphore.release()
             }
         }
         semaphore.acquire(Runtime.getRuntime().availableProcessors())
