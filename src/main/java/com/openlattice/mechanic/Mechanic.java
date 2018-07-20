@@ -121,11 +121,10 @@ public class Mechanic {
             }
 
             //regen.assignNewEntityKeysIds();
-            regen.printPropertyTypeOder();
+//            regen.printPropertyTypeOder();
             ListeningExecutorService executor = mechanic.context.getBean( ListeningExecutorService.class );
 
             if ( Stream.of( args ).anyMatch( arg -> arg.equals( "upgrade" ) ) ) {
-                CountDownLatch latch = new CountDownLatch( 1 );
                 //                executor.execute( () -> {
                 //                    logger.info( "Upgrading entity_key_ids table." );
                 //                    regen.updateEntityKeyIds();
@@ -136,14 +135,14 @@ public class Mechanic {
                 //                    regen.updateEdgesTables();
                 //                    latch.countDown();
                 //                } );
-                logger.info( "Upgrade entity tables." );
-                regen.updateEntityTables();
+                logger.info( "alter entity tables." );
+                regen.alterEntitySets();
                 //                executor.execute( () -> {
                 //                    logger.info( "Upgrading property tables." );
                 //                    regen.updatePropertyTables();
                 //                    latch.countDown();
                 //                } );
-                latch.await();
+//                latch.await();
             }
         }
         //        long assigned = regen.assignNewEntityKeysIds();

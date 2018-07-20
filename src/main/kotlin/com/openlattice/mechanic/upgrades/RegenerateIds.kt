@@ -246,6 +246,45 @@ class RegenerateIds(
         return ranges[rangeIndex.getAndIncrement() % NUM_PARTITIONS]!!.nextId()
     }
 
+    fun fixOrganizationPermissions() {
+
+    }
+
+    fun alterEntitySets() {
+        val semaphore = Semaphore(Runtime.getRuntime().availableProcessors())
+        entitySets.keys.forEach {
+            val esTableName = quote(DataTables.entityTableName(it))
+            val entitySet = entitySets[it]!!
+            val entityType = entityTypes[entitySet.entityTypeId]!!
+//            entityType.properties.map {
+//                logger.info(
+//                        "Entity set = {}, Entity Type id = {}, Property type id = {}", entitySet.id, entityType.id, it
+//                )
+//                propertyTypes[it]
+//            }
+
+            semaphore.acquire()
+            executor.execute {
+                hds.connection.use {
+                    it.createStatement().use {
+                        it.execute(
+                                "ALTER TABLE $esTableName " +
+                                        "ADD COLUMN version bigint"
+                        )
+                        it.execute(
+                                "ALTER TABLE $esTableName " +
+                                        "ADD COLUMN versions bigint[]"
+                        )
+                        val version = System.currentTimeMillis()
+                        it.executeUpdate("UPDATE $esTableName SET version = $version, versions = ARRAY[$version]")
+                    }
+                }
+                semaphore.release()
+            }
+        }
+        semaphore.acquire(Runtime.getRuntime().availableProcessors())
+    }
+
     fun updatePropertyTables() {
         hds.connection.use {
             it.createStatement().use {
