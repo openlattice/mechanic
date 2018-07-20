@@ -40,7 +40,6 @@ import com.openlattice.postgres.mapstores.PropertyTypeMapstore
 import com.openlattice.postgres.streams.PostgresIterable
 import com.openlattice.postgres.streams.StatementHolder
 import com.zaxxer.hikari.HikariDataSource
-import org.postgresql.util.PSQLException
 import org.slf4j.LoggerFactory
 import java.sql.ResultSet
 import java.util.*
@@ -54,9 +53,9 @@ import java.util.function.Supplier
 /**
  *
  */
-private val logger = LoggerFactory.getLogger(RegenerateIds::class.java)
+private val logger = LoggerFactory.getLogger(Organizations::class.java)
 
-class RegenerateIds(
+class Organizations(
         private val pgEdmManager: PostgresEdmManager,
         private val hds: HikariDataSource,
         private val ptms: PropertyTypeMapstore,
@@ -267,35 +266,17 @@ class RegenerateIds(
             semaphore.acquire()
             executor.execute {
                 hds.connection.use {
-                    var modified = false;
-                    try {
-                        it.createStatement().use {
-                            it.execute(
-                                    "ALTER TABLE $esTableName " +
-                                            "ADD COLUMN version bigint"
-                            )
-                        }
-                        modified = true;
-                    } catch (e: PSQLException) {
-                        logger.error("Unable to alter table $esTableName")
-                    }
-                    try {
-                        it.createStatement().use {
-                            it.execute(
-                                    "ALTER TABLE $esTableName " +
-                                            "ADD COLUMN versions bigint[]"
-                            )
-                        }
-                        modified = true;
-                    } catch (e: PSQLException) {
-                        logger.error("Unable to alter table $esTableName")
-
-                    }
-                    if (modified) {
+                    it.createStatement().use {
+                        it.execute(
+                                "ALTER TABLE $esTableName " +
+                                        "ADD COLUMN version bigint"
+                        )
+                        it.execute(
+                                "ALTER TABLE $esTableName " +
+                                        "ADD COLUMN versions bigint[]"
+                        )
                         val version = System.currentTimeMillis()
-                        it.createStatement().use {
-                            it.executeUpdate("UPDATE $esTableName SET version = $version, versions = ARRAY[$version]")
-                        }
+                        it.executeUpdate("UPDATE $esTableName SET version = $version, versions = ARRAY[$version]")
                     }
                 }
                 semaphore.release()
