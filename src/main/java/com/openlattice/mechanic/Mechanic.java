@@ -136,7 +136,7 @@ public class Mechanic {
                 //                    latch.countDown();
                 //                } );
                 logger.info( "alter entity tables." );
-                regen.alterEntitySets();
+                regen.reviveSouthDakotaPeople();
                 //                executor.execute( () -> {
                 //                    logger.info( "Upgrading property tables." );
                 //                    regen.updatePropertyTables();

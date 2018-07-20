@@ -251,6 +251,30 @@ class RegenerateIds(
 
     }
 
+    fun reviveSouthDakotaPeople() {
+        val semaphore = Semaphore(Runtime.getRuntime().availableProcessors())
+        val entitySet = entitySets[UUID.fromString("ed5716db-830b-41b7-9905-24fa82761ace")]!!
+        val entityType = entityTypes[entitySet.entityTypeId]!!
+
+        entityType.properties.forEach {
+            val ptt = quote(DataTables.propertyTableName(it))
+            val version = System.currentTimeMillis()
+            semaphore.acquire()
+            executor.execute {
+                hds.connection.use {
+                    it.createStatement().use {
+                        it.executeUpdate(
+                                "UPDATE $ptt SET version = $version, versions = versions||$version " +
+                                        "WHERE entity_set_id = ${entitySet.id}"
+                        )
+                    }
+                }
+                semaphore.release()
+            }
+        }
+        semaphore.acquire(Runtime.getRuntime().availableProcessors())
+    }
+
     fun alterEntitySets() {
         val semaphore = Semaphore(Runtime.getRuntime().availableProcessors())
         entitySets.keys.forEach {
