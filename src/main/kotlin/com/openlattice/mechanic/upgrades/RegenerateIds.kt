@@ -273,7 +273,14 @@ class RegenerateIds(
         entitySets.keys.forEach {
             val esTableName = quote(DataTables.entityTableName(it))
             val entitySet = entitySets[it]!!
-            val propertyTypes = entityTypes[it]!!.properties.map(propertyTypes::get)
+            val entityType = entityTypes[it]!!
+            val propertyTypes = entityType.properties.map {
+                logger.info(
+                        "Entity set = {}, Entity Type id = {}, Property type id = {}", entitySet.id, entityType.id, it
+                )
+                propertyTypes[it]
+            }
+
             semaphore.acquire()
             executor.execute {
                 pgEdmManager.createEntitySet(entitySet, propertyTypes)
