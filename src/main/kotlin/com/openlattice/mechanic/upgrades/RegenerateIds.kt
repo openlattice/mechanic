@@ -273,7 +273,7 @@ class RegenerateIds(
         entitySets.keys.forEach {
             val esTableName = quote(DataTables.entityTableName(it))
             val entitySet = entitySets[it]!!
-            val entityType = entityTypes[it]!!
+            val entityType = entityTypes[entitySet.entityTypeId]!!
             val propertyTypes = entityType.properties.map {
                 logger.info(
                         "Entity set = {}, Entity Type id = {}, Property type id = {}", entitySet.id, entityType.id, it
