@@ -274,7 +274,6 @@ class RegenerateIds(
             val esTableName = quote(DataTables.entityTableName(it))
             val entitySet = entitySets[it]!!
             val entityType = entityTypes[entitySet.entityTypeId]!!
-            val propertyTypes = listOf()
 //            entityType.properties.map {
 //                logger.info(
 //                        "Entity set = {}, Entity Type id = {}, Property type id = {}", entitySet.id, entityType.id, it
@@ -284,7 +283,7 @@ class RegenerateIds(
 
             semaphore.acquire()
             executor.execute {
-                pgEdmManager.createEntitySet(entitySet, propertyTypes)
+                pgEdmManager.createEntitySet(entitySet, listOf())
                 hds.connection.use {
                     it.createStatement().use {
                         it.executeUpdate(
