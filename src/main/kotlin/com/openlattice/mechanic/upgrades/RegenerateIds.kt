@@ -25,6 +25,8 @@ import com.google.common.base.Preconditions.checkState
 import com.google.common.base.Stopwatch
 import com.google.common.collect.Lists
 import com.google.common.util.concurrent.ListeningExecutorService
+import com.openlattice.authorization.AclKey
+import com.openlattice.authorization.AclKeySet
 import com.openlattice.authorization.mapstores.PrincipalTreeMapstore
 import com.openlattice.authorization.mapstores.PrincipalTreesMapstore
 import com.openlattice.data.EntityDataKey
@@ -78,11 +80,7 @@ class RegenerateIds(
 
 
     fun testPrincipalTrees() {
-        val keySet = principalTrees.loadAllKeys().toSet();
-        logger.info("Key set: {}", keySet)
-        val vm = principalTrees.loadAll(keySet)
-        logger.info("Value map: {}", vm)
-        principalTrees.storeAll(vm)
+
     }
 
     fun migratePrincipalTrees() {

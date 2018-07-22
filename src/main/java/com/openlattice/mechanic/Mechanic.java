@@ -38,7 +38,6 @@ import com.openlattice.mechanic.pods.MechanicUpgradePod;
 import com.openlattice.mechanic.upgrades.RegenerateIds;
 import com.openlattice.postgres.PostgresPod;
 import java.sql.SQLException;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
@@ -116,12 +115,12 @@ public class Mechanic {
                 .anyMatch( profile -> profile.equals( REGEN ) ) ) {
             RegenerateIds regen = mechanic.context.getBean( RegenerateIds.class );
 
-//            if ( Stream.of( args ).anyMatch( arg -> arg.equals( "idgen" ) ) ) {
-//                regen.initRanges();
-//            }
+            //            if ( Stream.of( args ).anyMatch( arg -> arg.equals( "idgen" ) ) ) {
+            //                regen.initRanges();
+            //            }
 
             //regen.assignNewEntityKeysIds();
-//            regen.printPropertyTypeOder();
+            //            regen.printPropertyTypeOder();
             ListeningExecutorService executor = mechanic.context.getBean( ListeningExecutorService.class );
 
             if ( Stream.of( args ).anyMatch( arg -> arg.equals( "upgrade" ) ) ) {
@@ -137,13 +136,14 @@ public class Mechanic {
                 //                } );
                 logger.info( "Migrating principal trees." );
                 regen.migratePrincipalTrees();
-//                regen.reviveSouthDakotaPeople();
+                //                regen.testPrincipalTrees();
+                //                regen.reviveSouthDakotaPeople();
                 //                executor.execute( () -> {
                 //                    logger.info( "Upgrading property tables." );
                 //                    regen.updatePropertyTables();
                 //                    latch.countDown();
                 //                } );
-//                latch.await();
+                //                latch.await();
             }
         }
         //        long assigned = regen.assignNewEntityKeysIds();
