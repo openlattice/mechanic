@@ -15,7 +15,7 @@ hazelcast:
 
 
 hikari:
-    jdbcUrl: jdbc:postgresql://localhost:5432/openlattice_prod
+    jdbcUrl: jdbc:postgresql://localhost:5432/openlattice
     username: "openlattice"
     maximumPoolSize: 100
     #20 minutes

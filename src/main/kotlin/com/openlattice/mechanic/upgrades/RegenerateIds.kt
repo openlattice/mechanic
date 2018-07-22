@@ -69,13 +69,21 @@ class RegenerateIds(
         private val principalTrees: PrincipalTreesMapstore,
         private val executor: ListeningExecutorService
 ) {
-    private val entitySets = esms.loadAllKeys().map { it to esms.load(it) }.toMap()
-    private val entityTypes = etms.loadAllKeys().map { it to etms.load(it) }.toMap()
-    private val propertyTypes = ptms.loadAllKeys().map { it to ptms.load(it) }.toMap()
-    private val ranges = idGen.loadAllKeys().map { it to idGen.load(it) }.toMap().toMutableMap()
+    private val entitySets = esms.loadAllKeys()?.map { it to esms.load(it) }?.toMap() ?: mapOf()
+    private val entityTypes = etms.loadAllKeys()?.map { it to etms.load(it) }?.toMap() ?: mapOf()
+    private val propertyTypes = ptms.loadAllKeys()?.map { it to ptms.load(it) }?.toMap() ?: mapOf()
+    private val ranges = idGen.loadAllKeys()?.map { it to idGen.load(it) }?.toMap()?.toMutableMap() ?: mutableMapOf()
     private val rangeIndex = AtomicLong()
     private val r = Random()
 
+
+    fun testPrincipalTrees() {
+        val keySet = principalTrees.loadAllKeys().toSet();
+        logger.info("Key set: {}", keySet)
+        val vm = principalTrees.loadAll(keySet)
+        logger.info("Value map: {}", vm)
+        principalTrees.storeAll(vm)
+    }
 
     fun migratePrincipalTrees() {
         val keys = principalTreesOld.loadAllKeys().toSet()
