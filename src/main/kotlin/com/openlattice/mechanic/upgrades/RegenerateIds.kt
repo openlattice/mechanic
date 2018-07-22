@@ -78,7 +78,9 @@ class RegenerateIds(
 
 
     fun migratePrincipalTrees() {
-        principalTrees.storeAll(principalTreesOld.loadAll(principalTreesOld.loadAllKeys().toSet()))
+        val trees = principalTreesOld.loadAll(principalTreesOld.loadAllKeys().toSet())
+        logger.info("Number of trees: ${trees.size}")
+        principalTrees.storeAll( trees )
     }
 
     fun initRanges() {

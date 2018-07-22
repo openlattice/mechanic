@@ -69,7 +69,7 @@ if (GC == 'null' || GC == null || GC == "") {
 println "Using java args for running ${projectName}: " + Arrays.toString( applicationDefaultJvmArgs )
 
 mainClassName = "com.openlattice.mechanic.Mechanic"
-applicationDefaultJvmArgs = [MECHANIC_XMS, MECHANIC_XMX, "-server", GC, PARALLEL]
+applicationDefaultJvmArgs = [MECHANIC_XMS, MECHANIC_XMX, "-server", GC, PARALLEL, "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"]
 sourceCompatibility=JavaVersion.VERSION_1_8
 targetCompatibility=JavaVersion.VERSION_1_8
 
