@@ -25,6 +25,8 @@ import com.google.common.base.Preconditions.checkState
 import com.google.common.base.Stopwatch
 import com.google.common.collect.Lists
 import com.google.common.util.concurrent.ListeningExecutorService
+import com.openlattice.authorization.mapstores.PrincipalTreeMapstore
+import com.openlattice.authorization.mapstores.PrincipalTreesMapstore
 import com.openlattice.data.EntityDataKey
 import com.openlattice.edm.PostgresEdmManager
 import com.openlattice.ids.HazelcastIdGenerationService.NUM_PARTITIONS
@@ -63,6 +65,8 @@ class RegenerateIds(
         private val etms: EntityTypeMapstore,
         private val esms: EntitySetMapstore,
         private val idGen: IdGenerationMapstore,
+        private val principalTreesOld: PrincipalTreeMapstore,
+        private val principalTrees: PrincipalTreesMapstore,
         private val executor: ListeningExecutorService
 ) {
     private val entitySets = esms.loadAllKeys().map { it to esms.load(it) }.toMap()
@@ -71,6 +75,11 @@ class RegenerateIds(
     private val ranges = idGen.loadAllKeys().map { it to idGen.load(it) }.toMap().toMutableMap()
     private val rangeIndex = AtomicLong()
     private val r = Random()
+
+
+    fun migratePrincipalTrees() {
+        principalTrees.storeAll(principalTreesOld.loadAll(principalTreesOld.loadAllKeys().toSet()))
+    }
 
     fun initRanges() {
         for (i in 0L until NUM_PARTITIONS.toLong()) {
@@ -396,27 +405,42 @@ class RegenerateIds(
     }
 
     fun updateEdgesTables() {
-        hds.connection.use {
-            it.createStatement().use {
-                it.addBatch(
-                        "UPDATE edges " +
-                                "SET src_entity_key_id = id_migration.new_id " +
-                                "FROM id_migration " +
-                                "WHERE edges.src_entity_key_id = id_migration.id"
-                )
-                it.addBatch(
-                        "UPDATE edges " +
-                                "SET dst_entity_key_id = id_migration.new_id " +
-                                "FROM id_migration " +
-                                "WHERE edges.dst_entity_key_id = id_migration.id"
-                )
-                it.addBatch(
-                        "UPDATE edges " +
-                                "SET edge_entity_key_id = id_migration.new_id " +
-                                "FROM id_migration " +
-                                "WHERE edges.edge_entity_key_id = id_migration.id"
-                )
-                it.executeBatch()
+        executor.execute {
+            hds.connection.use {
+                it.createStatement().use {
+                    it.executeUpdate(
+                            "UPDATE edges " +
+                                    "SET src_entity_key_id = id_migration.new_id " +
+                                    "FROM id_migration " +
+                                    "WHERE edges.src_entity_key_id = id_migration.id"
+                    )
+                }
+            }
+        }
+
+        executor.execute {
+            hds.connection.use {
+                it.createStatement().use {
+                    it.executeUpdate(
+                            "UPDATE edges " +
+                                    "SET dst_entity_key_id = id_migration.new_id " +
+                                    "FROM id_migration " +
+                                    "WHERE edges.dst_entity_key_id = id_migration.id"
+                    )
+                }
+            }
+        }
+        executor.execute {
+            hds.connection.use {
+                it.createStatement().use {
+                    it.executeUpdate(
+                            "UPDATE edges " +
+                                    "SET edge_entity_key_id = id_migration.new_id " +
+                                    "FROM id_migration " +
+                                    "WHERE edges.edge_entity_key_id = id_migration.id"
+                    )
+                    it.executeBatch()
+                }
             }
         }
     }

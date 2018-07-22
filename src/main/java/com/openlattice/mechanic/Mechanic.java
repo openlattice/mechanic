@@ -116,9 +116,9 @@ public class Mechanic {
                 .anyMatch( profile -> profile.equals( REGEN ) ) ) {
             RegenerateIds regen = mechanic.context.getBean( RegenerateIds.class );
 
-            if ( Stream.of( args ).anyMatch( arg -> arg.equals( "idgen" ) ) ) {
-                regen.initRanges();
-            }
+//            if ( Stream.of( args ).anyMatch( arg -> arg.equals( "idgen" ) ) ) {
+//                regen.initRanges();
+//            }
 
             //regen.assignNewEntityKeysIds();
 //            regen.printPropertyTypeOder();
@@ -136,7 +136,8 @@ public class Mechanic {
                 //                    latch.countDown();
                 //                } );
                 logger.info( "alter entity tables." );
-                regen.reviveSouthDakotaPeople();
+                regen.migratePrincipalTrees();
+//                regen.reviveSouthDakotaPeople();
                 //                executor.execute( () -> {
                 //                    logger.info( "Upgrading property tables." );
                 //                    regen.updatePropertyTables();
