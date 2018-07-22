@@ -23,6 +23,7 @@ package com.openlattice.mechanic.upgrades
 
 import com.google.common.base.Preconditions.checkState
 import com.google.common.base.Stopwatch
+import com.google.common.collect.ImmutableSet
 import com.google.common.collect.Lists
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.openlattice.authorization.mapstores.PrincipalTreeMapstore
@@ -78,7 +79,7 @@ class RegenerateIds(
 
 
     fun migratePrincipalTrees() {
-        val trees = principalTreesOld.loadAll(principalTreesOld.loadAllKeys().toSet())
+        val trees = ImmutableSet.copyOf(principalTreesOld.loadAll(principalTreesOld.loadAllKeys().toSet()))
         logger.info("Number of trees: ${trees.size}")
         principalTrees.storeAll( trees )
     }
