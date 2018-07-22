@@ -22,6 +22,7 @@ package com.openlattice.mechanic.pods;
 
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.openlattice.authorization.mapstores.PrincipalTreeMapstore;
 import com.openlattice.edm.PostgresEdmManager;
 import com.openlattice.hazelcast.pods.MapstoresPod;
 import com.openlattice.ids.IdGenerationMapstore;
@@ -80,7 +81,7 @@ public class MechanicUpgradePod {
     }
 
     @Bean
-    @Profile(REGEN)
+    @Profile( REGEN )
     public RegenerateIds regen() {
 
         return new RegenerateIds(
@@ -90,11 +91,13 @@ public class MechanicUpgradePod {
                 (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
                 (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
                 (IdGenerationMapstore) mapstoresPod.idGenerationMapstore(),
+                (PrincipalTreeMapstore) mapstoresPod.aclKeySetMapstore(),
+                mapstoresPod.principalTreesMapstore(),
                 executor );
     }
 
     @Bean
-    @Profile(INTEGRITY)
+    @Profile( INTEGRITY )
     public IntegrityChecks integrityChecks() {
         return new IntegrityChecks(
                 pgEdmManager(),
