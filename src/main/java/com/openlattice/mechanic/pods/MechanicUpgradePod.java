@@ -26,6 +26,7 @@ import com.openlattice.authorization.mapstores.PrincipalTreeMapstore;
 import com.openlattice.edm.PostgresEdmManager;
 import com.openlattice.hazelcast.pods.MapstoresPod;
 import com.openlattice.ids.IdGenerationMapstore;
+import com.openlattice.mechanic.integrity.EdmChecks;
 import com.openlattice.mechanic.integrity.IntegrityChecks;
 import com.openlattice.mechanic.upgrades.RegenerateIds;
 import com.openlattice.postgres.PostgresTableManager;
@@ -91,7 +92,7 @@ public class MechanicUpgradePod {
                 (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
                 (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
                 (IdGenerationMapstore) mapstoresPod.idGenerationMapstore(),
-                (PrincipalTreeMapstore) mapstoresPod.aclKeySetMapstore(),
+//                (PrincipalTreeMapstore) mapstoresPod.aclKeySetMapstore(),
                 mapstoresPod.principalTreesMapstore(),
                 executor );
     }
@@ -108,4 +109,15 @@ public class MechanicUpgradePod {
                 executor );
     }
 
+    @Bean
+    @Profile( INTEGRITY )
+    public EdmChecks edmChecks() {
+        return new EdmChecks(
+                pgEdmManager(),
+                hikariDataSource,
+                (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
+                (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
+                (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
+                executor );
+    }
 }

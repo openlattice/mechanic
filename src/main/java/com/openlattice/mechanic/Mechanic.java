@@ -33,6 +33,7 @@ import com.kryptnostic.rhizome.startup.Requirement;
 import com.openlattice.auth0.Auth0Pod;
 import com.openlattice.hazelcast.pods.MapstoresPod;
 import com.openlattice.jdbc.JdbcPod;
+import com.openlattice.mechanic.integrity.EdmChecks;
 import com.openlattice.mechanic.integrity.IntegrityChecks;
 import com.openlattice.mechanic.pods.MechanicUpgradePod;
 import com.openlattice.mechanic.upgrades.RegenerateIds;
@@ -107,8 +108,10 @@ public class Mechanic {
 
         if ( Stream.of( mechanic.context.getEnvironment().getActiveProfiles() )
                 .anyMatch( profile -> profile.equals( INTEGRITY ) ) ) {
-            IntegrityChecks checks = mechanic.context.getBean( IntegrityChecks.class );
-            checks.ensureEntityKeyIdsSynchronized();
+//            IntegrityChecks checks = mechanic.context.getBean( IntegrityChecks.class );
+//            checks.ensureEntityKeyIdsSynchronized();
+            EdmChecks checks = mechanic.context.getBean( EdmChecks.class);
+            checks.checkPropertyTypesAlignWithTable();
         }
 
         if ( Stream.of( mechanic.context.getEnvironment().getActiveProfiles() )
@@ -135,8 +138,8 @@ public class Mechanic {
                 //                    latch.countDown();
                 //                } );
                 logger.info( "Migrating principal trees." );
-                regen.migratePrincipalTrees();
-                //                regen.testPrincipalTrees();
+//                regen.migratePrincipalTrees();
+//                                regen.testPrincipalTrees();
                 //                regen.reviveSouthDakotaPeople();
                 //                executor.execute( () -> {
                 //                    logger.info( "Upgrading property tables." );

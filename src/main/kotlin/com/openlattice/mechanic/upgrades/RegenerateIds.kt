@@ -67,7 +67,7 @@ class RegenerateIds(
         private val etms: EntityTypeMapstore,
         private val esms: EntitySetMapstore,
         private val idGen: IdGenerationMapstore,
-        private val principalTreesOld: PrincipalTreeMapstore,
+//        private val principalTreesOld: PrincipalTreeMapstore,
         private val principalTrees: PrincipalTreesMapstore,
         private val executor: ListeningExecutorService
 ) {
@@ -80,16 +80,46 @@ class RegenerateIds(
 
 
     fun testPrincipalTrees() {
+        val keySet = principalTrees.loadAllKeys().toSet();
+        logger.info("Key set: {}", keySet)
+        val vm = principalTrees.loadAll(keySet)
+        logger.info("Value map: {}", vm)
+        principalTrees.storeAll(vm)
+        val vm2 = principalTrees.loadAll(keySet)
+        checkState(vm==vm2)
 
+        var aclKey = AclKey(listOf(UUID.randomUUID(), UUID.randomUUID()))
+        while (keySet.contains(aclKey)) {
+            aclKey = AclKey(listOf(UUID.randomUUID(), UUID.randomUUID()))
+        }
+
+        val vList = listOf(
+                AclKey(listOf(UUID.randomUUID(), UUID.randomUUID())),
+                AclKey(listOf(UUID.randomUUID(), UUID.randomUUID())),
+                AclKey(listOf(UUID.randomUUID(), UUID.randomUUID())),
+                AclKey(listOf(UUID.randomUUID(), UUID.randomUUID()))
+        )
+
+        val vList2 = vList.subList(0, 3)
+        val deletedItem = vList[3]
+        val aclKeySet = AclKeySet(vList)
+        val aclKeySet2 = AclKeySet(vList2)
+        principalTrees.storeAll(mapOf(aclKey to aclKeySet))
+        val actualKS1 = principalTrees.loadAll(setOf(aclKey))
+        checkState(aclKeySet == actualKS1[aclKey])
+        principalTrees.storeAll(mapOf(aclKey to aclKeySet2))
+        val actualKS2 = principalTrees.loadAll(setOf(aclKey))
+        checkState(aclKeySet2==actualKS2[aclKey])
+        checkState(!aclKeySet2.contains(deletedItem))
     }
 
-    fun migratePrincipalTrees() {
-        val keys = principalTreesOld.loadAllKeys().toSet()
-        logger.info("Number of trees: ${keys.size}")
-        val valueMap = principalTreesOld.loadAll(keys)
-        logger.info("Number of elements in map: ${valueMap.size}")
-        principalTrees.storeAll(valueMap)
-    }
+//    fun migratePrincipalTrees() {
+//        val keys = principalTreesOld.loadAllKeys().toSet()
+//        logger.info("Number of trees: ${keys.size}")
+//        val valueMap = principalTreesOld.loadAll(keys)
+//        logger.info("Number of elements in map: ${valueMap.size}")
+//        principalTrees.storeAll(valueMap)
+//    }
 
     fun initRanges() {
         for (i in 0L until NUM_PARTITIONS.toLong()) {
