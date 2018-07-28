@@ -22,10 +22,10 @@ package com.openlattice.mechanic.pods;
 
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.openlattice.authorization.mapstores.PrincipalTreeMapstore;
 import com.openlattice.edm.PostgresEdmManager;
 import com.openlattice.hazelcast.pods.MapstoresPod;
 import com.openlattice.ids.IdGenerationMapstore;
+import com.openlattice.mechanic.Toolbox;
 import com.openlattice.mechanic.integrity.EdmChecks;
 import com.openlattice.mechanic.integrity.IntegrityChecks;
 import com.openlattice.mechanic.upgrades.RegenerateIds;
@@ -65,17 +65,6 @@ public class MechanicUpgradePod {
         return jdbi;
     }
 
-    //    @Bean
-    //    public ExpandDataTables edt() throws SQLException {
-    //        return new ExpandDataTables(
-    //                hikariDataSource,
-    //                (DataMapstoreProxy) mapstoresPod.entityDataMapstore(),
-    //                new PostgresEdmManager( new PostgresTableManager( hikariDataSource ), hikariDataSource ),
-    //                (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
-    //                (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
-    //                (EntitySetMapstore) mapstoresPod.entitySetMapstore(), executor );
-    //    }
-
     @Bean
     public PostgresEdmManager pgEdmManager() {
         return new PostgresEdmManager( new PostgresTableManager( hikariDataSource ), hikariDataSource );
@@ -92,7 +81,7 @@ public class MechanicUpgradePod {
                 (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
                 (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
                 (IdGenerationMapstore) mapstoresPod.idGenerationMapstore(),
-//                (PrincipalTreeMapstore) mapstoresPod.aclKeySetMapstore(),
+                //                (PrincipalTreeMapstore) mapstoresPod.aclKeySetMapstore(),
                 mapstoresPod.principalTreesMapstore(),
                 executor );
     }
@@ -114,6 +103,15 @@ public class MechanicUpgradePod {
     public EdmChecks edmChecks() {
         return new EdmChecks(
                 pgEdmManager(),
+                hikariDataSource,
+                (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
+                (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
+                (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
+                executor );
+    }
+
+    @Bean Toolbox toolbox() {
+        return new Toolbox( pgEdmManager(),
                 hikariDataSource,
                 (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
                 (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),

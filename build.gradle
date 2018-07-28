@@ -99,6 +99,7 @@ sourceSets {
 
 dependencies {
     compile "org.ow2.asm:asm:5.0.4"
+    compile 'commons-cli:commons-cli:1.4'
 
     if( project.hasProperty('developmentMode') && project.developmentMode ) {
         logger.quiet(project.name + " using project dependencies.")
