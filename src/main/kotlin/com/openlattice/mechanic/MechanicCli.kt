@@ -66,7 +66,10 @@ class MechanicCli {
         private val reindexOption = Option.builder()
                 .longOpt(REINDEX)
                 .desc("Reindex all the data in the system.")
-                .hasArg(false)
+                .hasArg()
+                .argName("es1,es2")
+                .optionalArg(true)
+                .valueSeparator(',')
                 .build()
 
         private val sqlOption = Option.builder()
@@ -116,7 +119,7 @@ class MechanicCli {
         fun parseCommandLine(args: Array<String>): CommandLine {
             try {
                 return clp.parse(options, args)
-            } catch (ex:AlreadySelectedException ) {
+            } catch (ex: AlreadySelectedException) {
                 System.out.println(ex.message)
                 printHelp()
                 exitProcess(1)

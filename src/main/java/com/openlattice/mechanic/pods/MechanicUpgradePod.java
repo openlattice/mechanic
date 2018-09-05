@@ -28,6 +28,7 @@ import com.openlattice.ids.IdGenerationMapstore;
 import com.openlattice.mechanic.Toolbox;
 import com.openlattice.mechanic.integrity.EdmChecks;
 import com.openlattice.mechanic.integrity.IntegrityChecks;
+import com.openlattice.mechanic.upgrades.Linking;
 import com.openlattice.mechanic.upgrades.RegenerateIds;
 import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
@@ -117,5 +118,10 @@ public class MechanicUpgradePod {
                 (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
                 (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
                 executor );
+    }
+
+    @Bean
+    Linking linking() {
+        return new Linking( toolbox() );
     }
 }

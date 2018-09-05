@@ -16,17 +16,15 @@
  *
  * You can contact the owner of the copyright at support@openlattice.com
  *
+ *
  */
 
-package com.openlattice.mechanic;
-
-import java.util.SortedSet;
+package com.openlattice.mechanic.upgrades
 
 /**
+ *
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
-public interface Upgrade {
-
-    public SortedSet<Integer> getSupportedVersions();
-    public int getVersion();
+enum class Version(val value : Long) {
+    V2018_09_14 ( 1L)
 }

@@ -45,7 +45,7 @@ import com.openlattice.mechanic.integrity.EdmChecks
 import com.openlattice.mechanic.integrity.IntegrityChecks
 import com.openlattice.mechanic.pods.MechanicUpgradePod
 import com.openlattice.mechanic.reindex.Reindexer
-import com.openlattice.mechanic.upgrades.RegenerateIds
+import com.openlattice.mechanic.upgrades.Upgrade
 import com.openlattice.postgres.PostgresPod
 import org.apache.commons.lang3.StringUtils
 import org.slf4j.LoggerFactory
@@ -53,6 +53,7 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 
 
 private val logger = LoggerFactory.getLogger(Mechanic::class.java)
+
 fun main(args: Array<String>) {
     val mechanic = Mechanic()
     val cl = MechanicCli.parseCommandLine(args)
@@ -170,13 +171,23 @@ class Mechanic {
     }
 
     fun reIndex() {
-        val reindexer =context.getBean( Reindexer::class.java )
+        val reindexer = context.getBean(Reindexer::class.java)
         reindexer.runReindex()
     }
 
-    fun doUpgrade(upgrades: Set<String>) {
-        //TODO: Actually do upgrade stuff.
-        val regen = context.getBean(RegenerateIds::class.java)
+    fun doUpgrade(upgradeNames: Set<String>) {
+        val upgrades = context.getBeansOfType(Upgrade::class.java)
+        if (!upgrades.keys.containsAll(upgradeNames)) {
+            logger.error("Unable to find upgrades: {}", upgradeNames - upgrades.keys)
+        }
+
+        upgradeNames.forEach {
+            if (upgrades[it]!!.upgrade()) {
+                logger.info("Successfully completed $it")
+            } else {
+                logger.error("Upgrade failed on $it")
+            }
+        }
     }
 
     private fun startupRequirementsSatisfied(context: AnnotationConfigApplicationContext): Boolean {
