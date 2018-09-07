@@ -30,7 +30,6 @@ import com.openlattice.mechanic.integrity.EdmChecks;
 import com.openlattice.mechanic.integrity.IntegrityChecks;
 import com.openlattice.mechanic.upgrades.Linking;
 import com.openlattice.mechanic.upgrades.RegenerateIds;
-import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
 import com.openlattice.postgres.mapstores.EntityTypeMapstore;
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
@@ -68,7 +67,7 @@ public class MechanicUpgradePod {
 
     @Bean
     public PostgresEdmManager pgEdmManager() {
-        return new PostgresEdmManager( new PostgresTableManager( hikariDataSource ), hikariDataSource );
+        return new PostgresEdmManager( hikariDataSource );
     }
 
     @Bean
