@@ -24,24 +24,29 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.openlattice.edm.PostgresEdmManager;
 import com.openlattice.hazelcast.pods.MapstoresPod;
-import com.openlattice.mechanic.upgrades.ExpandDataTables;
+import com.openlattice.ids.IdGenerationMapstore;
+import com.openlattice.mechanic.Toolbox;
+import com.openlattice.mechanic.integrity.EdmChecks;
+import com.openlattice.mechanic.integrity.IntegrityChecks;
+import com.openlattice.mechanic.upgrades.Linking;
+import com.openlattice.mechanic.upgrades.RegenerateIds;
 import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
 import com.openlattice.postgres.mapstores.EntityTypeMapstore;
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
-import com.openlattice.postgres.mapstores.data.DataMapstoreProxy;
 import com.zaxxer.hikari.HikariDataSource;
-import java.sql.SQLException;
 import javax.inject.Inject;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Profile;
 
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
 public class MechanicUpgradePod {
-
+    public static final String INTEGRITY = "integrity";
+    public static final String REGEN     = "regen";
     @Inject
     HikariDataSource hikariDataSource;
 
@@ -62,14 +67,61 @@ public class MechanicUpgradePod {
     }
 
     @Bean
-    public ExpandDataTables edt() throws SQLException {
-        return new ExpandDataTables(
-                hikariDataSource,
-                (DataMapstoreProxy) mapstoresPod.entityDataMapstore(),
-                new PostgresEdmManager( new PostgresTableManager( hikariDataSource ), hikariDataSource ),
-                (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
-                (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
-                (EntitySetMapstore) mapstoresPod.entitySetMapstore(), executor );
+    public PostgresEdmManager pgEdmManager() {
+        return new PostgresEdmManager( new PostgresTableManager( hikariDataSource ), hikariDataSource );
     }
 
+    @Bean
+    @Profile( REGEN )
+    public RegenerateIds regen() {
+
+        return new RegenerateIds(
+                pgEdmManager(),
+                hikariDataSource,
+                (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
+                (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
+                (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
+                (IdGenerationMapstore) mapstoresPod.idGenerationMapstore(),
+                //                (PrincipalTreeMapstore) mapstoresPod.aclKeySetMapstore(),
+                mapstoresPod.principalTreesMapstore(),
+                executor );
+    }
+
+    @Bean
+    @Profile( INTEGRITY )
+    public IntegrityChecks integrityChecks() {
+        return new IntegrityChecks(
+                pgEdmManager(),
+                hikariDataSource,
+                (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
+                (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
+                (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
+                executor );
+    }
+
+    @Bean
+    @Profile( INTEGRITY )
+    public EdmChecks edmChecks() {
+        return new EdmChecks(
+                pgEdmManager(),
+                hikariDataSource,
+                (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
+                (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
+                (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
+                executor );
+    }
+
+    @Bean Toolbox toolbox() {
+        return new Toolbox( pgEdmManager(),
+                hikariDataSource,
+                (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
+                (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
+                (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
+                executor );
+    }
+
+    @Bean
+    Linking linking() {
+        return new Linking( toolbox() );
+    }
 }
