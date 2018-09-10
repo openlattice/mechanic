@@ -57,5 +57,5 @@ private fun addLastLinkedColumn(entitySetId: UUID): String {
             "   ADD COLUMN IF NOT EXISTS ${LAST_LINK.name} ${PostgresDatatype.TIMESTAMPTZ.sql()}; " +
             "UPDATE ${quote(entitySetTableName)} SET ${LAST_LINK.name} = '-infinity';" +
             "ALTER TABLE ${quote(entitySetTableName)} ALTER COLUMN ${LAST_LINK.name} SET NOT NULL; " +
-            "ALTER TABLE ${quote(entitySetTableName)} ALTER COLUMN ${LAST_LINK.name} SET DEFAULT now(); "
+            "ALTER TABLE ${quote(entitySetTableName)} ALTER COLUMN ${LAST_LINK.name} SET DEFAULT '-infinity'; "
 }
