@@ -23,9 +23,12 @@ package com.openlattice.mechanic.upgrades
 
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables
-import com.openlattice.postgres.DataTables.LAST_LINK
-import com.openlattice.postgres.DataTables.quote
+import com.openlattice.postgres.DataTables.*
+import com.openlattice.postgres.PostgresColumn.*
+import com.openlattice.postgres.PostgresColumnsIndexDefinition
 import com.openlattice.postgres.PostgresDatatype
+import com.openlattice.postgres.PostgresTableDefinition
+import org.threadly.concurrent.future.ListenableFuture
 import java.util.*
 
 /**
@@ -35,6 +38,31 @@ import java.util.*
 
 class Linking(private val toolbox: Toolbox) : Upgrade {
     override fun upgrade(): Boolean {
+        return upgradePropertyTypes() // && upgradEntitySets
+    }
+
+    override fun getSupportedVersion(): Long {
+        return Version.V2018_09_14.value
+    }
+
+    private fun upgradePropertyTypes(): Boolean {
+        toolbox.propertyTypes.map { pt ->
+            toolbox.executor.submit {
+                toolbox.hds.connection.use {
+                    it.use {
+                        it.createStatement().use {
+                            it.execute(addClusterId(pt.key));
+                        }
+                    }
+                }
+            }
+        }.forEach {
+            it.get()
+        }
+        return true
+    }
+
+    private fun upgradeEntitySets(): Boolean {
         val connection = toolbox.hds.connection
         connection.use {
             it.createStatement().use { stmt ->
@@ -46,10 +74,36 @@ class Linking(private val toolbox: Toolbox) : Upgrade {
         return true
     }
 
-    override fun getSupportedVersion(): Long {
-        return Version.V2018_09_14.value
+    private fun addClusterId(propertyTypeId: UUID): String {
+        val propertyTableName = DataTables.propertyTableName(propertyTypeId)
+
+        val valueColumn = value(toolbox.propertyTypes[propertyTypeId]!!)
+        val ptd = PostgresTableDefinition(quote(propertyTableName))
+                .addColumns(
+                        CLUSTER_ID,
+                        ENTITY_SET_ID,
+                        ID_VALUE,
+                        HASH,
+                        valueColumn,
+                        VERSION,
+                        VERSIONS,
+                        LAST_WRITE,
+                        READERS,
+                        WRITERS,
+                        OWNERS
+                )
+                .primaryKey(ENTITY_SET_ID, ID_VALUE, HASH)
+
+        val clusterIndex = PostgresColumnsIndexDefinition(ptd, CLUSTER_ID)
+                .name(quote("${propertyTableName}_cluster_idx"))
+                .ifNotExists()
+
+        return "ALTER TABLE ${quote(propertyTableName)} " +
+                "   ADD COLUMN IF NOT EXISTS ${CLUSTER_ID.name} ${PostgresDatatype.UUID.sql()}; " +
+                "${clusterIndex.sql()}; "
     }
 }
+
 
 private fun addLastLinkedColumn(entitySetId: UUID): String {
     val entitySetTableName = DataTables.entityTableName(entitySetId)
