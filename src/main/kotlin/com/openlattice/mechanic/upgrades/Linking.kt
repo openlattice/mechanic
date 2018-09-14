@@ -27,22 +27,56 @@ import com.openlattice.postgres.DataTables.*
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresColumnsIndexDefinition
 import com.openlattice.postgres.PostgresDatatype
+import com.openlattice.postgres.PostgresTable.IDS
 import com.openlattice.postgres.PostgresTableDefinition
+import org.slf4j.LoggerFactory
 import org.threadly.concurrent.future.ListenableFuture
 import java.util.*
 
+
 /**
  *
- * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
+ * Migrations for linking.
  */
-
 class Linking(private val toolbox: Toolbox) : Upgrade {
+    companion object {
+        private val logger = LoggerFactory.getLogger(Linking::class.java)
+    }
+
     override fun upgrade(): Boolean {
-        return upgradePropertyTypes() // && upgradEntitySets
+        return upgradePropertyTypes() && mergeEntitySetTables() // && upgradEntitySets
     }
 
     override fun getSupportedVersion(): Long {
         return Version.V2018_09_14.value
+    }
+
+    private fun mergeEntitySetTables(): Boolean {
+        alterIdsTable().map { sql ->
+            toolbox.executor.submit {
+                toolbox.hds.connection.use {
+                    it.createStatement().use {
+                        logger.info("Executing: $sql")
+                        it.execute(sql)
+                    }
+                }
+            }
+        }.forEach { it.get() }
+
+        toolbox.entitySets.map { es ->
+            toolbox.executor.submit {
+                toolbox.hds.connection.use {
+                    it.use {
+                        it.createStatement().use {
+                            it.execute(updateIdsTable(es.key))
+                            logger.info("Migrated entity key ids table {}", es.key)
+                        }
+                    }
+                }
+            }
+        }.forEach { it.get() }
+
+        return true
     }
 
     private fun upgradePropertyTypes(): Boolean {
@@ -51,7 +85,8 @@ class Linking(private val toolbox: Toolbox) : Upgrade {
                 toolbox.hds.connection.use {
                     it.use {
                         it.createStatement().use {
-                            it.execute(addClusterId(pt.key));
+                            it.execute(dropClusterId(pt.key))
+                            logger.info("Processed property type {}", pt.key)
                         }
                     }
                 }
@@ -74,13 +109,19 @@ class Linking(private val toolbox: Toolbox) : Upgrade {
         return true
     }
 
+    private fun dropClusterId(propertyTypeId: UUID): String {
+        val propertyTableName = DataTables.propertyTableName(propertyTypeId)
+
+        return "ALTER TABLE ${quote(propertyTableName)} DROP COLUMN IF EXISTS cluster_id"
+    }
+
     private fun addClusterId(propertyTypeId: UUID): String {
         val propertyTableName = DataTables.propertyTableName(propertyTypeId)
 
         val valueColumn = value(toolbox.propertyTypes[propertyTypeId]!!)
         val ptd = PostgresTableDefinition(quote(propertyTableName))
                 .addColumns(
-                        CLUSTER_ID,
+                        LINKING_ID,
                         ENTITY_SET_ID,
                         ID_VALUE,
                         HASH,
@@ -94,16 +135,44 @@ class Linking(private val toolbox: Toolbox) : Upgrade {
                 )
                 .primaryKey(ENTITY_SET_ID, ID_VALUE, HASH)
 
-        val clusterIndex = PostgresColumnsIndexDefinition(ptd, CLUSTER_ID)
+        val clusterIndex = PostgresColumnsIndexDefinition(ptd, LINKING_ID)
                 .name(quote("${propertyTableName}_cluster_idx"))
                 .ifNotExists()
 
         return "ALTER TABLE ${quote(propertyTableName)} " +
-                "   ADD COLUMN IF NOT EXISTS ${CLUSTER_ID.name} ${PostgresDatatype.UUID.sql()}; " +
+                "   ADD COLUMN IF NOT EXISTS ${LINKING_ID.name} ${PostgresDatatype.UUID.sql()}; " +
                 "${clusterIndex.sql()}; "
     }
 }
 
+private fun updateIdsTable(entitySetId: UUID): String {
+    val entitySetTableName = DataTables.entityTableName(entitySetId)
+    val setSql = listOf(VERSION.name, VERSIONS.name, LAST_WRITE.name, LAST_INDEX.name, LAST_LINK.name)
+            .joinToString(",") { "$it = $entitySetTableName.$it" }
+
+    return "UPDATE ${IDS.name} " +
+            "SET $setSql " +
+            "FROM $entitySetTableName " +
+            "WHERE ${IDS.name}.${ENTITY_SET_ID.name} = $entitySetTableName.${ENTITY_SET_ID.name} " +
+            "   AND ${IDS.name}.${ID.name} = $entitySetTableName.${ID_VALUE.name} "
+}
+
+private fun alterIdsTable(): List<String> {
+    return listOf(VERSION, VERSIONS, LAST_WRITE, LAST_INDEX, LAST_LINK, LINKING_ID)
+            .map {
+                val defaultValue = when (it) {
+                    VERSION -> "-1; "
+                    VERSIONS -> "ARRAY[-1]; "
+                    else -> "'-infinity'"
+
+                }
+                "ALTER TABLE ${IDS.name} ADD COLUMN IF NOT EXISTS ${it.name} ${it.datatype.sql()};\n" +
+                        "UPDATE ${IDS.name} SET ${it.name} = $defaultValue;\n" +
+                        "ALTER TABLE ${IDS.name} ALTER COLUMN ${it.name} SET NOT NULL;\n" +
+                        "ALTER TABLE ${IDS.name} ALTER COLUMN ${it.name} SET DEFAULT $defaultValue;"
+            }
+
+}
 
 private fun addLastLinkedColumn(entitySetId: UUID): String {
     val entitySetTableName = DataTables.entityTableName(entitySetId)
