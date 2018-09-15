@@ -117,7 +117,7 @@ class IntegrityChecks(
                             //"DELETE from $ptTableName " +
                             //"WHERE entity_set_id = '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
 
-                            pgEdmManager.createPropertyTypeTableIfNotExist(entitySet, it.value)
+                            pgEdmManager.createPropertyTypeTableIfNotExist( it.value )
                             logger.info(
                                     "Submitting delete for entity set{} and property type {}",
                                     entitySetName,
