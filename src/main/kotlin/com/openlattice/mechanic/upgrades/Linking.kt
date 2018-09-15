@@ -22,15 +22,11 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.DataTables
+import com.openlattice.postgres.*
 import com.openlattice.postgres.DataTables.*
 import com.openlattice.postgres.PostgresColumn.*
-import com.openlattice.postgres.PostgresColumnsIndexDefinition
-import com.openlattice.postgres.PostgresDatatype
 import com.openlattice.postgres.PostgresTable.IDS
-import com.openlattice.postgres.PostgresTableDefinition
 import org.slf4j.LoggerFactory
-import org.threadly.concurrent.future.ListenableFuture
 import java.util.*
 
 
@@ -44,14 +40,18 @@ class Linking(private val toolbox: Toolbox) : Upgrade {
     }
 
     override fun upgrade(): Boolean {
-        return upgradePropertyTypes() && mergeEntitySetTables() // && upgradEntitySets
+        return migrateIdsTable()
+                && upgradePropertyTypes()
+                && migrateEntitySetTables() // && upgradEntitySets
     }
 
     override fun getSupportedVersion(): Long {
         return Version.V2018_09_14.value
     }
 
-    private fun mergeEntitySetTables(): Boolean {
+    private fun migrateIdsTable(): Boolean {
+        logger.info("Adding new columns to ${IDS.name}.")
+        //First we add the new columns to the table.
         alterIdsTable().map { sql ->
             toolbox.executor.submit {
                 toolbox.hds.connection.use {
@@ -63,6 +63,35 @@ class Linking(private val toolbox: Toolbox) : Upgrade {
             }
         }.forEach { it.get() }
 
+        logger.info("Adding indexes to ${IDS.name}.")
+        //Next we add indexes
+        addIdsIndexes().map { sql ->
+            toolbox.executor.submit {
+                toolbox.hds.connection.use {
+                    it.createStatement().use {
+                        it.execute(sql)
+                    }
+                }
+            }
+        }.forEach { it.get() }
+
+        logger.info("Adding constraints to ${IDS.name}.")
+        //Now we set default values and alter constraints
+        setConstraintsForIdsTable().map { sql ->
+            toolbox.executor.submit {
+                toolbox.hds.connection.use {
+                    it.createStatement().use {
+                        logger.info("Executing $sql")
+                        it.execute(sql)
+                    }
+                }
+            }
+        }.forEach { it.get() }
+
+        return true
+    }
+
+    private fun migrateEntitySetTables(): Boolean {
         toolbox.entitySets.map { es ->
             toolbox.executor.submit {
                 toolbox.hds.connection.use {
@@ -110,13 +139,14 @@ class Linking(private val toolbox: Toolbox) : Upgrade {
     }
 
     private fun dropClusterId(propertyTypeId: UUID): String {
-        val propertyTableName = DataTables.propertyTableName(propertyTypeId)
-
-        return "ALTER TABLE ${quote(propertyTableName)} DROP COLUMN IF EXISTS cluster_id"
+        val propertyTableName = quote(propertyTableName(propertyTypeId))
+        //TODO: If drop last write column we have to update insert statements
+        return "ALTER TABLE $propertyTableName DROP COLUMN IF EXISTS cluster_id; "// +
+        //"ALTER TABLE $propertyTableName DROP COLUMN IF EXISTS LAST_WRITE; "
     }
 
     private fun addClusterId(propertyTypeId: UUID): String {
-        val propertyTableName = DataTables.propertyTableName(propertyTypeId)
+        val propertyTableName = propertyTableName(propertyTypeId)
 
         val valueColumn = value(toolbox.propertyTypes[propertyTypeId]!!)
         val ptd = PostgresTableDefinition(quote(propertyTableName))
@@ -146,7 +176,7 @@ class Linking(private val toolbox: Toolbox) : Upgrade {
 }
 
 private fun updateIdsTable(entitySetId: UUID): String {
-    val entitySetTableName = DataTables.entityTableName(entitySetId)
+    val entitySetTableName = entityTableName(entitySetId)
     val setSql = listOf(VERSION.name, VERSIONS.name, LAST_WRITE.name, LAST_INDEX.name, LAST_LINK.name)
             .joinToString(",") { "$it = $entitySetTableName.$it" }
 
@@ -157,17 +187,57 @@ private fun updateIdsTable(entitySetId: UUID): String {
             "   AND ${IDS.name}.${ID.name} = $entitySetTableName.${ID_VALUE.name} "
 }
 
+private fun addIdsIndexes(): List<String> {
+    return listOf(
+            PostgresExpressionIndexDefinition(IDS, "(${LAST_INDEX.name} < ${LAST_WRITE.name})")
+                    .name("entity_key_ids_needs_indexing_idx")
+                    .ifNotExists(),
+            PostgresExpressionIndexDefinition(IDS, "(${LAST_LINK.name} < ${LAST_WRITE.name})")
+                    .name("entity_key_ids_needs_linking_idx")
+                    .ifNotExists(),
+            PostgresExpressionIndexDefinition(IDS, "(${LAST_PROPAGATE.name} < ${LAST_WRITE.name})")
+                    .name("entity_key_ids_needs_propagation_idx")
+                    .ifNotExists(),
+            PostgresColumnsIndexDefinition(IDS, VERSION)
+                    .name("entity_key_ids_version_idx")
+                    .ifNotExists(),
+            PostgresColumnsIndexDefinition(IDS, VERSIONS)
+                    .name("entity_key_ids_versions_idx")
+                    .method(IndexMethod.GIN)
+                    .ifNotExists(),
+            PostgresColumnsIndexDefinition(IDS, LINKING_ID)
+                    .name("entity_key_ids_linking_id_idx")
+                    .ifNotExists(),
+            PostgresColumnsIndexDefinition(IDS, LAST_WRITE)
+                    .name("entity_key_ids_last_write_idx")
+                    .ifNotExists(),
+            PostgresColumnsIndexDefinition(IDS, LAST_INDEX)
+                    .name("entity_key_ids_last_index_idx")
+                    .ifNotExists(),
+            PostgresColumnsIndexDefinition(IDS, LAST_PROPAGATE)
+                    .name("entity_key_ids_last_propagate_idx")
+                    .ifNotExists()
+    ).map(PostgresIndexDefinition::sql)
+}
+
 private fun alterIdsTable(): List<String> {
-    return listOf(VERSION, VERSIONS, LAST_WRITE, LAST_INDEX, LAST_LINK, LINKING_ID)
+    return listOf(VERSION, VERSIONS, LAST_WRITE, LAST_INDEX, LAST_LINK, LAST_PROPAGATE, LINKING_ID)
+            .map {
+                "ALTER TABLE ${IDS.name} ADD COLUMN IF NOT EXISTS ${it.name} ${it.datatype.sql()}"
+            }
+
+}
+
+private fun setConstraintsForIdsTable(): List<String> {
+    return listOf(VERSION, VERSIONS, LAST_WRITE, LAST_INDEX, LAST_LINK, LAST_PROPAGATE, LINKING_ID)
             .map {
                 val defaultValue = when (it) {
-                    VERSION -> "-1; "
-                    VERSIONS -> "ARRAY[-1]; "
+                    VERSION -> "-1 "
+                    VERSIONS -> "ARRAY[-1] "
                     else -> "'-infinity'"
 
                 }
-                "ALTER TABLE ${IDS.name} ADD COLUMN IF NOT EXISTS ${it.name} ${it.datatype.sql()};\n" +
-                        "UPDATE ${IDS.name} SET ${it.name} = $defaultValue;\n" +
+                "UPDATE ${IDS.name} SET ${it.name} = $defaultValue WHERE ${it.name} IS NULL;\n" +
                         "ALTER TABLE ${IDS.name} ALTER COLUMN ${it.name} SET NOT NULL;\n" +
                         "ALTER TABLE ${IDS.name} ALTER COLUMN ${it.name} SET DEFAULT $defaultValue;"
             }
@@ -175,7 +245,7 @@ private fun alterIdsTable(): List<String> {
 }
 
 private fun addLastLinkedColumn(entitySetId: UUID): String {
-    val entitySetTableName = DataTables.entityTableName(entitySetId)
+    val entitySetTableName = entityTableName(entitySetId)
     return "ALTER TABLE ${quote(entitySetTableName)} " +
             "   ADD COLUMN IF NOT EXISTS ${LAST_LINK.name} ${PostgresDatatype.TIMESTAMPTZ.sql()}; " +
             "UPDATE ${quote(entitySetTableName)} SET ${LAST_LINK.name} = '-infinity';" +
