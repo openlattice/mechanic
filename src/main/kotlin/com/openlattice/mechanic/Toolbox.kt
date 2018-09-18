@@ -23,6 +23,7 @@ package com.openlattice.mechanic
 
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.openlattice.edm.PostgresEdmManager
+import com.openlattice.postgres.PostgresTableManager
 import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.postgres.mapstores.EntityTypeMapstore
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore
@@ -33,6 +34,7 @@ import com.zaxxer.hikari.HikariDataSource
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
 class Toolbox(
+        val tableManager: PostgresTableManager,
         val pgEdmManager: PostgresEdmManager,
         val hds: HikariDataSource,
         private val ptms: PropertyTypeMapstore,
