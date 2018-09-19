@@ -63,6 +63,7 @@ class Linking(private val toolbox: Toolbox) : Upgrade {
     override fun upgrade(): Boolean {
         toolbox.tableManager.registerTables(createNewTables())
 
+
         //This will setup the max version migrated as 0
         toolbox.hds.connection.use {
             it.createStatement().use {
@@ -73,7 +74,9 @@ class Linking(private val toolbox: Toolbox) : Upgrade {
         return if (migrateEntitySetTables()) {
             toolbox.hds.connection.use {
                 it.createStatement().use {
-                    it.execute(copyOverEntityIds())
+                    val w = Stopwatch.createStarted()
+                    val count = it.executeUpdate(copyOverEntityIds())
+                    logger.info("Copying over {} entity ids took {}s", count, w.elapsed(TimeUnit.SECONDS))
                     true
                 }
             }
@@ -107,32 +110,26 @@ class Linking(private val toolbox: Toolbox) : Upgrade {
             })
         }.map { it.get() }.sum()
 
-        logger.info("Migrated {} entities in {} ms.", migrationCount, w.elapsed(TimeUnit.SECONDS))
+        logger.info("Migrated {} entities in {} s.", migrationCount, w.elapsed(TimeUnit.SECONDS))
         return true
     }
 }
 
 private fun swapTables(): String {
-    return "ALTER TABLE entity_key_ids RENAME old_entity_key_ids; " +
+    return "ALTER TABLE entity_key_ids RENAME to old_entity_key_ids; " +
             "ALTER TABLE new_entity_key_ids RENAME to entity_key_ids;"
 }
 
 private fun copyOverEntityIds(): String {
     return "UPDATE ${IDS.name} " +
-            "SET (${ENTITY_ID.name}) = (SELECT ${ENTITY_ID.name} FROM entity_key_ids WHERE entity_key_ids.id = ${IDS.name}.id)"
+            "SET (${ENTITY_ID.name}) = (SELECT ${ENTITY_ID.name} FROM entity_key_ids WHERE entity_key_ids.id = ${IDS.name}.id) " +
+            "WHERE ${ENTITY_ID.name} IS NULL"
 }
 
 private fun updateIdsTable(entitySetId: UUID): String {
     val entitySetTableSubquery = unmigratedEntitySetTable(entitySetId)
 
     return "INSERT INTO ${IDS.name} ($idColumns) $entitySetTableSubquery"
-    //to
-//            "UPDATE ${IDS.name} " +
-//            "SET (${ENTITY_ID.name}) = entity_key_ids.entity_id FROM entity_key_ids " +
-//            "WHERE entity_key_ids.id = ${IDS.name}.id " +
-//            " AND entity_key_ids.entity_set_id = ${IDS.name}.entity_set_id " +
-//            " AND entity_key_ids.entity_set_id = '$entitySetId'"
-
 }
 
 private val idColumns = listOf(
@@ -199,48 +196,48 @@ private fun setConstraintsForIdsTable(): List<String> {
 private fun createNewTables(): List<PostgresTableDefinition> {
     IDS.addIndexes(
             PostgresColumnsIndexDefinition(IDS, ENTITY_SET_ID)
-                    .name("entity_key_ids_entity_set_id_idx")
+                    .name("v2_entity_key_ids_entity_set_id_idx")
                     .ifNotExists(),
             PostgresColumnsIndexDefinition(IDS, ENTITY_SET_ID, ENTITY_ID)
                     .unique()
-                    .name("entity_key_ids_entity_key_idx")
+                    .name("v2_entity_key_ids_entity_key_idx")
                     .ifNotExists(),
             PostgresColumnsIndexDefinition(IDS, VERSION)
-                    .name("entity_key_ids_version_idx")
+                    .name("v2_entity_key_ids_version_idx")
                     .ifNotExists(),
             PostgresColumnsIndexDefinition(IDS, VERSIONS)
-                    .name("entity_key_ids_versions_idx")
+                    .name("v2_entity_key_ids_versions_idx")
                     .method(IndexMethod.GIN)
                     .ifNotExists(),
             PostgresColumnsIndexDefinition(IDS, LINKING_ID)
-                    .name("entity_key_ids_linking_id_idx")
+                    .name("v2_entity_key_ids_linking_id_idx")
                     .ifNotExists(),
             PostgresColumnsIndexDefinition(IDS, LAST_WRITE)
-                    .name("entity_key_ids_last_write_idx")
+                    .name("v2_entity_key_ids_last_write_idx")
                     .ifNotExists(),
             PostgresColumnsIndexDefinition(IDS, LAST_INDEX)
-                    .name("entity_key_ids_last_index_idx")
+                    .name("v2_entity_key_ids_last_index_idx")
                     .ifNotExists(),
             PostgresColumnsIndexDefinition(IDS, LAST_PROPAGATE)
-                    .name("entity_key_ids_last_propagate_idx")
+                    .name("v2_entity_key_ids_last_propagate_idx")
                     .ifNotExists(),
             PostgresExpressionIndexDefinition(
                     IDS,
                     "(" + LAST_INDEX.name + " < " + LAST_WRITE.name + ")"
             )
-                    .name("entity_key_ids_needs_linking_idx")
+                    .name("v2_entity_key_ids_needs_linking_idx")
                     .ifNotExists(),
             PostgresExpressionIndexDefinition(
                     IDS,
                     "(" + LAST_LINK.name + " < " + LAST_WRITE.name + ")"
             )
-                    .name("entity_key_ids_needs_linking_idx")
+                    .name("v2_entity_key_ids_needs_linking_idx")
                     .ifNotExists(),
             PostgresExpressionIndexDefinition(
                     IDS,
                     "(" + LAST_PROPAGATE.name + " < " + LAST_WRITE.name + ")"
             )
-                    .name("entity_key_ids_needs_propagation_idx")
+                    .name("v2_entity_key_ids_needs_propagation_idx")
                     .ifNotExists()
     )
     return listOf(IDS, MIGRATION_PROGRESS)
