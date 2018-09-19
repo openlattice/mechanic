@@ -52,6 +52,50 @@ private val MIGRATION_PROGRESS = PostgresTableDefinition("linking_migration")
         .addColumns(ENTITY_SET_ID, VERSION)
         .primaryKey(ENTITY_SET_ID)
 
+private val INDEXES = listOf(PostgresColumnsIndexDefinition(IDS, ENTITY_SET_ID)
+                                     .name("v2_entity_key_ids_entity_set_id_idx")
+                                     .ifNotExists(),
+                             PostgresColumnsIndexDefinition(IDS, ENTITY_SET_ID, ENTITY_ID)
+                                     .unique()
+                                     .name("v2_entity_key_ids_entity_key_idx")
+                                     .ifNotExists(),
+                             PostgresColumnsIndexDefinition(IDS, VERSION)
+                                     .name("v2_entity_key_ids_version_idx")
+                                     .ifNotExists(),
+                             PostgresColumnsIndexDefinition(IDS, VERSIONS)
+                                     .name("v2_entity_key_ids_versions_idx")
+                                     .method(IndexMethod.GIN)
+                                     .ifNotExists(),
+                             PostgresColumnsIndexDefinition(IDS, LINKING_ID)
+                                     .name("v2_entity_key_ids_linking_id_idx")
+                                     .ifNotExists(),
+                             PostgresColumnsIndexDefinition(IDS, LAST_WRITE)
+                                     .name("v2_entity_key_ids_last_write_idx")
+                                     .ifNotExists(),
+                             PostgresColumnsIndexDefinition(IDS, LAST_INDEX)
+                                     .name("v2_entity_key_ids_last_index_idx")
+                                     .ifNotExists(),
+                             PostgresColumnsIndexDefinition(IDS, LAST_PROPAGATE)
+                                     .name("v2_entity_key_ids_last_propagate_idx")
+                                     .ifNotExists(),
+                             PostgresExpressionIndexDefinition(
+                                     IDS,
+                                     "${ENTITY_SET_ID.name}, (${LAST_INDEX.name} < ${LAST_WRITE.name})"
+                             )
+                                     .name("v2_entity_key_ids_needs_linking_idx")
+                                     .ifNotExists(),
+                             PostgresExpressionIndexDefinition(
+                                     IDS,
+                                     "${ENTITY_SET_ID.name}, (${LAST_LINK.name} < ${LAST_WRITE.name})"
+                             )
+                                     .name("v2_entity_key_ids_needs_linking_idx")
+                                     .ifNotExists(),
+                             PostgresExpressionIndexDefinition(
+                                     IDS,
+                                     "${ENTITY_SET_ID.name}, (${LAST_PROPAGATE.name} < ${LAST_WRITE.name})"
+                             )
+                                     .name("v2_entity_key_ids_needs_propagation_idx")
+                                     .ifNotExists())
 /**
  * Migrations for linking.
  */
@@ -62,7 +106,7 @@ class Linking(private val toolbox: Toolbox) : Upgrade {
 
     override fun upgrade(): Boolean {
         toolbox.tableManager.registerTables(createNewTables())
-
+        INDEXES.forEach { logger.info("SQL: ${it.sql()}") }
 
         //This will setup the max version migrated as 0
         toolbox.hds.connection.use {
@@ -72,6 +116,7 @@ class Linking(private val toolbox: Toolbox) : Upgrade {
         }
 
         return if (migrateEntitySetTables()) {
+            logger.info("Done migrating tables. Starting copy of entity ids.")
             toolbox.hds.connection.use {
                 it.createStatement().use {
                     val w = Stopwatch.createStarted()
@@ -97,6 +142,7 @@ class Linking(private val toolbox: Toolbox) : Upgrade {
                 toolbox.hds.connection.use {
                     it.use {
                         val sql = updateIdsTable(es.key)
+                        logger.info("Processing entity set $es.key (${es.value.name})")
                         it.createStatement().use {
                             val entitySetTableCount = it.executeUpdate(sql)
                             logger.info("Inserted {} entity key ids for entity set {}", entitySetTableCount, es)
@@ -164,7 +210,8 @@ private fun unmigratedEntitySetTable(entitySetId: UUID): String {
     ).joinToString(",")
     val entitySetTableName = quote(entityTableName(entitySetId))
     //return "SELECT $esColumns FROM $entitySetTableName LEFT JOIN (SELECT ${ENTITY_ID.name} FROM entity_key_ids where entity_set_id = ?) as ids USING(id) WHERE version > (select * from migration_progress where entity_set_id = ?)"
-    return "SELECT $esColumns FROM $entitySetTableName WHERE version > (select version from ${MIGRATION_PROGRESS.name} where entity_set_id = '$entitySetId')"
+    return "SELECT $esColumns FROM $entitySetTableName WHERE version > (select version from ${MIGRATION_PROGRESS.name} where entity_set_id = '$entitySetId') " +
+            "ON CONFLICT ON CONSTRAINT new_entity_key_ids_pkey DO UPDATE SET version = EXCLUDED.version, versions = EXCLUDED.versions"
 }
 
 private fun initMigrationProgressTable(): String {
@@ -223,19 +270,19 @@ private fun createNewTables(): List<PostgresTableDefinition> {
                     .ifNotExists(),
             PostgresExpressionIndexDefinition(
                     IDS,
-                    "(" + LAST_INDEX.name + " < " + LAST_WRITE.name + ")"
+                    ENTITY_SET_ID.name + ",(" + LAST_INDEX.name + " < " + LAST_WRITE.name + ")"
             )
                     .name("v2_entity_key_ids_needs_linking_idx")
                     .ifNotExists(),
             PostgresExpressionIndexDefinition(
                     IDS,
-                    "(" + LAST_LINK.name + " < " + LAST_WRITE.name + ")"
+                    ENTITY_SET_ID.name + ",(" + LAST_LINK.name + " < " + LAST_WRITE.name + ")"
             )
                     .name("v2_entity_key_ids_needs_linking_idx")
                     .ifNotExists(),
             PostgresExpressionIndexDefinition(
                     IDS,
-                    "(" + LAST_PROPAGATE.name + " < " + LAST_WRITE.name + ")"
+                    ENTITY_SET_ID.name + ",(" + LAST_PROPAGATE.name + " < " + LAST_WRITE.name + ")"
             )
                     .name("v2_entity_key_ids_needs_propagation_idx")
                     .ifNotExists()
