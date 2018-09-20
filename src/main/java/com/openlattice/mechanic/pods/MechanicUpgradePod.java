@@ -28,6 +28,7 @@ import com.openlattice.ids.IdGenerationMapstore;
 import com.openlattice.mechanic.Toolbox;
 import com.openlattice.mechanic.integrity.EdmChecks;
 import com.openlattice.mechanic.integrity.IntegrityChecks;
+import com.openlattice.mechanic.upgrades.GraphProcessing;
 import com.openlattice.mechanic.upgrades.Linking;
 import com.openlattice.mechanic.upgrades.RegenerateIds;
 import com.openlattice.postgres.PostgresTableManager;
@@ -130,5 +131,9 @@ public class MechanicUpgradePod {
     @Bean
     Linking linking() {
         return new Linking( toolbox() );
+    }
+
+    @Bean GraphProcessing graph() {
+        return new GraphProcessing( toolbox() );
     }
 }
