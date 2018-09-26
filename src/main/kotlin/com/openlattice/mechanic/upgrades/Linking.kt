@@ -225,7 +225,8 @@ private fun updateMigrationProgressTable(entitySetId: UUID): String {
 }
 
 private fun setConstraintsForIdsTable(): List<String> {
-    return listOf(VERSION, VERSIONS, LAST_WRITE, LAST_INDEX, LAST_LINK, LAST_PROPAGATE, LINKING_ID)
+    return listOf(VERSION, VERSIONS, LAST_WRITE, LAST_INDEX, LAST_LINK,
+                  LAST_PROPAGATE, LINKING_ID)
             .map {
                 val defaultValue = when (it) {
                     VERSION -> "-1 "
