@@ -86,7 +86,7 @@ class GraphProcessing(private val toolbox: Toolbox) : Upgrade {
                                         "Setting value for property type {} in {} ms", pt.value.type,
                                         w.elapsed(TimeUnit.MILLISECONDS)
                                 )
-                                it.createStatement().execute(alterPropertyTypeTableWithDefaults(  pt.key ))
+                                it.createStatement().execute(alterPropertyTypeTableWithDefaults(pt.key))
                             }
                         }
                     }
@@ -103,7 +103,9 @@ class GraphProcessing(private val toolbox: Toolbox) : Upgrade {
                         toolbox.hds.connection.use {
                             it.use {
                                 val sql = alterPropertyTypeTableSql(pt.key)
-                                it.createStatement().execute(sql)
+                                it.createStatement().use { it.execute(sql) }
+                                val indexSql = buildIndexDefinitions(pt.value)
+                                it.createStatement().use { it.execute(sql) }
                                 logger.info("Added column to property type:{}", pt.value.type)
                             }
                         }

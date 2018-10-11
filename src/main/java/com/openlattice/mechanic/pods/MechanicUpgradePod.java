@@ -48,8 +48,11 @@ import org.springframework.context.annotation.Profile;
 public class MechanicUpgradePod {
     public static final String INTEGRITY = "integrity";
     public static final String REGEN     = "regen";
+
     @Inject
-    HikariDataSource hikariDataSource;
+    private HikariDataSource hikariDataSource;
+    @Inject
+    private PostgresTableManager tableManager;
 
     @Inject
     private ListeningExecutorService executor;
@@ -69,7 +72,7 @@ public class MechanicUpgradePod {
 
     @Bean
     public PostgresEdmManager pgEdmManager() {
-        return new PostgresEdmManager( hikariDataSource );
+        return new PostgresEdmManager( hikariDataSource,tableManager );
     }
 
     @Bean
@@ -112,14 +115,9 @@ public class MechanicUpgradePod {
                 executor );
     }
 
-    @Bean
-    public PostgresTableManager tableManager() {
-        return new PostgresTableManager( hikariDataSource );
-    }
-
     @Bean Toolbox toolbox() {
         return new Toolbox(
-                tableManager(),
+                tableManager,
                 pgEdmManager(),
                 hikariDataSource,
                 (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
