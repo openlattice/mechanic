@@ -86,9 +86,8 @@ class GraphProcessing(private val toolbox: Toolbox) : Upgrade {
                                 val w = Stopwatch.createStarted()
                                 val sql = updatePropertyTypeTableSql(pt.key)
                                 val count = it.createStatement().use {
-                                    it.addBatch(sql)
-                                    it.addBatch(alterPropertyTypeTableWithDefaults(pt.key))
-                                    it.executeBatch()
+                                    it.execute(sql)
+                                    it.execute(alterPropertyTypeTableWithDefaults(pt.key))
                                 }
 
                                 logger.info(
