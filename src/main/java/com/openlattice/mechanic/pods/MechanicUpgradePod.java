@@ -30,6 +30,7 @@ import com.openlattice.mechanic.integrity.EdmChecks;
 import com.openlattice.mechanic.integrity.IntegrityChecks;
 import com.openlattice.mechanic.upgrades.GraphProcessing;
 import com.openlattice.mechanic.upgrades.Linking;
+import com.openlattice.mechanic.upgrades.ReadLinking;
 import com.openlattice.mechanic.upgrades.RegenerateIds;
 import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
@@ -52,6 +53,9 @@ public class MechanicUpgradePod {
     HikariDataSource hikariDataSource;
 
     @Inject
+    private PostgresTableManager tableManager;
+
+    @Inject
     private ListeningExecutorService executor;
 
     @Inject
@@ -69,7 +73,7 @@ public class MechanicUpgradePod {
 
     @Bean
     public PostgresEdmManager pgEdmManager() {
-        return new PostgresEdmManager( hikariDataSource );
+        return new PostgresEdmManager( hikariDataSource, tableManager );
     }
 
     @Bean
@@ -112,14 +116,9 @@ public class MechanicUpgradePod {
                 executor );
     }
 
-    @Bean
-    public PostgresTableManager tableManager() {
-        return new PostgresTableManager( hikariDataSource );
-    }
-
     @Bean Toolbox toolbox() {
         return new Toolbox(
-                tableManager(),
+                tableManager,
                 pgEdmManager(),
                 hikariDataSource,
                 (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
@@ -135,5 +134,10 @@ public class MechanicUpgradePod {
 
     @Bean GraphProcessing graph() {
         return new GraphProcessing( toolbox() );
+    }
+
+    @Bean
+    ReadLinking readLinking() {
+        return new ReadLinking( toolbox() );
     }
 }

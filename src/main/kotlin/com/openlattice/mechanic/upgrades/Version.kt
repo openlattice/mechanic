@@ -26,5 +26,6 @@ package com.openlattice.mechanic.upgrades
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
 enum class Version(val value : Long) {
-    V2018_09_14 ( 1L)
+    V2018_09_14 ( 1L),
+    V2018_10_10 ( 2L)
 }
