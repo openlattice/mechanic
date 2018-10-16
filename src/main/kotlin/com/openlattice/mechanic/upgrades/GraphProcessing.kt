@@ -40,6 +40,10 @@ private val MIGRATION_PROGRESS = PostgresTableDefinition("linking_migration")
 private fun buildIndexDefinitions(propertyType: PropertyType): List<PostgresIndexDefinition> {
     val propertyTypeTable = DataTables.buildPropertyTableDefinition(propertyType)
     return listOf(
+            PostgresColumnsIndexDefinition(
+                    propertyTypeTable,
+                    LAST_PROPAGATE
+            ).ifNotExists(),
             PostgresExpressionIndexDefinition(
                     propertyTypeTable,
                     "(${LAST_PROPAGATE.name} < ${LAST_WRITE.name})"
@@ -81,12 +85,18 @@ class GraphProcessing(private val toolbox: Toolbox) : Upgrade {
                             it.use {
                                 val w = Stopwatch.createStarted()
                                 val sql = updatePropertyTypeTableSql(pt.key)
-                                it.createStatement().execute(sql)
+                                val count = it.createStatement().use {
+                                    it.execute(sql)
+                                    it.execute(alterPropertyTypeTableWithDefaults(pt.key))
+                                }
+
                                 logger.info(
-                                        "Setting value for property type {} in {} ms", pt.value.type,
+                                        "Set {} default values for property type {} in {} ms",
+                                        count,
+                                        pt.value.type,
                                         w.elapsed(TimeUnit.MILLISECONDS)
                                 )
-                                it.createStatement().execute(alterPropertyTypeTableWithDefaults(  pt.key ))
+
                             }
                         }
                     }
@@ -103,7 +113,9 @@ class GraphProcessing(private val toolbox: Toolbox) : Upgrade {
                         toolbox.hds.connection.use {
                             it.use {
                                 val sql = alterPropertyTypeTableSql(pt.key)
-                                it.createStatement().execute(sql)
+                                it.createStatement().use { it.execute(sql) }
+                                val indexSql = buildIndexDefinitions(pt.value)
+                                it.createStatement().use { it.execute(sql) }
                                 logger.info("Added column to property type:{}", pt.value.type)
                             }
                         }
@@ -126,7 +138,7 @@ private fun alterPropertyTypeTableWithDefaults(propertyTypeId: UUID): String {
 
 private fun updatePropertyTypeTableSql(propertyTypeId: UUID): String {
     val propertyTableName = quote(DataTables.propertyTableName(propertyTypeId))
-    return "UPDATE $propertyTableName SET ${LAST_PROPAGATE.name} = now()"
+    return "UPDATE $propertyTableName SET ${LAST_PROPAGATE.name} = now() WHERE LAST_PROPAGATE IS NULL"
 }
 
 private fun alterPropertyTypeTableSql(propertyTypeId: UUID): String {

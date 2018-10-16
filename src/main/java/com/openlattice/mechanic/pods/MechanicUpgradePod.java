@@ -49,6 +49,7 @@ import org.springframework.context.annotation.Profile;
 public class MechanicUpgradePod {
     public static final String INTEGRITY = "integrity";
     public static final String REGEN     = "regen";
+
     @Inject
     HikariDataSource hikariDataSource;
 
