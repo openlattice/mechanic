@@ -22,6 +22,10 @@ class ReadLinking(private val toolbox: Toolbox):Upgrade {
         dropEntitySetTables()
         logger.info("Done dropping entity set tables")
 
+        logger.info("Start to drop leftover linking tables")
+        dropUnusedLinkingTables()
+        logger.info("Done dropping leftover linking tables")
+
         return true
     }
 
@@ -64,6 +68,21 @@ class ReadLinking(private val toolbox: Toolbox):Upgrade {
 
     override fun getSupportedVersion(): Long {
         return Version.V2018_10_10.value
+    }
+
+    private fun dropUnusedLinkingTables() {
+        val unusedLinkingTables = setOf("linked_entities", "linked_entity_sets", "linked_entity_types", "linking_vertices")
+        val dropStatements = unusedLinkingTables.map { "DROP TABLE IF EXISTS $it" }.joinToString(separator = ";")
+
+        toolbox.executor.submit(
+                Callable {
+                    toolbox.hds.connection.use {
+                        it.use {
+                            it.createStatement().execute(dropStatements)
+                        }
+                    }
+                }
+        ).get()
     }
 
 }
