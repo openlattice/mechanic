@@ -22,7 +22,7 @@ private val ID = quote("id")
 private val HASH = quote("hash")
 
 class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
-    private lateinit var byteBlobDataManager: ByteBlobDataManager
+    //private lateinit var byteBlobDataManager: ByteBlobDataManager
 
     override fun upgrade(): Boolean {
         setUp()
@@ -74,7 +74,11 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
             while(rs.next()) {
                 val data = rs.getBytes(4)
                 val hash = rs.getBytes(3)
-                val key = rs.getString(1) + "/" + rs.getString(2) + "/" + entry.key + "/" + hash
+                var hashString = ""
+                for (byte in hash) {
+                    hashString = hashString.plus(String.format("%02X", byte))
+                }
+                val key = rs.getString(1) + "/" + rs.getString(2) + "/" + entry.key + "/" + hashString
                 byteBlobDataManager.putObject(key, data)
                 val conn2 = toolbox.hds.connection
                 val ps2 = conn2.prepareStatement(storeS3Key(key, propertyTable, fqn))
