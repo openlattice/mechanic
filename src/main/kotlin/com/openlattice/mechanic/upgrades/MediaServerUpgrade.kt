@@ -22,7 +22,7 @@ private val ID = quote("id")
 private val HASH = quote("hash")
 
 class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
-    //private lateinit var byteBlobDataManager: ByteBlobDataManager
+    private lateinit var byteBlobDataManager: ByteBlobDataManager
 
     override fun upgrade(): Boolean {
         setUp()
