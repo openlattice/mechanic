@@ -19,6 +19,7 @@ private val BINARY_PROPERTY_ID_TO_FQN = mapOf("90abc3fb-f0c4-45e5-b385-8cf70c06e
 
 private val ENTITY_SET_ID = quote("entity_set_id")
 private val ID = quote("id")
+private val HASH = quote("hash")
 
 class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
     private lateinit var byteBlobDataManager: ByteBlobDataManager
@@ -71,11 +72,13 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
             //move binary data to s3 and store s3 key
             val rs = ps1.executeQuery()
             while(rs.next()) {
-                val data = rs.getBytes(3)
-                val key = rs.getString(1) + "/" + rs.getString(2) + "/" + entry.key + "/" + data.hashCode().toString()
+                val data = rs.getBytes(4)
+                val hash = rs.getBytes(3)
+                val key = rs.getString(1) + "/" + rs.getString(2) + "/" + entry.key + "/" + hash
                 byteBlobDataManager.putObject(key, data)
                 val conn2 = toolbox.hds.connection
-                val ps2 = conn2.prepareStatement(storeS3Key(key, propertyTable, fqn, fqnOld, data))
+                val ps2 = conn2.prepareStatement(storeS3Key(key, propertyTable, fqn))
+                ps2.setBytes(1, hash)
                 ps2.executeUpdate()
                 conn2.close()
             }
@@ -103,12 +106,11 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
     }
 
     fun getDataForS3(propertyTable: String, fqnOld: String) : String {
-        return "SELECT $ENTITY_SET_ID, $ID, $fqnOld from $propertyTable"
+        return "SELECT $ENTITY_SET_ID, $ID, $HASH, $fqnOld from $propertyTable"
     }
 
-    fun storeS3Key(key: String, propertyTable: String, fqn: String, fqnOld: String, data: ByteArray) : String {
-        val stringData = String(data)
-        return "UPDATE $propertyTable SET $fqn = '$key' where $fqnOld = '$stringData'"
+    fun storeS3Key(key: String, propertyTable: String, fqn: String) : String {
+        return "UPDATE $propertyTable SET $fqn = '$key' where $HASH = ?"
     }
 
     fun removeOldFqnColumn(propertyTable: String, fqnOld: String) : String {
