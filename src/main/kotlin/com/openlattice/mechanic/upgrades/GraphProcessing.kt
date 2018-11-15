@@ -64,7 +64,7 @@ private fun buildIndexDefinitions(propertyType: PropertyType): List<PostgresInde
  */
 class GraphProcessing(private val toolbox: Toolbox) : Upgrade {
     companion object {
-        private val logger = LoggerFactory.getLogger(Linking::class.java)
+        private val logger = LoggerFactory.getLogger(GraphProcessing::class.java)
     }
 
     override fun upgrade(): Boolean {

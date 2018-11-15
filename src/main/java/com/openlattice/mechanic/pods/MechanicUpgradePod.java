@@ -31,6 +31,7 @@ import com.openlattice.mechanic.integrity.IntegrityChecks;
 import com.openlattice.mechanic.upgrades.GraphProcessing;
 import com.openlattice.mechanic.upgrades.Linking;
 import com.openlattice.mechanic.upgrades.MediaServerUpgrade;
+import com.openlattice.mechanic.upgrades.ReadLinking;
 import com.openlattice.mechanic.upgrades.RegenerateIds;
 import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
@@ -51,7 +52,8 @@ public class MechanicUpgradePod {
     public static final String REGEN     = "regen";
 
     @Inject
-    private HikariDataSource hikariDataSource;
+    HikariDataSource hikariDataSource;
+
     @Inject
     private PostgresTableManager tableManager;
 
@@ -73,7 +75,7 @@ public class MechanicUpgradePod {
 
     @Bean
     public PostgresEdmManager pgEdmManager() {
-        return new PostgresEdmManager( hikariDataSource,tableManager );
+        return new PostgresEdmManager( hikariDataSource, tableManager );
     }
 
     @Bean
@@ -135,5 +137,12 @@ public class MechanicUpgradePod {
     @Bean GraphProcessing graph() {
         return new GraphProcessing( toolbox() );
     }
+
     @Bean MediaServerUpgrade mediaServerUpgrade() { return new MediaServerUpgrade( toolbox() );}
+
+    @Bean
+    ReadLinking readLinking() {
+        return new ReadLinking( toolbox() );
+    }
+
 }
