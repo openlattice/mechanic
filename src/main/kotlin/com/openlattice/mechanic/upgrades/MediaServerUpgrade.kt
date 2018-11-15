@@ -6,6 +6,7 @@ import com.openlattice.data.storage.LocalAwsBlobDataService
 import com.openlattice.datastore.configuration.DatastoreConfiguration
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.quote
+import java.util.*
 
 //Migration for media server
 
@@ -74,10 +75,8 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
             while(rs.next()) {
                 val data = rs.getBytes(4)
                 val hash = rs.getBytes(3)
-                var hashString = ""
-                for (byte in hash) {
-                    hashString = hashString.plus(String.format("%02X", byte))
-                }
+                val hashString = Base64.getEncoder().encodeToString(hash)
+
                 val key = rs.getString(1) + "/" + rs.getString(2) + "/" + entry.key + "/" + hashString
                 byteBlobDataManager.putObject(key, data)
                 val conn2 = toolbox.hds.connection
