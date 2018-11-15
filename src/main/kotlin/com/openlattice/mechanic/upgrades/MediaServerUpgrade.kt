@@ -1,5 +1,11 @@
 package com.openlattice.mechanic.upgrades
 
+import com.amazonaws.regions.Region
+import com.amazonaws.regions.Regions
+import com.amazonaws.services.s3.AmazonS3
+import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import com.kryptnostic.rhizome.configuration.amazon.AmazonLaunchConfiguration
+import com.kryptnostic.rhizome.configuration.amazon.AwsLaunchConfiguration
 import com.openlattice.ResourceConfigurationLoader
 import com.openlattice.data.storage.AwsBlobDataService
 import com.openlattice.data.storage.ByteBlobDataManager
@@ -34,7 +40,13 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
     }
 
     private fun setUp() {
-        val config = ResourceConfigurationLoader.loadConfiguration(DatastoreConfiguration::class.java)
+        val awsConfig = ResourceConfigurationLoader
+                .loadConfigurationFromResource("aws.yaml", AwsLaunchConfiguration::class.java)
+        val s3 = newS3Client(awsConfig)
+        val config = ResourceConfigurationLoader.loadConfigurationFromS3(s3,
+                awsConfig.bucket,
+                awsConfig.folder,
+                DatastoreConfiguration::class.java)
         val byteBlobDataManager = AwsBlobDataService(config)
         this.byteBlobDataManager = byteBlobDataManager
     }
@@ -85,6 +97,12 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
 
             removeOldFqnColumn(propertyTable, fqnOld)
         }
+    }
+
+    private fun newS3Client(awsConfig: AmazonLaunchConfiguration) : AmazonS3 {
+        val builder = AmazonS3ClientBuilder.standard()
+        builder.region = Region.getRegion(awsConfig.region.or(Regions.DEFAULT_REGION)).name
+        return builder.build()
     }
 
     private fun addMockS3Table() {
