@@ -9,9 +9,11 @@ import com.kryptnostic.rhizome.configuration.amazon.AwsLaunchConfiguration
 import com.openlattice.ResourceConfigurationLoader
 import com.openlattice.data.storage.AwsBlobDataService
 import com.openlattice.data.storage.ByteBlobDataManager
+import com.openlattice.data.storage.PostgresDataHasher
 import com.openlattice.datastore.configuration.DatastoreConfiguration
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.quote
+import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind
 import java.util.*
 
 //Migration for media server
@@ -82,7 +84,7 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
             while(rs.next()) {
                 val data = rs.getBytes(4)
                 val hash = rs.getBytes(3)
-                val hashString = Base64.getEncoder().encodeToString(hash)
+                val hashString = PostgresDataHasher.hashObjectToHex(hash, EdmPrimitiveTypeKind.Binary)
 
                 val key = rs.getString(1) + "/" + rs.getString(2) + "/" + entry.key + "/" + hashString
                 byteBlobDataManager.putObject(key, data)
