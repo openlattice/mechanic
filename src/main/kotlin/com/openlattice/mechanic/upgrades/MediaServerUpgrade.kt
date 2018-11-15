@@ -10,25 +10,22 @@ import java.util.*
 
 //Migration for media server
 
-private val BINARY_PROPERTY_ID_TO_FQN = mapOf("90abc3fb-f0c4-45e5-b385-8cf70c06ef81" to "ol.digitalsignature",
-        "881c2601-f3b9-40cd-bb9b-86e811182156" to "ol.licenseplateimage",
-        "faf3c011-b386-4c51-a1bb-4bad27b4083f" to "ol.pictureback",
-        "e8174f66-4b80-4f8c-bcd3-2924d5ccd6d7" to "ol.picturefront",
-        "0f95049c-b668-49b1-bf32-f26835471b0a" to "ol.vehicleimage",
-        "45aa6695-a7e7-46b6-96bd-782e6aa9ac13" to "publicsafety.mugshot"
-        )
-
+private var BINARY_PROPERTY_ID_TO_FQN = mutableMapOf<UUID, String>()
 private val ENTITY_SET_ID = quote("entity_set_id")
 private val ID = quote("id")
 private val HASH = quote("hash")
+private val NAMESPACE = quote("namespace")
+private val NAME = quote("name")
+private val DATA_TYPE = quote("datatype")
 
 class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
     private lateinit var byteBlobDataManager: ByteBlobDataManager
 
     override fun upgrade(): Boolean {
         setUp()
-        addMockS3Table()
+        getBinaryPropertyTypes()
         migrateBinaryProperties()
+        addMockS3Table()
         return true
     }
 
@@ -36,41 +33,39 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
         return Version.V2018_09_14.value
     }
 
-    fun setUp() {
+    private fun setUp() {
         val config = ResourceConfigurationLoader.loadConfiguration(DatastoreConfiguration::class.java)
         val byteBlobDataManager = AwsBlobDataService(config)
         this.byteBlobDataManager = byteBlobDataManager
     }
 
-    fun addMockS3Table() {
+    private fun getBinaryPropertyTypes() {
         val connection = toolbox.hds.connection
-        val ps = connection.prepareStatement(addMockS3TableQuery())
-        ps.executeUpdate()
+        val ps = connection.prepareStatement(binaryPropertyTypesQuery())
+        val rs = ps.executeQuery()
+        while (rs.next()) {
+            val id = rs.getObject(1) as UUID
+            val namespace = rs.getString(2)
+            val name = rs.getString(3)
+            val fqn = "$namespace.$name"
+            BINARY_PROPERTY_ID_TO_FQN[id] = fqn
+        }
+        rs.close()
         connection.close()
     }
 
-    fun migrateBinaryProperties() {
+    private fun migrateBinaryProperties() {
         for (entry in BINARY_PROPERTY_ID_TO_FQN) {
             val propertyTable = quote("pt_".plus(entry.key))
             val fqn = quote(entry.value)
             val fqnOld = quote(entry.value.plus("_data"))
 
-            //create new columnn to store s3 keys and rename existing fqn column for easier deletion later
-            val setUpConn1 = toolbox.hds.connection
-            val setUpPS1 = setUpConn1.prepareStatement(renameFqnColumn(propertyTable, fqn, fqnOld))
-            setUpPS1.executeUpdate()
-            setUpConn1.close()
-
-            val setUpConn2 = toolbox.hds.connection
-            val setUpPS2 = setUpConn2.prepareStatement(addNewFqnColumn(propertyTable, fqn))
-            setUpPS2.executeUpdate()
-            setUpConn2.close()
-
-            //prepare statement to get relevant data for s3
-            val conn1 = toolbox.hds.connection
-            val ps1 = conn1.prepareStatement(getDataForS3(propertyTable, fqnOld))
+            renameFqnColumn(propertyTable, fqn, fqnOld)
+            addNewFqnColumn(propertyTable, fqn)
 
             //move binary data to s3 and store s3 key
+            val conn1 = toolbox.hds.connection
+            val ps1 = conn1.prepareStatement(getDataForS3(propertyTable, fqnOld))
             val rs = ps1.executeQuery()
             while(rs.next()) {
                 val data = rs.getBytes(4)
@@ -88,35 +83,64 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
             rs.close()
             conn1.close()
 
-            //remove old fqn column
-            val cleanUpConn = toolbox.hds.connection
-            val cleanUpPS = cleanUpConn.prepareStatement(removeOldFqnColumn(propertyTable, fqnOld))
-            cleanUpPS.executeUpdate()
-            cleanUpConn.close()
+            removeOldFqnColumn(propertyTable, fqnOld)
         }
     }
 
-    fun addMockS3TableQuery() : String {
+    private fun addMockS3Table() {
+        val connection = toolbox.hds.connection
+        val ps = connection.prepareStatement(addMockS3TableQuery())
+        ps.executeUpdate()
+        connection.close()
+    }
+
+    private fun renameFqnColumn(propertyTable: String, fqn: String, fqnOld: String) {
+        val setUpConn1 = toolbox.hds.connection
+        val setUpPS1 = setUpConn1.prepareStatement(renameFqnColumnQuery(propertyTable, fqn, fqnOld))
+        setUpPS1.executeUpdate()
+        setUpConn1.close()
+    }
+
+    private fun addNewFqnColumn(propertyTable: String, fqn: String) {
+        val setUpConn2 = toolbox.hds.connection
+        val setUpPS2 = setUpConn2.prepareStatement(addNewFqnColumnQuery(propertyTable, fqn))
+        setUpPS2.executeUpdate()
+        setUpConn2.close()
+    }
+
+    private fun removeOldFqnColumn(propertyTable: String, fqnOld: String) {
+        val cleanUpConn = toolbox.hds.connection
+        val cleanUpPS = cleanUpConn.prepareStatement(removeOldFqnColumnQuery(propertyTable, fqnOld))
+        cleanUpPS.executeUpdate()
+        cleanUpConn.close()
+    }
+
+    //sql queries
+    private fun binaryPropertyTypesQuery() : String {
+        return "SELECT $ID, $NAMESPACE, $NAME FROM property_types WHERE $DATA_TYPE = 'Binary'"
+    }
+
+    private fun addMockS3TableQuery() : String {
         return "CREATE TABLE mock_s3_bucket (key text, object bytea)"
     }
 
-    fun renameFqnColumn(propertyTable: String, fqn: String, fqnOld: String) : String {
+    private fun renameFqnColumnQuery(propertyTable: String, fqn: String, fqnOld: String) : String {
         return "ALTER TABLE $propertyTable RENAME COLUMN $fqn TO $fqnOld"
     }
 
-    fun addNewFqnColumn(propertyTable: String, fqn: String) : String {
+    private fun addNewFqnColumnQuery(propertyTable: String, fqn: String) : String {
         return "ALTER TABLE $propertyTable ADD COLUMN $fqn text"
     }
 
-    fun getDataForS3(propertyTable: String, fqnOld: String) : String {
+    private fun getDataForS3(propertyTable: String, fqnOld: String) : String {
         return "SELECT $ENTITY_SET_ID, $ID, $HASH, $fqnOld from $propertyTable"
     }
 
-    fun storeS3Key(key: String, propertyTable: String, fqn: String) : String {
+    private fun storeS3Key(key: String, propertyTable: String, fqn: String) : String {
         return "UPDATE $propertyTable SET $fqn = '$key' where $HASH = ?"
     }
 
-    fun removeOldFqnColumn(propertyTable: String, fqnOld: String) : String {
+    private fun removeOldFqnColumnQuery(propertyTable: String, fqnOld: String) : String {
         return "ALTER TABLE $propertyTable DROP COLUMN $fqnOld"
     }
 }
