@@ -1,8 +1,8 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.ResourceConfigurationLoader
+import com.openlattice.data.storage.AwsBlobDataService
 import com.openlattice.data.storage.ByteBlobDataManager
-import com.openlattice.data.storage.LocalAwsBlobDataService
 import com.openlattice.datastore.configuration.DatastoreConfiguration
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.quote
@@ -38,7 +38,7 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
 
     fun setUp() {
         val config = ResourceConfigurationLoader.loadConfiguration(DatastoreConfiguration::class.java)
-        val byteBlobDataManager = LocalAwsBlobDataService(config)
+        val byteBlobDataManager = AwsBlobDataService(config)
         this.byteBlobDataManager = byteBlobDataManager
     }
 
