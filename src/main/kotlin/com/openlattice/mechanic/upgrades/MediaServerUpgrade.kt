@@ -77,7 +77,7 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
     private fun migrateBinaryProperties() {
         for (entry in BINARY_PROPERTY_ID_TO_FQN) {
             logger.info("Migrating property {}", entry.value)
-            val propertyTable = DataTables.propertyTableName(entry.key)
+            val propertyTable = quote(DataTables.propertyTableName(entry.key))
             val fqn = entry.value
 
             addNewFqnColumn(propertyTable, fqn)
@@ -145,12 +145,12 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
         toolbox.hds.connection.use {
             it.createStatement().use {
                 it.execute(
-                        "ALTER TABLE $propertyTable RENAME COLUMN $fqn TO ${quote(fqn + "_old")}"
+                        "ALTER TABLE $propertyTable RENAME COLUMN ${quote(fqn)} TO ${quote(fqn + "_old")}"
                 )
             }
             it.createStatement().use {
                 it.execute(
-                        "ALTER TABLE $propertyTable RENAME COLUMN  ${quote(fqn + "_new")} to $fqn"
+                        "ALTER TABLE $propertyTable RENAME COLUMN  ${quote(fqn + "_new")} to ${quote(fqn)}"
                 )
             }
         }
