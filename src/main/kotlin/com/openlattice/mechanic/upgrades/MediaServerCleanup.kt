@@ -54,9 +54,10 @@ private val HASH = quote("hash")
 private val NAMESPACE = quote("namespace")
 private val NAME = quote("name")
 private val DATA_TYPE = quote("datatype")
-private val logger = LoggerFactory.getLogger(MediaServerUpgrade::class.java)
+private val logger = LoggerFactory.getLogger(MediaServerCleanup::class.java)
 
 class MediaServerCleanup(private val toolbox: Toolbox) : Upgrade {
+
     private val byteBlobDataManager: ByteBlobDataManager
     private val binaryProperties =
             PostgresIterable(Supplier {
