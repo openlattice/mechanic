@@ -1,3 +1,24 @@
+/*
+ * Copyright (C) 2018. OpenLattice, Inc.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * You can contact the owner of the copyright at support@openlattice.com
+ *
+ *
+ */
+
 package com.openlattice.mechanic.upgrades
 
 import com.amazonaws.regions.Region
@@ -14,14 +35,18 @@ import com.openlattice.datastore.configuration.DatastoreConfiguration
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
+import com.openlattice.postgres.streams.PostgresIterable
+import com.openlattice.postgres.streams.StatementHolder
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind
-import org.postgresql.util.PSQLException
 import org.slf4j.LoggerFactory
+import java.sql.ResultSet
 import java.util.*
+import java.util.function.Function
+import java.util.function.Supplier
 
 //Migration for media server
 
-private var BINARY_PROPERTY_ID_TO_FQN = mutableMapOf<UUID, String>()
+
 private val ENTITY_SET_ID = quote("entity_set_id")
 private val ID = quote("id")
 private val HASH = quote("hash")
@@ -30,22 +55,25 @@ private val NAME = quote("name")
 private val DATA_TYPE = quote("datatype")
 private val logger = LoggerFactory.getLogger(MediaServerUpgrade::class.java)
 
-class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
-    private lateinit var byteBlobDataManager: ByteBlobDataManager
+class MediaServerCleanup(private val toolbox: Toolbox) : Upgrade {
+    private val byteBlobDataManager: ByteBlobDataManager
+    private val binaryProperties =
+            PostgresIterable(Supplier {
+                val connection = toolbox.hds.connection
+                val ps = connection.prepareStatement(binaryPropertyTypesQuery())
+                val rs = ps.executeQuery()
+                StatementHolder(connection, ps, rs)
+            },
+                             Function<ResultSet, Pair<UUID, String>> { rs ->
+                                 val id = rs.getObject(1) as UUID
+                                 val namespace = rs.getString(2)
+                                 val name = rs.getString(3)
+                                 val fqn = "$namespace.$name"
 
-    override fun upgrade(): Boolean {
-        setUp()
-        getBinaryPropertyTypes()
-        migrateBinaryProperties()
-        addMockS3Table()
-        return true
-    }
+                                 id to fqn
+                             }).toMap()
 
-    override fun getSupportedVersion(): Long {
-        return Version.V2018_09_14.value
-    }
-
-    private fun setUp() {
+    init {
         val awsConfig = ResourceConfigurationLoader
                 .loadConfigurationFromResource("aws.yaml", AwsLaunchConfiguration::class.java)
         val s3 = newS3Client(awsConfig)
@@ -59,49 +87,32 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
         this.byteBlobDataManager = byteBlobDataManager
     }
 
-    private fun getBinaryPropertyTypes() {
-        val connection = toolbox.hds.connection
-        val ps = connection.prepareStatement(binaryPropertyTypesQuery())
-        val rs = ps.executeQuery()
-        while (rs.next()) {
-            val id = rs.getObject(1) as UUID
-            val namespace = rs.getString(2)
-            val name = rs.getString(3)
-            val fqn = "$namespace.$name"
-            BINARY_PROPERTY_ID_TO_FQN[id] = fqn
-        }
-        rs.close()
-        connection.close()
+    override fun upgrade(): Boolean {
+        cleanupBinaryProperties()
+        addMockS3Table()
+        return true
     }
 
-    private fun migrateBinaryProperties() {
-        for (entry in BINARY_PROPERTY_ID_TO_FQN) {
-            logger.info("Migrating property {}", entry.value)
+    override fun getSupportedVersion(): Long {
+        return Version.V2018_09_14.value
+    }
+
+    private fun cleanupBinaryProperties() {
+        logger.info("Swapping columns...")
+        for (entry in binaryProperties) {
+            logger.info("Swapping property {}", entry.value)
             val propertyTable = quote(DataTables.propertyTableName(entry.key))
             val fqn = entry.value
+            swapFqnColumns(propertyTable, fqn)
+        }
 
-            addNewFqnColumn(propertyTable, fqn)
+        logger.info("Deleting old columns...")
 
-            //move binary data to s3 and store s3 key
-            val conn1 = toolbox.hds.connection
-            val ps1 = conn1.prepareStatement(getDataForS3(propertyTable, fqn))
-            val rs = ps1.executeQuery()
-
-            while (rs.next()) {
-                val data = rs.getBytes(4)
-                val hash = rs.getBytes(3)
-                val hashString = PostgresDataHasher.hashObjectToHex(data, EdmPrimitiveTypeKind.Binary)
-
-                val key = rs.getString(1) + "/" + rs.getString(2) + "/" + entry.key + "/" + hashString
-                byteBlobDataManager.putObject(key, data)
-                val conn2 = toolbox.hds.connection
-                val ps2 = conn2.prepareStatement(storeS3Key(key, propertyTable, fqn))
-                ps2.setBytes(1, hash)
-                ps2.executeUpdate()
-                conn2.close()
-            }
-            rs.close()
-            conn1.close()
+        for (entry in binaryProperties) {
+            logger.info("Swapping property {}", entry.value)
+            val propertyTable = quote(DataTables.propertyTableName(entry.key))
+            val fqn = entry.value
+            removeOldFqnColumn(propertyTable, fqn)
         }
     }
 
@@ -116,12 +127,6 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
         val ps = connection.prepareStatement(addMockS3TableQuery())
         ps.executeUpdate()
         connection.close()
-    }
-
-    private fun addNewFqnColumn(propertyTable: String, fqn: String) {
-        toolbox.hds.connection.use {
-            it.createStatement().use { it.execute(addNewFqnColumnQuery(propertyTable, fqn)) }
-        }
     }
 
     private fun swapFqnColumns(propertyTable: String, fqn: String) {
@@ -171,7 +176,7 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
     }
 
     private fun removeOldFqnColumnQuery(propertyTable: String, fqn: String): String {
-        return "ALTER TABLE $propertyTable DROP COLUMN $fqn"
+        return "ALTER TABLE $propertyTable DROP COLUMN ${quote(fqn + "_old")}"
     }
 }
 
