@@ -27,9 +27,9 @@ private val HASH = quote("hash")
 private val NAMESPACE = quote("namespace")
 private val NAME = quote("name")
 private val DATA_TYPE = quote("datatype")
-private val logger = LoggerFactory.getLogger(FreeMediaServerUpgrade::class.java)
+private val logger = LoggerFactory.getLogger(MediaServerUpgrade::class.java)
 
-class FreeMediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
+class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
     private lateinit var byteBlobDataManager: ByteBlobDataManager
 
     override fun upgrade(): Boolean {

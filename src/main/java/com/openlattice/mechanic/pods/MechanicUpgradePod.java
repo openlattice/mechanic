@@ -30,6 +30,7 @@ import com.openlattice.mechanic.integrity.EdmChecks;
 import com.openlattice.mechanic.integrity.IntegrityChecks;
 import com.openlattice.mechanic.upgrades.GraphProcessing;
 import com.openlattice.mechanic.upgrades.Linking;
+
 import com.openlattice.mechanic.upgrades.MediaServerUpgrade;
 import com.openlattice.mechanic.upgrades.ReadLinking;
 import com.openlattice.mechanic.upgrades.RegenerateIds;
