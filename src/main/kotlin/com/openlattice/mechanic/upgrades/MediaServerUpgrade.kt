@@ -84,7 +84,7 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
             while(rs.next()) {
                 val data = rs.getBytes(4)
                 val hash = rs.getBytes(3)
-                val hashString = PostgresDataHasher.hashObjectToHex(hash, EdmPrimitiveTypeKind.Binary)
+                val hashString = PostgresDataHasher.hashObjectToHex(data, EdmPrimitiveTypeKind.Binary)
 
                 val key = rs.getString(1) + "/" + rs.getString(2) + "/" + entry.key + "/" + hashString
                 byteBlobDataManager.putObject(key, data)
