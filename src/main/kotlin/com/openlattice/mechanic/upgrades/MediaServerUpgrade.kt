@@ -75,6 +75,7 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
 
     private fun migrateBinaryProperties() {
         for (entry in BINARY_PROPERTY_ID_TO_FQN) {
+            logger.info("Migrating property {}", entry.value)
             val propertyTable = quote("pt_".plus(entry.key))
             val fqn = quote(entry.value)
             val fqnOld = quote(entry.value.plus("_data"))
@@ -94,7 +95,6 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
             val conn1 = toolbox.hds.connection
             val ps1 = conn1.prepareStatement(getDataForS3(propertyTable, fqnOld))
             val rs =          ps1.executeQuery()
-
 
             while (rs.next()) {
                 val data = rs.getBytes(4)
