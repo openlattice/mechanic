@@ -12,6 +12,7 @@ import com.openlattice.data.storage.ByteBlobDataManager
 import com.openlattice.data.storage.PostgresDataHasher
 import com.openlattice.datastore.configuration.DatastoreConfiguration
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind
 import org.postgresql.util.PSQLException
@@ -76,25 +77,15 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
     private fun migrateBinaryProperties() {
         for (entry in BINARY_PROPERTY_ID_TO_FQN) {
             logger.info("Migrating property {}", entry.value)
-            val propertyTable = quote("pt_".plus(entry.key))
-            val fqn = quote(entry.value)
-            val fqnOld = quote(entry.value.plus("_data"))
+            val propertyTable = DataTables.propertyTableName(entry.key)
+            val fqn = entry.value
 
-            try {
-                renameFqnColumn(propertyTable, fqn, fqnOld)
-                addNewFqnColumn(propertyTable, fqn)
-            } catch (e: PSQLException) {
-                if (e.serverErrorMessage.message.contains("already exists")) {
-                    logger.error("Encountered in progress migration", e)
-                } else {
-                    throw e
-                }
-            }
+            addNewFqnColumn(propertyTable, fqn)
 
             //move binary data to s3 and store s3 key
             val conn1 = toolbox.hds.connection
-            val ps1 = conn1.prepareStatement(getDataForS3(propertyTable, fqnOld))
-            val rs =          ps1.executeQuery()
+            val ps1 = conn1.prepareStatement(getDataForS3(propertyTable, fqn))
+            val rs = ps1.executeQuery()
 
             while (rs.next()) {
                 val data = rs.getBytes(4)
@@ -111,8 +102,23 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
             }
             rs.close()
             conn1.close()
+        }
 
-            removeOldFqnColumn(propertyTable, fqnOld)
+        logger.info("Swapping columns...")
+        for (entry in BINARY_PROPERTY_ID_TO_FQN) {
+            logger.info("Swapping property {}", entry.value)
+            val propertyTable = DataTables.propertyTableName(entry.key)
+            val fqn = entry.value
+            swapFqnColumns(propertyTable, fqn)
+        }
+
+        logger.info("Deleting old columns...")
+
+        for (entry in BINARY_PROPERTY_ID_TO_FQN) {
+            logger.info("Swapping property {}", entry.value)
+            val propertyTable = DataTables.propertyTableName(entry.key)
+            val fqn = entry.value
+            swapFqnColumns(propertyTable, fqn)
         }
     }
 
@@ -129,25 +135,35 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
         connection.close()
     }
 
-    private fun renameFqnColumn(propertyTable: String, fqn: String, fqnOld: String) {
-        val setUpConn1 = toolbox.hds.connection
-        val setUpPS1 = setUpConn1.prepareStatement(renameFqnColumnQuery(propertyTable, fqn, fqnOld))
-        setUpPS1.executeUpdate()
-        setUpConn1.close()
+    private fun addNewFqnColumn(propertyTable: String, fqn: String) {
+        toolbox.hds.connection.use {
+            it.createStatement().use { it.execute(addNewFqnColumnQuery(propertyTable, fqn)) }
+        }
     }
 
-    private fun addNewFqnColumn(propertyTable: String, fqn: String) {
-        val setUpConn2 = toolbox.hds.connection
-        val setUpPS2 = setUpConn2.prepareStatement(addNewFqnColumnQuery(propertyTable, fqn))
-        setUpPS2.executeUpdate()
-        setUpConn2.close()
+    private fun swapFqnColumns(propertyTable: String, fqn: String) {
+        toolbox.hds.connection.use {
+            it.createStatement().use {
+                it.execute(
+                        "ALTER TABLE $propertyTable RENAME COLUMN $fqn TO ${quote(fqn + "_old")}"
+                )
+            }
+            it.createStatement().use {
+                it.execute(
+                        "ALTER TABLE $propertyTable RENAME COLUMN  ${quote(fqn + "_new")} to $fqn"
+                )
+            }
+        }
     }
 
     private fun removeOldFqnColumn(propertyTable: String, fqnOld: String) {
-        val cleanUpConn = toolbox.hds.connection
-        val cleanUpPS = cleanUpConn.prepareStatement(removeOldFqnColumnQuery(propertyTable, fqnOld))
-        cleanUpPS.executeUpdate()
-        cleanUpConn.close()
+        toolbox.hds.connection.use {
+            it.createStatement().use {
+                it.execute(
+                        removeOldFqnColumnQuery(propertyTable, fqnOld)
+                )
+            }
+        }
     }
 
     //sql queries
@@ -159,24 +175,20 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
         return "CREATE TABLE mock_s3_bucket (key text, object bytea)"
     }
 
-    private fun renameFqnColumnQuery(propertyTable: String, fqn: String, fqnOld: String): String {
-        return "ALTER TABLE $propertyTable RENAME COLUMN $fqn TO $fqnOld"
-    }
-
     private fun addNewFqnColumnQuery(propertyTable: String, fqn: String): String {
-        return "ALTER TABLE $propertyTable ADD COLUMN $fqn text"
+        return "ALTER TABLE $propertyTable ADD COLUMN IF NOT EXISTS ${quote(fqn + "_new")} text"
     }
 
-    private fun getDataForS3(propertyTable: String, fqnOld: String): String {
-        return "SELECT $ENTITY_SET_ID, $ID, $HASH, $fqnOld from $propertyTable"
+    private fun getDataForS3(propertyTable: String, fqn: String): String {
+        return "SELECT $ENTITY_SET_ID, $ID, $HASH, ${quote(fqn)} from $propertyTable"
     }
 
     private fun storeS3Key(key: String, propertyTable: String, fqn: String): String {
-        return "UPDATE $propertyTable SET $fqn = '$key' where $HASH = ?"
+        return "UPDATE $propertyTable SET ${quote(fqn + "_new")} = '$key' where $HASH = ?"
     }
 
-    private fun removeOldFqnColumnQuery(propertyTable: String, fqnOld: String): String {
-        return "ALTER TABLE $propertyTable DROP COLUMN $fqnOld"
+    private fun removeOldFqnColumnQuery(propertyTable: String, fqn: String): String {
+        return "ALTER TABLE $propertyTable DROP COLUMN $fqn"
     }
 }
 
