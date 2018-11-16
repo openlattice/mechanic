@@ -38,6 +38,7 @@ import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.streams.PostgresIterable
 import com.openlattice.postgres.streams.StatementHolder
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind
+import org.postgresql.util.PSQLException
 import org.slf4j.LoggerFactory
 import java.sql.ResultSet
 import java.util.*
@@ -98,22 +99,32 @@ class MediaServerCleanup(private val toolbox: Toolbox) : Upgrade {
     }
 
     private fun cleanupBinaryProperties() {
+
         logger.info("Swapping columns...")
         for (entry in binaryProperties) {
-            logger.info("Swapping property {}", entry.value)
-            val propertyTable = quote(DataTables.propertyTableName(entry.key))
-            val fqn = entry.value
-            swapFqnColumns(propertyTable, fqn)
+            try {
+                logger.info("Swapping property {}", entry.value)
+                val propertyTable = quote(DataTables.propertyTableName(entry.key))
+                val fqn = entry.value
+                swapFqnColumns(propertyTable, fqn)
+            } catch (ex: PSQLException) {
+                logger.info("Unable to cleanup {}.", entry, ex)
+            }
         }
 
         logger.info("Deleting old columns...")
 
         for (entry in binaryProperties) {
-            logger.info("Swapping property {}", entry.value)
-            val propertyTable = quote(DataTables.propertyTableName(entry.key))
-            val fqn = entry.value
-            removeOldFqnColumn(propertyTable, fqn)
+            try {
+                logger.info("Swapping property {}", entry.value)
+                val propertyTable = quote(DataTables.propertyTableName(entry.key))
+                val fqn = entry.value
+                removeOldFqnColumn(propertyTable, fqn)
+            } catch (ex: PSQLException) {
+                logger.info("Unable to cleanup {}.", entry.value, ex)
+            }
         }
+
     }
 
     private fun newS3Client(awsConfig: AmazonLaunchConfiguration): AmazonS3 {
