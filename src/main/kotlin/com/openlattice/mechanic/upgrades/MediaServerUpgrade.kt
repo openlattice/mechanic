@@ -14,6 +14,8 @@ import com.openlattice.datastore.configuration.DatastoreConfiguration
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.quote
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind
+import org.postgresql.util.PSQLException
+import org.slf4j.LoggerFactory
 import java.util.*
 
 //Migration for media server
@@ -25,8 +27,9 @@ private val HASH = quote("hash")
 private val NAMESPACE = quote("namespace")
 private val NAME = quote("name")
 private val DATA_TYPE = quote("datatype")
+private val logger = LoggerFactory.getLogger(FreeMediaServerUpgrade::class.java)
 
-class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
+class FreeMediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
     private lateinit var byteBlobDataManager: ByteBlobDataManager
 
     override fun upgrade(): Boolean {
@@ -45,10 +48,12 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
         val awsConfig = ResourceConfigurationLoader
                 .loadConfigurationFromResource("aws.yaml", AwsLaunchConfiguration::class.java)
         val s3 = newS3Client(awsConfig)
-        val config = ResourceConfigurationLoader.loadConfigurationFromS3(s3,
+        val config = ResourceConfigurationLoader.loadConfigurationFromS3(
+                s3,
                 awsConfig.bucket,
                 awsConfig.folder,
-                DatastoreConfiguration::class.java)
+                DatastoreConfiguration::class.java
+        )
         val byteBlobDataManager = AwsBlobDataService(config)
         this.byteBlobDataManager = byteBlobDataManager
     }
@@ -74,14 +79,24 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
             val fqn = quote(entry.value)
             val fqnOld = quote(entry.value.plus("_data"))
 
-            renameFqnColumn(propertyTable, fqn, fqnOld)
-            addNewFqnColumn(propertyTable, fqn)
+            try {
+                renameFqnColumn(propertyTable, fqn, fqnOld)
+                addNewFqnColumn(propertyTable, fqn)
+            } catch (e: PSQLException) {
+                if (e.serverErrorMessage.message.contains("already exists")) {
+                    logger.error("Encountered in progress migration", e)
+                } else {
+                    throw e
+                }
+            }
 
             //move binary data to s3 and store s3 key
             val conn1 = toolbox.hds.connection
             val ps1 = conn1.prepareStatement(getDataForS3(propertyTable, fqnOld))
-            val rs = ps1.executeQuery()
-            while(rs.next()) {
+            val rs =          ps1.executeQuery()
+
+
+            while (rs.next()) {
                 val data = rs.getBytes(4)
                 val hash = rs.getBytes(3)
                 val hashString = PostgresDataHasher.hashObjectToHex(data, EdmPrimitiveTypeKind.Binary)
@@ -101,7 +116,7 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
         }
     }
 
-    private fun newS3Client(awsConfig: AmazonLaunchConfiguration) : AmazonS3 {
+    private fun newS3Client(awsConfig: AmazonLaunchConfiguration): AmazonS3 {
         val builder = AmazonS3ClientBuilder.standard()
         builder.region = Region.getRegion(awsConfig.region.or(Regions.DEFAULT_REGION)).name
         return builder.build()
@@ -136,31 +151,31 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
     }
 
     //sql queries
-    private fun binaryPropertyTypesQuery() : String {
+    private fun binaryPropertyTypesQuery(): String {
         return "SELECT $ID, $NAMESPACE, $NAME FROM property_types WHERE $DATA_TYPE = 'Binary'"
     }
 
-    private fun addMockS3TableQuery() : String {
+    private fun addMockS3TableQuery(): String {
         return "CREATE TABLE mock_s3_bucket (key text, object bytea)"
     }
 
-    private fun renameFqnColumnQuery(propertyTable: String, fqn: String, fqnOld: String) : String {
+    private fun renameFqnColumnQuery(propertyTable: String, fqn: String, fqnOld: String): String {
         return "ALTER TABLE $propertyTable RENAME COLUMN $fqn TO $fqnOld"
     }
 
-    private fun addNewFqnColumnQuery(propertyTable: String, fqn: String) : String {
+    private fun addNewFqnColumnQuery(propertyTable: String, fqn: String): String {
         return "ALTER TABLE $propertyTable ADD COLUMN $fqn text"
     }
 
-    private fun getDataForS3(propertyTable: String, fqnOld: String) : String {
+    private fun getDataForS3(propertyTable: String, fqnOld: String): String {
         return "SELECT $ENTITY_SET_ID, $ID, $HASH, $fqnOld from $propertyTable"
     }
 
-    private fun storeS3Key(key: String, propertyTable: String, fqn: String) : String {
+    private fun storeS3Key(key: String, propertyTable: String, fqn: String): String {
         return "UPDATE $propertyTable SET $fqn = '$key' where $HASH = ?"
     }
 
-    private fun removeOldFqnColumnQuery(propertyTable: String, fqnOld: String) : String {
+    private fun removeOldFqnColumnQuery(propertyTable: String, fqnOld: String): String {
         return "ALTER TABLE $propertyTable DROP COLUMN $fqnOld"
     }
 }
