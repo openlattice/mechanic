@@ -4,6 +4,7 @@ import com.amazonaws.regions.Region
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import com.google.common.util.concurrent.MoreExecutors
 import com.kryptnostic.rhizome.configuration.amazon.AmazonLaunchConfiguration
 import com.kryptnostic.rhizome.configuration.amazon.AwsLaunchConfiguration
 import com.openlattice.ResourceConfigurationLoader
@@ -18,6 +19,7 @@ import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind
 import org.postgresql.util.PSQLException
 import org.slf4j.LoggerFactory
 import java.util.*
+import java.util.concurrent.Executors
 
 //Migration for media server
 
@@ -55,7 +57,7 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
                 awsConfig.folder,
                 DatastoreConfiguration::class.java
         )
-        val byteBlobDataManager = AwsBlobDataService(config)
+        val byteBlobDataManager = AwsBlobDataService(config, toolbox.executor)
         this.byteBlobDataManager = byteBlobDataManager
     }
 

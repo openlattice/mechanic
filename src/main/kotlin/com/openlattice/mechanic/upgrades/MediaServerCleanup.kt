@@ -85,7 +85,7 @@ class MediaServerCleanup(private val toolbox: Toolbox) : Upgrade {
                 awsConfig.folder,
                 DatastoreConfiguration::class.java
         )
-        val byteBlobDataManager = AwsBlobDataService(config)
+        val byteBlobDataManager = AwsBlobDataService(config, toolbox.executor)
         this.byteBlobDataManager = byteBlobDataManager
     }
 
