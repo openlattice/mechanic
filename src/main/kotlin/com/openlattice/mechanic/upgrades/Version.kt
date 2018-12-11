@@ -27,5 +27,6 @@ package com.openlattice.mechanic.upgrades
  */
 enum class Version(val value : Long) {
     V2018_09_14 ( 1L),
-    V2018_10_10 ( 2L)
+    V2018_10_10 ( 2L),
+    V2018_12_21 ( 3L)
 }
