@@ -100,6 +100,7 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
                 val ps2 = conn2.prepareStatement(storeS3Key(key, propertyTable, fqn))
                 ps2.setBytes(1, hash)
                 ps2.executeUpdate()
+                ps2.close()
                 conn2.close()
             }
             rs.close()
