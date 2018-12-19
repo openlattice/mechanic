@@ -10,7 +10,7 @@ import com.kryptnostic.rhizome.configuration.amazon.AwsLaunchConfiguration
 import com.openlattice.ResourceConfigurationLoader
 import com.openlattice.data.storage.AwsBlobDataService
 import com.openlattice.data.storage.ByteBlobDataManager
-import com.openlattice.data.storage.PostgresDataHasher
+import com.openlattice.data.util.PostgresDataHasher
 import com.openlattice.datastore.configuration.DatastoreConfiguration
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables
