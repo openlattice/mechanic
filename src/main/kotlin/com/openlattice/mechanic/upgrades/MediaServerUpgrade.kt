@@ -4,22 +4,19 @@ import com.amazonaws.regions.Region
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
-import com.google.common.util.concurrent.MoreExecutors
 import com.kryptnostic.rhizome.configuration.amazon.AmazonLaunchConfiguration
 import com.kryptnostic.rhizome.configuration.amazon.AwsLaunchConfiguration
 import com.openlattice.ResourceConfigurationLoader
 import com.openlattice.data.storage.AwsBlobDataService
 import com.openlattice.data.storage.ByteBlobDataManager
-import com.openlattice.data.storage.PostgresDataHasher
+import com.openlattice.data.util.PostgresDataHasher
 import com.openlattice.datastore.configuration.DatastoreConfiguration
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind
-import org.postgresql.util.PSQLException
 import org.slf4j.LoggerFactory
 import java.util.*
-import java.util.concurrent.Executors
 
 //Migration for media server
 

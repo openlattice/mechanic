@@ -139,7 +139,7 @@ public class MechanicUpgradePod {
         return new MediaServerUpgrade( toolbox() );
     }
 
-    @Bean MediaServerCleanup mediaServerCleanup() {
+    MediaServerCleanup mediaServerCleanup() {
         return new MediaServerCleanup( toolbox() );
     }
 
