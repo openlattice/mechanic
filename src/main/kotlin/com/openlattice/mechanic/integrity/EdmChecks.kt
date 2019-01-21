@@ -23,7 +23,6 @@ package com.openlattice.mechanic.integrity
 
 import com.google.common.base.Preconditions.checkState
 import com.google.common.util.concurrent.ListeningExecutorService
-import com.openlattice.edm.PostgresEdmManager
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.mapstores.EntitySetMapstore
@@ -39,7 +38,6 @@ import java.sql.ResultSetMetaData
 private val logger = LoggerFactory.getLogger(EdmChecks::class.java)
 
 class EdmChecks(
-        private val pgEdmManager: PostgresEdmManager,
         private val hds: HikariDataSource,
         private val ptms: PropertyTypeMapstore,
         private val etms: EntityTypeMapstore,

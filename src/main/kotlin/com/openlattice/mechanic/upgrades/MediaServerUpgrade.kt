@@ -92,7 +92,7 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
                 val hashString = PostgresDataHasher.hashObjectToHex(data, EdmPrimitiveTypeKind.Binary)
 
                 val key = rs.getString(1) + "/" + rs.getString(2) + "/" + entry.key + "/" + hashString
-                byteBlobDataManager.putObject(key, data)
+                byteBlobDataManager.putObject(key, data, "png")
                 val conn2 = toolbox.hds.connection
                 val ps2 = conn2.prepareStatement(storeS3Key(key, propertyTable, fqn))
                 ps2.setBytes(1, hash)
