@@ -1,19 +1,19 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.PostgresColumn.LAST_LINK_INDEX
-import com.openlattice.postgres.PostgresColumn.ENTITY_SET_ID
-import com.openlattice.postgres.PostgresColumn.LINKING_ID
 import com.openlattice.postgres.DataTables.LAST_LINK
 import com.openlattice.postgres.DataTables.LAST_WRITE
 import com.openlattice.postgres.DataTables.LAST_INDEX
+import com.openlattice.postgres.IndexMethod
+import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresColumnsIndexDefinition
 import com.openlattice.postgres.PostgresExpressionIndexDefinition
+import com.openlattice.postgres.PostgresTable.ENTITY_SETS
 import com.openlattice.postgres.PostgresTable.IDS
 import org.slf4j.LoggerFactory
 import java.util.concurrent.Callable
 
-class LinkedEntityIndexing(private val toolbox: Toolbox):Upgrade {
+class LinkedEntityIndexing(private val toolbox: Toolbox) : Upgrade {
     companion object {
         private val logger = LoggerFactory.getLogger(LinkedEntityIndexing::class.java)
     }
@@ -21,6 +21,7 @@ class LinkedEntityIndexing(private val toolbox: Toolbox):Upgrade {
     override fun upgrade(): Boolean {
         addLastLinkIndexColumn()
         addNewIndicesToEntityKeys()
+        addLinkedEntitySetIndex()
         return true
     }
 
@@ -71,6 +72,25 @@ class LinkedEntityIndexing(private val toolbox: Toolbox):Upgrade {
                 }
         ).get()
         logger.info("Finished linked entities indexing update")
+    }
+
+    private fun addLinkedEntitySetIndex() {
+        logger.info("Starting to add entity_sets_linked_entity_sets_idx and to ${ENTITY_SETS.name} table")
+
+        val linkedEntitySetsIndex = PostgresColumnsIndexDefinition(ENTITY_SETS, LINKED_ENTITY_SETS)
+                .method(IndexMethod.GIN)
+                .ifNotExists()
+
+        toolbox.executor.submit(
+                Callable {
+                    toolbox.hds.connection.use {
+                        it.use {
+                            it.createStatement().execute(linkedEntitySetsIndex.sql())
+                        }
+                    }
+                }
+        ).get()
+        logger.info("Finished linked entity sets indexing update")
     }
 
     override fun getSupportedVersion(): Long {
