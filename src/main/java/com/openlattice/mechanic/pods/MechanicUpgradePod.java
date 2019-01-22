@@ -28,13 +28,8 @@ import com.openlattice.ids.IdGenerationMapstore;
 import com.openlattice.mechanic.Toolbox;
 import com.openlattice.mechanic.integrity.EdmChecks;
 import com.openlattice.mechanic.integrity.IntegrityChecks;
-import com.openlattice.mechanic.upgrades.GraphProcessing;
-import com.openlattice.mechanic.upgrades.Linking;
+import com.openlattice.mechanic.upgrades.*;
 
-import com.openlattice.mechanic.upgrades.MediaServerCleanup;
-import com.openlattice.mechanic.upgrades.MediaServerUpgrade;
-import com.openlattice.mechanic.upgrades.ReadLinking;
-import com.openlattice.mechanic.upgrades.RegenerateIds;
 import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
 import com.openlattice.postgres.mapstores.EntityTypeMapstore;
@@ -144,13 +139,14 @@ public class MechanicUpgradePod {
         return new MediaServerUpgrade( toolbox() );
     }
 
-    @Bean MediaServerCleanup mediaServerCleanup() {
+    MediaServerCleanup mediaServerCleanup() {
         return new MediaServerCleanup( toolbox() );
     }
 
     @Bean
-    ReadLinking readLinking() {
-        return new ReadLinking( toolbox() );
-    }
+    ReadLinking readLinking() { return new ReadLinking( toolbox() ); }
+
+    @Bean
+    PropertyValueIndexing propertyValueIndexing() { return new PropertyValueIndexing( toolbox() ); }
 
 }
