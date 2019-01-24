@@ -139,9 +139,10 @@ public class MechanicUpgradePod {
     }
 
     @Bean
-    ReadLinking readLinking() {
-        return new ReadLinking( toolbox() );
-    }
+    ReadLinking readLinking() { return new ReadLinking( toolbox() ); }
+
+    @Bean
+    PropertyValueIndexing propertyValueIndexing() { return new PropertyValueIndexing( toolbox() ); }
 
     @Bean LinkedEntityIndexing linkedEntityIndexing() {
         return new LinkedEntityIndexing( toolbox() );
