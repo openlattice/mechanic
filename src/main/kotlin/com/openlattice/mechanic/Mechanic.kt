@@ -29,9 +29,12 @@ import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.LOC
 import com.kryptnostic.rhizome.core.Rhizome
 import com.kryptnostic.rhizome.pods.AsyncPod
 import com.kryptnostic.rhizome.pods.ConfigurationPod
+import com.kryptnostic.rhizome.pods.HazelcastPod
+import com.kryptnostic.rhizome.pods.hazelcast.RegistryBasedHazelcastInstanceConfigurationPod
 import com.kryptnostic.rhizome.startup.Requirement
 import com.openlattice.auth0.Auth0Pod
 import com.openlattice.hazelcast.pods.MapstoresPod
+import com.openlattice.hazelcast.pods.SharedStreamSerializersPod
 import com.openlattice.jdbc.JdbcPod
 import com.openlattice.mechanic.MechanicCli.Companion.AWS
 import com.openlattice.mechanic.MechanicCli.Companion.CHECK
@@ -121,7 +124,9 @@ class Mechanic {
 
     private val mechanicPods = arrayOf(
             Auth0Pod::class.java, JdbcPod::class.java, PostgresPod::class.java, MapstoresPod::class.java,
-            MechanicUpgradePod::class.java, AsyncPod::class.java, ConfigurationPod::class.java
+            MechanicUpgradePod::class.java, AsyncPod::class.java, ConfigurationPod::class.java,
+            RegistryBasedHazelcastInstanceConfigurationPod::class.java, HazelcastPod::class.java,
+            SharedStreamSerializersPod::class.java
     )
 
     private val context = AnnotationConfigApplicationContext()

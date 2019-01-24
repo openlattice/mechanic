@@ -36,7 +36,6 @@ import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.streams.PostgresIterable
 import com.openlattice.postgres.streams.StatementHolder
-import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind
 import org.postgresql.util.PSQLException
 import org.slf4j.LoggerFactory
 import java.sql.ResultSet
