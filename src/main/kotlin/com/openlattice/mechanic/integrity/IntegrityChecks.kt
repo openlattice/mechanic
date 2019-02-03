@@ -25,6 +25,7 @@ import com.google.common.base.Stopwatch
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.openlattice.data.EntityDataKey
 import com.openlattice.edm.PostgresEdmManager
+import com.openlattice.mechanic.checks.Check
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.ResultSetAdapters
@@ -54,7 +55,11 @@ class IntegrityChecks(
         private val etms: EntityTypeMapstore,
         private val esms: EntitySetMapstore,
         private val executor: ListeningExecutorService
-) {
+) : Check {
+    override fun check() {
+        logger.info("Integrity checks aren't fully implemented.")
+    }
+
     private val entitySets = esms.loadAllKeys().map { it to esms.load(it) }.toMap()
     private val entityTypes = etms.loadAllKeys().map { it to etms.load(it) }.toMap()
     private val propertyTypes = ptms.loadAllKeys().map { it to ptms.load(it) }.toMap()

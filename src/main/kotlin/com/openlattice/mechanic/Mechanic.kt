@@ -44,6 +44,7 @@ import com.openlattice.mechanic.MechanicCli.Companion.POSTGRES
 import com.openlattice.mechanic.MechanicCli.Companion.REINDEX
 import com.openlattice.mechanic.MechanicCli.Companion.SQL
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
+import com.openlattice.mechanic.checks.Check
 import com.openlattice.mechanic.integrity.EdmChecks
 import com.openlattice.mechanic.integrity.IntegrityChecks
 import com.openlattice.mechanic.pods.MechanicUpgradePod
@@ -90,7 +91,6 @@ fun main(args: Array<String>) {
     }
 
     mechanic.sprout(*args.toTypedArray())
-
 
     if (cl.hasOption(CHECK)) {
         val checks = cl.getOptionValues(CHECK).toSet()
@@ -164,14 +164,13 @@ class Mechanic {
         }
     }
 
-    fun runChecks(checks: Set<String>) {
-        val integrityChecks = context.getBean(IntegrityChecks::class.java)
-        val edmChecks = context.getBean(EdmChecks::class.java)
-        checks.forEach {
-            when (it) {
-                "integrity" -> integrityChecks.ensureEntityKeyIdsSynchronized()
-                "edm" -> edmChecks.checkPropertyTypesAlignWithTable()
-            }
+    fun runChecks(checkNames: Set<String>, checkAll : Boolean = false ) {
+        val checks = context.getBeansOfType(Check::class.java)
+        if( checkAll ) {
+            checks.values.forEach(Check::check)
+        } else {
+            check( checks.keys.containsAll( checkNames ) ) { "Unable  to find checks: ${checkNames - checks.keys}"}
+            checkNames.forEach { checks[it]!!.check() }
         }
     }
 

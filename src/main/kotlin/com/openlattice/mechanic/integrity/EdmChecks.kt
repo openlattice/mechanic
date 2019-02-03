@@ -23,6 +23,7 @@ package com.openlattice.mechanic.integrity
 
 import com.google.common.base.Preconditions.checkState
 import com.google.common.util.concurrent.ListeningExecutorService
+import com.openlattice.mechanic.checks.Check
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.mapstores.EntitySetMapstore
@@ -43,7 +44,11 @@ class EdmChecks(
         private val etms: EntityTypeMapstore,
         private val esms: EntitySetMapstore,
         private val executor: ListeningExecutorService
-) {
+) : Check {
+    override fun check() {
+        checkPropertyTypesAlignWithTable()
+    }
+
     private val entitySets = esms.loadAllKeys().map { it to esms.load(it) }.toMap()
     private val entityTypes = etms.loadAllKeys().map { it to etms.load(it) }.toMap()
     private val propertyTypes = ptms.loadAllKeys().map { it to ptms.load(it) }.toMap()
