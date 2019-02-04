@@ -173,7 +173,7 @@ class Mechanic {
             check(checks.keys.containsAll(checkNames)) { "Unable  to find checks: ${checkNames - checks.keys}" }
             Maps.toMap(checkNames) { name -> checks[name]!!.check() }
         }
-        
+
         logger.info("Results of running checks: {}", results)
     }
 
