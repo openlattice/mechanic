@@ -23,7 +23,7 @@ package com.openlattice.mechanic.integrity
 
 import com.google.common.base.Preconditions.checkState
 import com.google.common.util.concurrent.ListeningExecutorService
-import com.openlattice.edm.PostgresEdmManager
+import com.openlattice.mechanic.checks.Check
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.mapstores.EntitySetMapstore
@@ -39,18 +39,22 @@ import java.sql.ResultSetMetaData
 private val logger = LoggerFactory.getLogger(EdmChecks::class.java)
 
 class EdmChecks(
-        private val pgEdmManager: PostgresEdmManager,
         private val hds: HikariDataSource,
         private val ptms: PropertyTypeMapstore,
         private val etms: EntityTypeMapstore,
         private val esms: EntitySetMapstore,
         private val executor: ListeningExecutorService
-) {
+) : Check {
+    override fun check(): Boolean {
+        checkPropertyTypesAlignWithTable()
+        return true
+    }
+
     private val entitySets = esms.loadAllKeys().map { it to esms.load(it) }.toMap()
     private val entityTypes = etms.loadAllKeys().map { it to etms.load(it) }.toMap()
     private val propertyTypes = ptms.loadAllKeys().map { it to ptms.load(it) }.toMap()
 
-    fun checkPropertyTypesAlignWithTable() {
+    private fun checkPropertyTypesAlignWithTable() {
 
         hds.connection.use {
             val connection = it

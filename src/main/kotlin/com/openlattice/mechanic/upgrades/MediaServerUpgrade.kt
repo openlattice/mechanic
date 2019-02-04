@@ -4,7 +4,6 @@ import com.amazonaws.regions.Region
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
-import com.google.common.util.concurrent.MoreExecutors
 import com.kryptnostic.rhizome.configuration.amazon.AmazonLaunchConfiguration
 import com.kryptnostic.rhizome.configuration.amazon.AwsLaunchConfiguration
 import com.openlattice.ResourceConfigurationLoader
@@ -16,10 +15,8 @@ import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind
-import org.postgresql.util.PSQLException
 import org.slf4j.LoggerFactory
 import java.util.*
-import java.util.concurrent.Executors
 
 //Migration for media server
 
@@ -95,7 +92,7 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
                 val hashString = PostgresDataHasher.hashObjectToHex(data, EdmPrimitiveTypeKind.Binary)
 
                 val key = rs.getString(1) + "/" + rs.getString(2) + "/" + entry.key + "/" + hashString
-                byteBlobDataManager.putObject(key, data)
+                byteBlobDataManager.putObject(key, data, "png")
                 val conn2 = toolbox.hds.connection
                 val ps2 = conn2.prepareStatement(storeS3Key(key, propertyTable, fqn))
                 ps2.setBytes(1, hash)

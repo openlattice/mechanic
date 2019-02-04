@@ -23,15 +23,19 @@ package com.openlattice.mechanic
 
 import com.google.common.base.Preconditions.checkArgument
 import com.google.common.base.Stopwatch
+import com.google.common.collect.Maps
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.AWS_CONFIGURATION_PROFILE
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.LOCAL_CONFIGURATION_PROFILE
 import com.kryptnostic.rhizome.core.Rhizome
 import com.kryptnostic.rhizome.pods.AsyncPod
 import com.kryptnostic.rhizome.pods.ConfigurationPod
+import com.kryptnostic.rhizome.pods.HazelcastPod
+import com.kryptnostic.rhizome.pods.hazelcast.RegistryBasedHazelcastInstanceConfigurationPod
 import com.kryptnostic.rhizome.startup.Requirement
 import com.openlattice.auth0.Auth0Pod
 import com.openlattice.hazelcast.pods.MapstoresPod
+import com.openlattice.hazelcast.pods.SharedStreamSerializersPod
 import com.openlattice.jdbc.JdbcPod
 import com.openlattice.mechanic.MechanicCli.Companion.AWS
 import com.openlattice.mechanic.MechanicCli.Companion.CHECK
@@ -41,6 +45,7 @@ import com.openlattice.mechanic.MechanicCli.Companion.POSTGRES
 import com.openlattice.mechanic.MechanicCli.Companion.REINDEX
 import com.openlattice.mechanic.MechanicCli.Companion.SQL
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
+import com.openlattice.mechanic.checks.Check
 import com.openlattice.mechanic.integrity.EdmChecks
 import com.openlattice.mechanic.integrity.IntegrityChecks
 import com.openlattice.mechanic.pods.MechanicUpgradePod
@@ -88,7 +93,6 @@ fun main(args: Array<String>) {
 
     mechanic.sprout(*args.toTypedArray())
 
-
     if (cl.hasOption(CHECK)) {
         val checks = cl.getOptionValues(CHECK).toSet()
         mechanic.runChecks(checks)
@@ -121,7 +125,9 @@ class Mechanic {
 
     private val mechanicPods = arrayOf(
             Auth0Pod::class.java, JdbcPod::class.java, PostgresPod::class.java, MapstoresPod::class.java,
-            MechanicUpgradePod::class.java, AsyncPod::class.java, ConfigurationPod::class.java
+            MechanicUpgradePod::class.java, AsyncPod::class.java, ConfigurationPod::class.java,
+            RegistryBasedHazelcastInstanceConfigurationPod::class.java, HazelcastPod::class.java,
+            SharedStreamSerializersPod::class.java
     )
 
     private val context = AnnotationConfigApplicationContext()
@@ -159,15 +165,16 @@ class Mechanic {
         }
     }
 
-    fun runChecks(checks: Set<String>) {
-        val integrityChecks = context.getBean(IntegrityChecks::class.java)
-        val edmChecks = context.getBean(EdmChecks::class.java)
-        checks.forEach {
-            when (it) {
-                "integrity" -> integrityChecks.ensureEntityKeyIdsSynchronized()
-                "edm" -> edmChecks.checkPropertyTypesAlignWithTable()
-            }
+    fun runChecks(checkNames: Set<String>, checkAll: Boolean = false) {
+        val checks = context.getBeansOfType(Check::class.java)
+        val results = if (checkAll) {
+            checks.mapValues { it.value.check() }
+        } else {
+            check(checks.keys.containsAll(checkNames)) { "Unable  to find checks: ${checkNames - checks.keys}" }
+            Maps.toMap(checkNames) { name -> checks[name]!!.check() }
         }
+
+        logger.info("Results of running checks: {}", results)
     }
 
     fun reIndex() {

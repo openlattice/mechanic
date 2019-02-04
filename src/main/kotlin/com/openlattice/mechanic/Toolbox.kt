@@ -35,7 +35,6 @@ import com.zaxxer.hikari.HikariDataSource
  */
 class Toolbox(
         val tableManager: PostgresTableManager,
-        val pgEdmManager: PostgresEdmManager,
         val hds: HikariDataSource,
         private val ptms: PropertyTypeMapstore,
         private val etms: EntityTypeMapstore,

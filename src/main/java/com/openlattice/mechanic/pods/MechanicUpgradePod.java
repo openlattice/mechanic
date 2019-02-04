@@ -20,29 +20,25 @@
 
 package com.openlattice.mechanic.pods;
 
+import com.dataloom.mappers.ObjectMappers;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.hazelcast.core.HazelcastInstance;
 import com.openlattice.edm.PostgresEdmManager;
 import com.openlattice.hazelcast.pods.MapstoresPod;
 import com.openlattice.ids.IdGenerationMapstore;
 import com.openlattice.mechanic.Toolbox;
 import com.openlattice.mechanic.integrity.EdmChecks;
 import com.openlattice.mechanic.integrity.IntegrityChecks;
-import com.openlattice.mechanic.upgrades.GraphProcessing;
-import com.openlattice.mechanic.upgrades.Linking;
+import com.openlattice.mechanic.upgrades.*;
 
-import com.openlattice.mechanic.upgrades.MediaServerCleanup;
-import com.openlattice.mechanic.upgrades.MediaServerUpgrade;
-import com.openlattice.mechanic.upgrades.ReadLinking;
-import com.openlattice.mechanic.upgrades.RegenerateIds;
 import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
 import com.openlattice.postgres.mapstores.EntityTypeMapstore;
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
 import com.zaxxer.hikari.HikariDataSource;
 import javax.inject.Inject;
-import org.jdbi.v3.core.Jdbi;
-import org.jdbi.v3.sqlobject.SqlObjectPlugin;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
 
@@ -68,16 +64,12 @@ public class MechanicUpgradePod {
     @Inject
     private MapstoresPod mapstoresPod;
 
-    @Bean
-    public Jdbi jdbi() {
-        Jdbi jdbi = Jdbi.create( hikariDataSource );
-        jdbi.installPlugin( new SqlObjectPlugin() );
-        return jdbi;
-    }
+    @Inject
+    private HazelcastInstance hazelcastInstance;
 
     @Bean
     public PostgresEdmManager pgEdmManager() {
-        return new PostgresEdmManager( hikariDataSource, tableManager );
+        return new PostgresEdmManager( hikariDataSource, tableManager, hazelcastInstance );
     }
 
     @Bean
@@ -112,7 +104,6 @@ public class MechanicUpgradePod {
     @Profile( INTEGRITY )
     public EdmChecks edmChecks() {
         return new EdmChecks(
-                pgEdmManager(),
                 hikariDataSource,
                 (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
                 (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
@@ -123,7 +114,6 @@ public class MechanicUpgradePod {
     @Bean Toolbox toolbox() {
         return new Toolbox(
                 tableManager,
-                pgEdmManager(),
                 hikariDataSource,
                 (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
                 (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
@@ -144,13 +134,17 @@ public class MechanicUpgradePod {
         return new MediaServerUpgrade( toolbox() );
     }
 
-    @Bean MediaServerCleanup mediaServerCleanup() {
+    MediaServerCleanup mediaServerCleanup() {
         return new MediaServerCleanup( toolbox() );
     }
 
     @Bean
-    ReadLinking readLinking() {
-        return new ReadLinking( toolbox() );
-    }
+    ReadLinking readLinking() { return new ReadLinking( toolbox() ); }
 
+    @Bean
+    PropertyValueIndexing propertyValueIndexing() { return new PropertyValueIndexing( toolbox() ); }
+
+    @Bean LinkedEntityIndexing linkedEntityIndexing() {
+        return new LinkedEntityIndexing( toolbox() );
+    }
 }
