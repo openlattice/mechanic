@@ -45,15 +45,16 @@ class EdmChecks(
         private val esms: EntitySetMapstore,
         private val executor: ListeningExecutorService
 ) : Check {
-    override fun check() {
+    override fun check(): Boolean {
         checkPropertyTypesAlignWithTable()
+        return true
     }
 
     private val entitySets = esms.loadAllKeys().map { it to esms.load(it) }.toMap()
     private val entityTypes = etms.loadAllKeys().map { it to etms.load(it) }.toMap()
     private val propertyTypes = ptms.loadAllKeys().map { it to ptms.load(it) }.toMap()
 
-    fun checkPropertyTypesAlignWithTable() {
+    private fun checkPropertyTypesAlignWithTable() {
 
         hds.connection.use {
             val connection = it

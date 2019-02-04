@@ -23,6 +23,7 @@ package com.openlattice.mechanic
 
 import com.google.common.base.Preconditions.checkArgument
 import com.google.common.base.Stopwatch
+import com.google.common.collect.Maps
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.AWS_CONFIGURATION_PROFILE
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.LOCAL_CONFIGURATION_PROFILE
@@ -164,14 +165,16 @@ class Mechanic {
         }
     }
 
-    fun runChecks(checkNames: Set<String>, checkAll : Boolean = false ) {
+    fun runChecks(checkNames: Set<String>, checkAll: Boolean = false) {
         val checks = context.getBeansOfType(Check::class.java)
-        if( checkAll ) {
-            checks.values.forEach(Check::check)
+        val results = if (checkAll) {
+            checks.mapValues { it.value.check() }
         } else {
-            check( checks.keys.containsAll( checkNames ) ) { "Unable  to find checks: ${checkNames - checks.keys}"}
-            checkNames.forEach { checks[it]!!.check() }
+            check(checks.keys.containsAll(checkNames)) { "Unable  to find checks: ${checkNames - checks.keys}" }
+            Maps.toMap(checkNames) { name -> checks[name]!!.check() }
         }
+        
+        logger.info("Results of running checks: {}", results)
     }
 
     fun reIndex() {
