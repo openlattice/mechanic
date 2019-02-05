@@ -35,7 +35,11 @@ class RemoveEntitySetTables(val toolbox: Toolbox) : Upgrade {
                 .map { table -> table.removePrefix("es_") }
                 .filter { table ->
                     try {
-                        UUID.fromString(table).toString() == table
+                        if (table == "ek_ids") {
+                            false
+                        } else {
+                            UUID.fromString(table).toString() == table
+                        }
                     } catch (ex: Exception) {
                         false
                     }
