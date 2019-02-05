@@ -56,8 +56,9 @@ class IntegrityChecks(
         private val esms: EntitySetMapstore,
         private val executor: ListeningExecutorService
 ) : Check {
-    override fun check() {
+    override fun check(): Boolean {
         logger.info("Integrity checks aren't fully implemented.")
+        return true
     }
 
     private val entitySets = esms.loadAllKeys().map { it to esms.load(it) }.toMap()
@@ -70,7 +71,7 @@ class IntegrityChecks(
     }.toMap()
 
     fun ensureEntityKeyIdsSynchronized() {
-        val latches:MutableList<CountDownLatch> = mutableListOf()
+        val latches: MutableList<CountDownLatch> = mutableListOf()
         entitySets.forEach {
             val entitySetId = it.key
             val entitySet = it.value
@@ -122,7 +123,7 @@ class IntegrityChecks(
                             //"DELETE from $ptTableName " +
                             //"WHERE entity_set_id = '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
 
-                            pgEdmManager.createPropertyTypeTableIfNotExist( it.value )
+                            pgEdmManager.createPropertyTypeTableIfNotExist(it.value)
                             logger.info(
                                     "Submitting delete for entity set{} and property type {}",
                                     entitySetName,
