@@ -20,8 +20,6 @@
 
 package com.openlattice.mechanic.pods;
 
-import com.dataloom.mappers.ObjectMappers;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.hazelcast.core.HazelcastInstance;
@@ -154,5 +152,9 @@ public class MechanicUpgradePod {
 
     @Bean LinkedEntityIndexing linkedEntityIndexing() {
         return new LinkedEntityIndexing( toolbox() );
+    }
+
+    @Bean DropPrincipalTree dropPrincipalTree() {
+        return new DropPrincipalTree( toolbox() );
     }
 }
