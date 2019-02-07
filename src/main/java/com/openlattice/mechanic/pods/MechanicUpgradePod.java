@@ -83,7 +83,6 @@ public class MechanicUpgradePod {
                 (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
                 (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
                 (IdGenerationMapstore) mapstoresPod.idGenerationMapstore(),
-                //                (PrincipalTreeMapstore) mapstoresPod.aclKeySetMapstore(),
                 mapstoresPod.principalTreesMapstore(),
                 executor );
     }
