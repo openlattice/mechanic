@@ -156,4 +156,8 @@ public class MechanicUpgradePod {
     @Bean LinkedEntityIndexing linkedEntityIndexing() {
         return new LinkedEntityIndexing( toolbox() );
     }
+
+    @Bean DropEdmVersions dropEdmVersions() {
+        return new DropEdmVersions( toolbox() );
+    }
 }
