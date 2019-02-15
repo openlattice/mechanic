@@ -27,7 +27,6 @@ import com.google.common.collect.Lists
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.openlattice.authorization.AclKey
 import com.openlattice.authorization.AclKeySet
-import com.openlattice.authorization.mapstores.PrincipalTreeMapstore
 import com.openlattice.authorization.mapstores.PrincipalTreesMapstore
 import com.openlattice.data.EntityDataKey
 import com.openlattice.edm.PostgresEdmManager
