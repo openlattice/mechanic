@@ -66,7 +66,6 @@ class RegenerateIds(
         private val etms: EntityTypeMapstore,
         private val esms: EntitySetMapstore,
         private val idGen: IdGenerationMapstore,
-//        private val principalTreesOld: PrincipalTreeMapstore,
         private val principalTrees: PrincipalTreesMapstore,
         private val executor: ListeningExecutorService
 ) {
