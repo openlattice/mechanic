@@ -156,4 +156,9 @@ public class MechanicUpgradePod {
     @Bean LinkedEntityIndexing linkedEntityIndexing() {
         return new LinkedEntityIndexing( toolbox() );
     }
+
+    @Bean
+    EntitySetFlags entitySetFlags() {
+        return new EntitySetFlags( toolbox() );
+    }
 }
