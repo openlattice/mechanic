@@ -86,7 +86,6 @@ class EntitySetFlags(private val toolbox: Toolbox) : Upgrade {
     override fun upgrade(): Boolean {
         addFlagsColumn()
         setFlags()
-        dropOldColumns()
         return true
     }
 
