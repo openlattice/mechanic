@@ -30,15 +30,15 @@ import com.openlattice.mechanic.Toolbox;
 import com.openlattice.mechanic.integrity.EdmChecks;
 import com.openlattice.mechanic.integrity.IntegrityChecks;
 import com.openlattice.mechanic.upgrades.*;
-
 import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
 import com.openlattice.postgres.mapstores.EntityTypeMapstore;
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
 import com.zaxxer.hikari.HikariDataSource;
-import javax.inject.Inject;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
+
+import javax.inject.Inject;
 
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
@@ -154,11 +154,18 @@ public class MechanicUpgradePod {
         return new LinkedEntityIndexing( toolbox() );
     }
 
-    @Bean DropEdmVersions dropEdmVersions() {
+    @Bean
+    EntitySetFlags entitySetFlags() {
+        return new EntitySetFlags( toolbox() );
+    }
+
+    @Bean
+    DropEdmVersions dropEdmVersions() {
         return new DropEdmVersions( toolbox() );
     }
 
-    @Bean DropPrincipalTree dropPrincipalTree() {
+    @Bean
+    DropPrincipalTree dropPrincipalTree() {
         return new DropPrincipalTree( toolbox() );
     }
 }
