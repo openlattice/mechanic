@@ -17,35 +17,36 @@ class PropertyValueIndexing(private val toolbox: Toolbox) : Upgrade {
     }
 
     private fun createPropertyValueIndexIfNotExists(): Boolean {
-        return toolbox.propertyTypes.values.all { propertyType ->
-            if (!DataTables.unindexedProperties.contains(propertyType.datatype.fullQualifiedName)) {
-                val idxPrefix = DataTables.propertyTableName(propertyType.id)
-
-                val valueColumn = DataTables.value(propertyType)
-                val ptd = CitusDistributedTableDefinition(DataTables.quote(idxPrefix))
-
-                val valueIndex = PostgresColumnsIndexDefinition(ptd, valueColumn)
-                        .name(DataTables.quote(idxPrefix + "_value_idx"))
-                        .ifNotExists()
-                try {
-                    toolbox.executor.submit(
-                            Callable {
-                                toolbox.hds.connection.use {
-                                    it.createStatement().execute(valueIndex.sql())
-                                }
-                            }
-                    ).get()
-                    logger.info("Created (if not exists) index for property type '{}' with value type {}",
-                            propertyType.type.fullQualifiedNameAsString, propertyType.datatype)
-                } catch (e: Exception) {
-                    logger.error(
-                            "Unable to add index for property type '{}' with value type {}${System.lineSeparator()}$e",
-                            propertyType.type.fullQualifiedNameAsString, propertyType.datatype)
-                    return@all false
-                }
-            }
-            return@all true
-        }
+        return true
+//        return toolbox.propertyTypes.values.all { propertyType ->
+//            if (!DataTables.unindexedProperties.contains(propertyType.datatype.fullQualifiedName)) {
+//                val idxPrefix = DataTables.propertyTableName(propertyType.id)
+//
+//                val valueColumn = DataTables.value(propertyType)
+//                val ptd = CitusDistributedTableDefinition(DataTables.quote(idxPrefix))
+//
+//                val valueIndex = PostgresColumnsIndexDefinition(ptd, valueColumn)
+//                        .name(DataTables.quote(idxPrefix + "_value_idx"))
+//                        .ifNotExists()
+//                try {
+//                    toolbox.executor.submit(
+//                            Callable {
+//                                toolbox.hds.connection.use {
+//                                    it.createStatement().execute(valueIndex.sql())
+//                                }
+//                            }
+//                    ).get()
+//                    logger.info("Created (if not exists) index for property type '{}' with value type {}",
+//                            propertyType.type.fullQualifiedNameAsString, propertyType.datatype)
+//                } catch (e: Exception) {
+//                    logger.error(
+//                            "Unable to add index for property type '{}' with value type {}${System.lineSeparator()}$e",
+//                            propertyType.type.fullQualifiedNameAsString, propertyType.datatype)
+//                    return@all false
+//                }
+//            }
+//            return@all true
+//        }
     }
 
     override fun getSupportedVersion(): Long {
