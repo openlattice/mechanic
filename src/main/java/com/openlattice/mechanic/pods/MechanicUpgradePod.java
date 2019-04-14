@@ -160,6 +160,9 @@ public class MechanicUpgradePod {
     }
 
     @Bean
+    MaterializedEntitySets materializedEntitySets() { return new MaterializedEntitySets( toolbox() ); }
+
+    @Bean
     DropEdmVersions dropEdmVersions() {
         return new DropEdmVersions( toolbox() );
     }
