@@ -50,6 +50,7 @@ class MaterializedEntitySets(private val toolbox: Toolbox) : Upgrade {
         logger.info("Creating ${MATERIALIZED_ENTITY_SETS.name} table")
         toolbox.hds.connection.use { connection ->
             connection.createStatement().use { stmt ->
+                stmt.execute("DROP TABLE IF EXISTS ${MATERIALIZED_ENTITY_SETS.name}")
                 stmt.execute(MATERIALIZED_ENTITY_SETS.createTableQuery())
             }
         }
