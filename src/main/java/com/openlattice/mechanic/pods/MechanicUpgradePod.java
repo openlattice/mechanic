@@ -171,4 +171,9 @@ public class MechanicUpgradePod {
     DropPrincipalTree dropPrincipalTree() {
         return new DropPrincipalTree( toolbox() );
     }
+
+    @Bean
+    RemoveEntitiesSinceDate removeEntitiesSinceDate() {
+        return new RemoveEntitiesSinceDate( toolbox() );
+    }
 }

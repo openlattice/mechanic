@@ -23,9 +23,12 @@ package com.openlattice.mechanic.upgrades
 
 import com.google.common.base.Stopwatch
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.*
 import com.openlattice.postgres.DataTables.*
+import com.openlattice.postgres.IndexType
 import com.openlattice.postgres.PostgresColumn.*
+import com.openlattice.postgres.PostgresColumnsIndexDefinition
+import com.openlattice.postgres.PostgresExpressionIndexDefinition
+import com.openlattice.postgres.PostgresTableDefinition
 import org.slf4j.LoggerFactory
 import java.util.*
 import java.util.concurrent.Callable
@@ -64,7 +67,7 @@ private val INDEXES = listOf(PostgresColumnsIndexDefinition(IDS, ENTITY_SET_ID)
                                      .ifNotExists(),
                              PostgresColumnsIndexDefinition(IDS, VERSIONS)
                                      .name("v2_entity_key_ids_versions_idx")
-                                     .method(IndexMethod.GIN)
+                                     .method(IndexType.GIN)
                                      .ifNotExists(),
                              PostgresColumnsIndexDefinition(IDS, LINKING_ID)
                                      .name("v2_entity_key_ids_linking_id_idx")
@@ -255,7 +258,7 @@ private fun createNewTables(): List<PostgresTableDefinition> {
                     .ifNotExists(),
             PostgresColumnsIndexDefinition(IDS, VERSIONS)
                     .name("v2_entity_key_ids_versions_idx")
-                    .method(IndexMethod.GIN)
+                    .method(IndexType.GIN)
                     .ifNotExists(),
             PostgresColumnsIndexDefinition(IDS, LINKING_ID)
                     .name("v2_entity_key_ids_linking_id_idx")

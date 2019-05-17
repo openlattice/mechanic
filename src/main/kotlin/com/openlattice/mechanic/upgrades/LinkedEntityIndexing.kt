@@ -1,10 +1,8 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.DataTables.LAST_LINK
-import com.openlattice.postgres.DataTables.LAST_WRITE
-import com.openlattice.postgres.DataTables.LAST_INDEX
-import com.openlattice.postgres.IndexMethod
+import com.openlattice.postgres.DataTables.*
+import com.openlattice.postgres.IndexType
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresColumnsIndexDefinition
 import com.openlattice.postgres.PostgresExpressionIndexDefinition
@@ -78,7 +76,7 @@ class LinkedEntityIndexing(private val toolbox: Toolbox) : Upgrade {
         logger.info("Starting to add entity_sets_linked_entity_sets_idx and to ${ENTITY_SETS.name} table")
 
         val linkedEntitySetsIndex = PostgresColumnsIndexDefinition(ENTITY_SETS, LINKED_ENTITY_SETS)
-                .method(IndexMethod.GIN)
+                .method(IndexType.GIN)
                 .ifNotExists()
 
         toolbox.executor.submit(
