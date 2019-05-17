@@ -71,7 +71,9 @@ class RemoveEntitiesSinceDate(private val toolbox: Toolbox) : Upgrade {
 
     private fun loadSynclessEntityKeyIds(latestValidVersion: Long): String {
         return "INSERT INTO $SYNCLESS_ENTITY_KEY_IDS_TABLE SELECT ${PostgresColumn.ID.name} FROM ${PostgresTable.IDS.name} WHERE NOT EXISTS " +
-                "(SELECT * from UNNEST(${PostgresColumn.VERSIONS.name}) as v where v > 0 AND v < $latestValidVersion) ON CONFLICT DO NOTHING"
+                "(SELECT * from UNNEST(${PostgresColumn.VERSIONS.name}) as v where v > 0 AND v < $latestValidVersion)" +
+                " AND NOT EXISTS (SELECT * from UNNEST(${PostgresColumn.VERSIONS.name}) as v where v < -1 AND v > -$latestValidVersion)"
+                " ON CONFLICT DO NOTHING"
     }
 
     private fun deletePropertyValuesSql(propertyTypeId: UUID): String {
