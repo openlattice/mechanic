@@ -20,7 +20,9 @@ class RemoveEntitiesSinceDate(private val toolbox: Toolbox) : Upgrade {
     override fun upgrade(): Boolean {
         createTableOfSynclessEntities()
 
-        deleteSynclessPropertiesAndEdges()
+        deleteSynclessProperties()
+        deleteSynclessEdges()
+        deleteSynclessEntityKeyIds()
 
         return true
     }
@@ -50,21 +52,45 @@ class RemoveEntitiesSinceDate(private val toolbox: Toolbox) : Upgrade {
         logger.info("Entities written to $SYNCLESS_ENTITY_KEY_IDS_TABLE table")
     }
 
-    private fun deleteSynclessPropertiesAndEdges() {
+    private fun deleteSynclessProperties() {
         toolbox.hds.connection.use {
             it.createStatement().use { stmt ->
 
                 toolbox.propertyTypes.keys.forEach { pt -> stmt.addBatch(deletePropertyValuesSql(pt)) }
+                stmt.executeBatch()
+            }
+        }
+
+        logger.info("Deleted syncless properties")
+
+    }
+
+    private fun deleteSynclessEdges() {
+        toolbox.hds.connection.use {
+            it.createStatement().use { stmt ->
+
                 stmt.addBatch(deleteFromTableOnIdCol(PostgresTable.EDGES.name, PostgresColumn.ID.name))
                 stmt.addBatch(deleteFromTableOnIdCol(PostgresTable.EDGES.name, PostgresColumn.EDGE_COMP_1.name))
                 stmt.addBatch(deleteFromTableOnIdCol(PostgresTable.EDGES.name, PostgresColumn.EDGE_COMP_2.name))
-                stmt.addBatch(deleteFromTableOnIdCol(PostgresTable.IDS.name, PostgresColumn.ID.name))
 
                 stmt.executeBatch()
             }
         }
 
-        logger.info("Deleted syncless entities")
+        logger.info("Deleted syncless edges")
+
+    }
+
+    private fun deleteSynclessEntityKeyIds() {
+        toolbox.hds.connection.use {
+            it.createStatement().use { stmt ->
+
+                stmt.execute(deleteFromTableOnIdCol(PostgresTable.IDS.name, PostgresColumn.ID.name))
+
+            }
+        }
+
+        logger.info("Deleted syncless entity key ids")
 
     }
 
