@@ -18,10 +18,11 @@ class RemoveEntitiesSinceDate(private val toolbox: Toolbox) : Upgrade {
     }
 
     override fun upgrade(): Boolean {
-        createTableOfSynclessEntities()
+        val latestValidVersion = OffsetDateTime.now().minusDays(3).toInstant().toEpochMilli()
+        createTableOfSynclessEntities(latestValidVersion)
 
         deleteSynclessProperties()
-        deleteSynclessEdges()
+        deleteSynclessEdges(latestValidVersion)
         deleteSynclessEntityKeyIds()
 
         return true
@@ -32,8 +33,7 @@ class RemoveEntitiesSinceDate(private val toolbox: Toolbox) : Upgrade {
     }
 
 
-    private fun createTableOfSynclessEntities() {
-        val versionCutoff = OffsetDateTime.now().minusDays(3).toInstant().toEpochMilli()
+    private fun createTableOfSynclessEntities(latestValidVersion: Long) {
 
         val table = CitusDistributedTableDefinition(SYNCLESS_ENTITY_KEY_IDS_TABLE)
                 .addColumns(PostgresColumn.ID)
@@ -45,7 +45,7 @@ class RemoveEntitiesSinceDate(private val toolbox: Toolbox) : Upgrade {
 
         toolbox.hds.connection.use {
             it.createStatement().use {
-                it.execute(loadSynclessEntityKeyIds(versionCutoff))
+                it.execute(loadSynclessEntityKeyIds(latestValidVersion))
             }
         }
 
@@ -65,15 +65,11 @@ class RemoveEntitiesSinceDate(private val toolbox: Toolbox) : Upgrade {
 
     }
 
-    private fun deleteSynclessEdges() {
+    private fun deleteSynclessEdges(latestValidVersion: Long) {
         toolbox.hds.connection.use {
             it.createStatement().use { stmt ->
 
-                stmt.addBatch(deleteFromTableOnIdCol(PostgresTable.EDGES.name, PostgresColumn.ID.name))
-                stmt.addBatch(deleteFromTableOnIdCol(PostgresTable.EDGES.name, PostgresColumn.EDGE_COMP_1.name))
-                stmt.addBatch(deleteFromTableOnIdCol(PostgresTable.EDGES.name, PostgresColumn.EDGE_COMP_2.name))
-
-                stmt.executeBatch()
+                stmt.execute(deleteSynclessEdgesSql(latestValidVersion))
             }
         }
 
@@ -96,10 +92,13 @@ class RemoveEntitiesSinceDate(private val toolbox: Toolbox) : Upgrade {
 
 
     private fun loadSynclessEntityKeyIds(latestValidVersion: Long): String {
-        return "INSERT INTO $SYNCLESS_ENTITY_KEY_IDS_TABLE SELECT ${PostgresColumn.ID.name} FROM ${PostgresTable.IDS.name} WHERE NOT EXISTS " +
-                "(SELECT * from UNNEST(${PostgresColumn.VERSIONS.name}) as v where v > 0 AND v < $latestValidVersion)" +
-                " AND NOT EXISTS (SELECT * from UNNEST(${PostgresColumn.VERSIONS.name}) as v where v < -1 AND v > -$latestValidVersion)" +
-                " ON CONFLICT DO NOTHING"
+        return "INSERT INTO $SYNCLESS_ENTITY_KEY_IDS_TABLE SELECT ${PostgresColumn.ID.name} FROM ${PostgresTable.IDS.name} " +
+                " ${versionsClause(latestValidVersion)} ON CONFLICT DO NOTHING"
+    }
+
+    private fun versionsClause(latestValidVersion: Long): String {
+        return " WHERE NOT EXISTS  (SELECT * from UNNEST(${PostgresColumn.VERSIONS.name}) as v where v > 0 AND v < $latestValidVersion)" +
+                " AND NOT EXISTS (SELECT * from UNNEST(${PostgresColumn.VERSIONS.name}) as v where v < -1 AND v > -$latestValidVersion)"
     }
 
     private fun deletePropertyValuesSql(propertyTypeId: UUID): String {
@@ -110,5 +109,9 @@ class RemoveEntitiesSinceDate(private val toolbox: Toolbox) : Upgrade {
     private fun deleteFromTableOnIdCol(table: String, col: String): String {
         return "DELETE FROM $table USING $SYNCLESS_ENTITY_KEY_IDS_TABLE " +
                 "WHERE $table.$col = $SYNCLESS_ENTITY_KEY_IDS_TABLE.${PostgresColumn.ID.name}"
+    }
+
+    private fun deleteSynclessEdgesSql(latestValidVersion: Long): String {
+        return "DELETE FROM ${PostgresTable.EDGES.name} ${versionsClause(latestValidVersion)}"
     }
 }
