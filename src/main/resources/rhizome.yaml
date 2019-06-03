@@ -14,10 +14,12 @@ hazelcast:
         - "localhost"
 
 
-hikari:
-    jdbcUrl: jdbc:postgresql://localhost:5432/openlattice
-    username: "oltest"
-    password: "test"
-    maximumPoolSize: 100
-    #20 minutes
-    connectionTimeout: 30000
+postgres:
+    citus: false
+    initialize-indices: true
+    hikari:
+        jdbcUrl: jdbc:postgresql://localhost:5432/openlattice
+        username: "oltest"
+        password: "test"
+        maximumPoolSize: 100
+        connectionTimeout: 30000
