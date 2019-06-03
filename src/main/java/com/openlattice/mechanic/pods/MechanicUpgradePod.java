@@ -23,6 +23,7 @@ package com.openlattice.mechanic.pods;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.hazelcast.core.HazelcastInstance;
+import com.openlattice.assembler.AssemblerConfiguration;
 import com.openlattice.edm.PostgresEdmManager;
 import com.openlattice.hazelcast.pods.MapstoresPod;
 import com.openlattice.ids.IdGenerationMapstore;
@@ -33,6 +34,7 @@ import com.openlattice.mechanic.upgrades.*;
 import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
 import com.openlattice.postgres.mapstores.EntityTypeMapstore;
+import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore;
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
 import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.context.annotation.Bean;
@@ -64,6 +66,9 @@ public class MechanicUpgradePod {
 
     @Inject
     private HazelcastInstance hazelcastInstance;
+
+    @Inject
+    private AssemblerConfiguration assemblerConfiguration;
 
     @Bean
     public PostgresEdmManager pgEdmManager() {
@@ -112,9 +117,9 @@ public class MechanicUpgradePod {
         return new Toolbox(
                 tableManager,
                 hikariDataSource,
-                (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
-                (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
-                (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
+                ( PropertyTypeMapstore ) mapstoresPod.propertyTypeMapstore(),
+                ( EntityTypeMapstore ) mapstoresPod.entityTypeMapstore(),
+                ( EntitySetMapstore ) mapstoresPod.entitySetMapstore(),
                 executor );
     }
 
@@ -175,5 +180,12 @@ public class MechanicUpgradePod {
     @Bean
     RemoveEntitiesSinceDate removeEntitiesSinceDate() {
         return new RemoveEntitiesSinceDate( toolbox() );
+    }
+
+    @Bean
+    MaterializationForeignServer materializationForeignServer() {
+        return new MaterializationForeignServer(
+                ( ( OrganizationAssemblyMapstore ) mapstoresPod.organizationAssemblies() ).loadAllKeys(),
+                assemblerConfiguration );
     }
 }

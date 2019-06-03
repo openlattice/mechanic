@@ -22,7 +22,6 @@
 package com.openlattice.mechanic
 
 import com.google.common.util.concurrent.ListeningExecutorService
-import com.openlattice.edm.PostgresEdmManager
 import com.openlattice.postgres.PostgresTableManager
 import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.postgres.mapstores.EntityTypeMapstore
