@@ -1,13 +1,14 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.streams.PostgresIterable
-import com.openlattice.postgres.streams.StatementHolder
+import com.openlattice.postgres.PostgresDataTables
+import com.openlattice.postgres.ResultSetAdapters
+import java.sql.PreparedStatement
 import java.sql.ResultSet
-import java.util.function.Function
-import java.util.function.Supplier
 
 class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade {
+
+    val BATCH_SIZE = 1 shl 10 // 2048
 
     override fun getSupportedVersion(): Long {
         return Version.V2019_06_14.value
@@ -30,22 +31,23 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
         // insert into appropriate column in new table
         toolbox.hds.connection.use {conn ->
             conn.autoCommit = false
-            toolbox.propertyTypes.entries.forEach {propertyEntry ->
+
+            toolbox.propertyTypes.entries.forEach { propertyEntry ->
                 val propertyId = propertyEntry.key
                 // select rows to migrate
-                val toMigrate = PostgresIterable(Supplier {
-                    conn.createStatement().use { stmt ->
-                        val rs = stmt.executeQuery(
-                                "SELECT * FROM pt_$propertyId WHERE last_migrate < last_write"
-                        )
-                        StatementHolder(conn, stmt, rs)
+                conn.createStatement().use { stmt ->
+                    stmt.fetchSize = BATCH_SIZE
+                    val rs = stmt.executeQuery(
+                            "SELECT * FROM pt_$propertyId WHERE last_migrate < last_write"
+                    )
+                    conn.prepareStatement(INSERT_SQL).use { ps ->
+                        var index = 0;
+                        while(index < BATCH_SIZE && rs.last()) {
+                            addRow(ps, rs)
+                        }
+                        val numUpdates = ps.executeUpdate()
                     }
-                }, Function<ResultSet, Unit> {
-                    conn.prepareStatement(INSERT_SQL).use{ ps ->
-                        // do le settings here
-                        ps.execute()
-                    }
-                } )
+                }
                 // migrate rows
                 conn.commit()
             }
@@ -54,16 +56,28 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
         return true
     }
 
-    val cols = arrayOf("entity_set_id", "id", "partition", "property_type_id", "hash",
-            "b_TEXT", "b_UUID", "b_SMALLINT", "b_INTEGER", "b_BIGINT", "b_DATE", "b_TIMESTAMPTZ", "b_DOUBLEPRECISION", "b_BOOLEAN",
-            "g_TEXT", "g_UUID", "g_SMALLINT", "g_INTEGER", "g_BIGINT", "g_DATE", "g_TIMESTAMPTZ", "g_DOUBLEPRECISION", "g_BOOLEAN",
-            "n_TEXT", "n_UUID", "n_SMALLINT", "n_INTEGER", "n_BIGINT", "n_DATE", "n_TIMESTAMPTZ", "n_DOUBLEPRECISION", "n_BOOLEAN"
-    )
+    fun addRow(ps: PreparedStatement, row: ResultSet ) {
+        ps.setObject(0, ResultSetAdapters.id( row ) )
+        ps.setObject(1, ResultSetAdapters.entitySetId( row ) )
+    }
 
-    val INSERT_SQL = "INSERT INTO data (" +
+    val pkeyCols = PostgresDataTables.buildDataTableDefinition().primaryKey.map { it.name }
+
+    val cols = PostgresDataTables.dataTableColumns.map{ it.name }
+
+    val INSERT_SQL_PREFIX = "INSERT INTO data (" +
             cols.joinToString(",") +
-            ") VALUES (" +
-            cols.joinToString{ "?" } +
-            ") ON CONFLICT DO UPDATE SET " +
+            ") VALUES "
+
+    val INSERT_SQL_SUFFIX = " ON CONFLICT (" +
+            pkeyCols.joinToString(",")+
+            ") DO UPDATE SET " +
             cols.joinToString { col -> "$col = EXCLUDED.$col" }
+
+    val INSERT_SQL = INSERT_SQL_PREFIX +
+            buildString {
+                this.append("(" + cols.joinToString("?") + ") ")
+            } +
+            INSERT_SQL_SUFFIX
+
 }
