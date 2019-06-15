@@ -98,8 +98,8 @@ sourceSets {
 }
 
 dependencies {
-    compile "org.ow2.asm:asm:5.0.4"
-    compile 'commons-cli:commons-cli:1.4'
+    compile "org.ow2.asm:asm:$asm_version"
+    compile "commons-cli:commons-cli:$commons_cli_version"
 
     if (project.hasProperty('developmentMode') && project.developmentMode) {
         logger.quiet(project.name + " using project dependencies.")
@@ -109,18 +109,18 @@ dependencies {
         compile project(":courier")
     } else {
         logger.quiet(project.name + " using jar dependencies.")
-        compile "com.openlattice:scrunchie:${scrunchie_version}"
-        compile "com.openlattice:courier:${courier_version}"
+        compile "com.openlattice:scrunchie:$scrunchie_version"
+        compile "com.openlattice:courier:$courier_version"
 
-        compile "com.openlattice:conductor-client:${conductor_client_version}"
-        compile "com.openlattice:rhizome:${rhizome_version}"
+        compile "com.openlattice:conductor-client:$conductor_client_version"
+        compile "com.openlattice:rhizome:$rhizome_version"
     }
 
     /*
      * TESTING
      */
-    testCompile "junit:junit:${junit_version}"
-    testCompile "org.mockito:mockito-all:${mockito_version}"
+    testCompile "junit:junit:$junit_version"
+    testCompile "org.mockito:mockito-all:$mockito_version"
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 }
 
