@@ -4,44 +4,6 @@ import com.openlattice.mechanic.Toolbox
 
 class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade {
 
-    val newTableName = "data"
-
-//    val newTableCols = arrayOf( "" )
-//
-//    data
-//    (entity_set_id UUID NOT NULL,
-//    id UUID,
-//    partition INTEGER,
-//    property_type_id UUID NOT NULL,
-//    hash BYTEA NOT NULL,
-//    b_TEXT TEXT,
-//    b_UUID UUID,
-//    b_SMALLINT SMALLINT,
-//    b_INTEGER INTEGER,
-//    b_BIGINT BIGINT,
-//    b_DATE DATE,
-//    b_TIMESTAMPTZ TIMESTAMPTZ,
-//    b_DOUBLE DOUBLE PRECISION,
-//    b_BOOLEAN BOOLEAN,
-//    g_TEXT TEXT,
-//    g_UUID UUID,
-//    g_SMALLINT SMALLINT,
-//    g_INTEGER INTEGER,
-//    g_BIGINT BIGINT,
-//    g_DATE DATE,
-//    g_TIMESTAMPTZ TIMESTAMPTZ,
-//    g_DOUBLE DOUBLE PRECISION,
-//    g_BOOLEAN BOOLEAN,
-//    n_TEXT TEXT,
-//    n_UUID UUID,
-//    n_SMALLINT SMALLINT,
-//    n_INTEGER INTEGER,
-//    n_BIGINT BIGINT,
-//    n_DATE DATE,
-//    n_TIMESTAMPTZ TIMESTAMPTZ,
-//    n_DOUBLE DOUBLE PRECISION,
-//    n_BOOLEAN BOOLEAN)
-
     override fun getSupportedVersion(): Long {
         return Version.V2019_06_14.value
     }
@@ -65,14 +27,14 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
             conn.autoCommit = false
             toolbox.propertyTypes.entries.forEach {propertyEntry ->
                 val propertyId = propertyEntry.key
-                val propertyType = propertyEntry.value
                 // select rows to migrate
                 conn.createStatement().use { stmt ->
                     stmt.executeQuery(
-                        "SELECT * FROM pt_ $propertyId WHERE last_migrate < last_write"
+                        "SELECT * FROM pt_$propertyId WHERE last_migrate < last_write"
                     ).use {
                         // migrate rows
-                        conn.prepareStatement(INSERT_SQL).use { ps ->
+                        conn.prepareStatement(INSERT_SQL).use{ ps ->
+                            ps.setObject(0, Object())
                         }
                     }
                 }
@@ -83,5 +45,16 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
         return true
     }
 
-    val INSERT_SQL = "INSERT INTO $newTableName () VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO UPDATE SET"
+    val cols = arrayOf("entity_set_id", "id", "partition", "property_type_id", "hash",
+            "b_TEXT", "b_UUID", "b_SMALLINT", "b_INTEGER", "b_BIGINT", "b_DATE", "b_TIMESTAMPTZ", "b_DOUBLEPRECISION", "b_BOOLEAN",
+            "g_TEXT", "g_UUID", "g_SMALLINT", "g_INTEGER", "g_BIGINT", "g_DATE", "g_TIMESTAMPTZ", "g_DOUBLEPRECISION", "g_BOOLEAN",
+            "n_TEXT", "n_UUID", "n_SMALLINT", "n_INTEGER", "n_BIGINT", "n_DATE", "n_TIMESTAMPTZ", "n_DOUBLEPRECISION", "n_BOOLEA"
+    )
+
+    val INSERT_SQL = "INSERT INTO data (" +
+            cols.joinToString(",") +
+            ") VALUES (" +
+            cols.joinToString{ "?" } +
+            ") ON CONFLICT DO UPDATE SET " +
+            cols.joinToString { col -> "$col = EXCLUDED.$col" }
 }
