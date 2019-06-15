@@ -41,7 +41,7 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
                             "SELECT * FROM pt_$propertyId WHERE last_migrate < last_write"
                     ).use { rs ->
                         while (rs.next()){
-                            conn.prepareStatement(INSERT_SQL).use { ps ->
+                            conn.prepareStatement(Companion.INSERT_SQL).use { ps ->
                                 mapRow(ps, rs)
                                 val numUpdates = ps.executeUpdate()
                                 conn.commit()
@@ -62,23 +62,19 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
         ps.setObject(1, ResultSetAdapters.entitySetId( row ) )
     }
 
-    val pkeyCols = PostgresDataTables.buildDataTableDefinition().primaryKey.map { it.name }
+    companion object {
+        val pkeyCols = PostgresDataTables.buildDataTableDefinition().primaryKey.map { it.name }
 
-    val cols = PostgresDataTables.dataTableColumns.map{ it.name }
+        val cols = PostgresDataTables.dataTableColumns.map{ it.name }
 
-    val INSERT_SQL_PREFIX = "INSERT INTO data (" +
-            cols.joinToString(",") +
-            ") VALUES "
-
-    val INSERT_SQL_SUFFIX = " ON CONFLICT (" +
-            pkeyCols.joinToString(",")+
-            ") DO UPDATE SET " +
-            cols.joinToString { col -> "$col = EXCLUDED.$col" }
-
-    val INSERT_SQL = INSERT_SQL_PREFIX +
-            buildString {
-                this.append("(" + cols.joinToString("?") + ") ")
-            } +
-            INSERT_SQL_SUFFIX
+        val INSERT_SQL = "INSERT INTO data (" +
+                cols.joinToString(",") +
+                ") VALUES (" +
+                cols.joinToString{"?"} +
+                ") ON CONFLICT (" +
+                pkeyCols.joinToString(",")+
+                ") DO UPDATE SET " +
+                cols.joinToString { col -> "$col = EXCLUDED.$col" }
+    }
 
 }
