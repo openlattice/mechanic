@@ -10,8 +10,28 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
 
     val BATCH_SIZE = 1 shl 10 // 2048
 
-    override fun getSupportedVersion(): Long {
-        return Version.V2019_06_14.value
+    companion object {
+        val tableName = PostgresDataTables.buildDataTableDefinition().name
+
+        val pkeyCols = PostgresDataTables.buildDataTableDefinition().primaryKey.map { it.name }
+
+        val cols = PostgresDataTables.dataTableColumns.map{ it.name }
+
+        val INSERT_SQL = "INSERT INTO $tableName (" +
+                cols.joinToString(",") +
+                ") VALUES (" +
+                cols.joinToString{"?"} +
+                ") ON CONFLICT (" +
+                pkeyCols.joinToString(",")+
+                ") DO UPDATE SET " +
+                cols.joinToString { col -> "$col = EXCLUDED.$col" }
+
+        var i = 0
+        val otherThing = cols.joinToString{col ->
+            println( "ps.setObject($i, ResultSetAdapters.id( row ) ) // $col")
+            i++
+            ""
+        }
     }
 
     override fun upgrade(): Boolean {
@@ -41,16 +61,20 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
                             "SELECT * FROM pt_$propertyId WHERE last_migrate < last_write"
                     ).use { rs ->
                         while (rs.next()){
-                            conn.prepareStatement(Companion.INSERT_SQL).use { ps ->
+                            conn.prepareStatement(INSERT_SQL).use { ps ->
                                 mapRow(ps, rs)
                                 val numUpdates = ps.executeUpdate()
-                                conn.commit()
+                                if ( numUpdates != 1 ){
+                                    // rollback
+                                    conn.rollback()
+                                } else {
+                                    // commit
+                                    conn.commit()
+                                }
                             }
                         }
                     }
                 }
-                // migrate rows
-                conn.commit()
             }
         }
 
@@ -58,23 +82,54 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
     }
 
     fun mapRow(ps: PreparedStatement, row: ResultSet ) {
-        ps.setObject(0, ResultSetAdapters.id( row ) )
-        ps.setObject(1, ResultSetAdapters.entitySetId( row ) )
+        ps.setObject(0, ResultSetAdapters.entitySetId( row ) ) // entity_set_id
+        ps.setObject(1, ResultSetAdapters.id( row ) ) // id
+        ps.setObject(2, ResultSetAdapters.id( row ) ) // partition
+        ps.setObject(3, ResultSetAdapters.id( row ) ) // property_type_id
+        ps.setObject(4, ResultSetAdapters.id( row ) ) // hash
+        ps.setObject(5, ResultSetAdapters.id( row ) ) // last_write
+        ps.setObject(6, ResultSetAdapters.id( row ) ) // last_link_index
+        ps.setObject(7, ResultSetAdapters.id( row ) ) // version
+        ps.setObject(8, ResultSetAdapters.id( row ) ) // versions
+        ps.setObject(9, ResultSetAdapters.id( row ) ) // b_TEXT
+        ps.setObject(10, ResultSetAdapters.id( row ) ) // b_UUID
+        ps.setObject(11, ResultSetAdapters.id( row ) ) // b_TEXT
+        ps.setObject(12, ResultSetAdapters.id( row ) ) // b_SMALLINT
+        ps.setObject(13, ResultSetAdapters.id( row ) ) // b_INTEGER
+        ps.setObject(14, ResultSetAdapters.id( row ) ) // b_BIGINT
+        ps.setObject(15, ResultSetAdapters.id( row ) ) // b_BIGINT
+        ps.setObject(16, ResultSetAdapters.id( row ) ) // b_DATE
+        ps.setObject(17, ResultSetAdapters.id( row ) ) // b_TIMESTAMPTZ
+        ps.setObject(18, ResultSetAdapters.id( row ) ) // b_DOUBLE
+        ps.setObject(19, ResultSetAdapters.id( row ) ) // b_BOOLEAN
+        ps.setObject(20, ResultSetAdapters.id( row ) ) // b_TEXT
+        ps.setObject(21, ResultSetAdapters.id( row ) ) // g_TEXT
+        ps.setObject(22, ResultSetAdapters.id( row ) ) // g_UUID
+        ps.setObject(23, ResultSetAdapters.id( row ) ) // g_TEXT
+        ps.setObject(24, ResultSetAdapters.id( row ) ) // g_SMALLINT
+        ps.setObject(25, ResultSetAdapters.id( row ) ) // g_INTEGER
+        ps.setObject(26, ResultSetAdapters.id( row ) ) // g_BIGINT
+        ps.setObject(27, ResultSetAdapters.id( row ) ) // g_BIGINT
+        ps.setObject(28, ResultSetAdapters.id( row ) ) // g_DATE
+        ps.setObject(29, ResultSetAdapters.id( row ) ) // g_TIMESTAMPTZ
+        ps.setObject(30, ResultSetAdapters.id( row ) ) // g_DOUBLE
+        ps.setObject(31, ResultSetAdapters.id( row ) ) // g_BOOLEAN
+        ps.setObject(32, ResultSetAdapters.id( row ) ) // g_TEXT
+        ps.setObject(33, ResultSetAdapters.id( row ) ) // n_TEXT
+        ps.setObject(34, ResultSetAdapters.id( row ) ) // n_UUID
+        ps.setObject(35, ResultSetAdapters.id( row ) ) // n_TEXT
+        ps.setObject(36, ResultSetAdapters.id( row ) ) // n_SMALLINT
+        ps.setObject(37, ResultSetAdapters.id( row ) ) // n_INTEGER
+        ps.setObject(38, ResultSetAdapters.id( row ) ) // n_BIGINT
+        ps.setObject(39, ResultSetAdapters.id( row ) ) // n_BIGINT
+        ps.setObject(40, ResultSetAdapters.id( row ) ) // n_DATE
+        ps.setObject(41, ResultSetAdapters.id( row ) ) // n_TIMESTAMPTZ
+        ps.setObject(42, ResultSetAdapters.id( row ) ) // n_DOUBLE
+        ps.setObject(43, ResultSetAdapters.id( row ) ) // n_BOOLEAN
+        ps.setObject(44, ResultSetAdapters.id( row ) ) // n_TEXT
     }
 
-    companion object {
-        val pkeyCols = PostgresDataTables.buildDataTableDefinition().primaryKey.map { it.name }
-
-        val cols = PostgresDataTables.dataTableColumns.map{ it.name }
-
-        val INSERT_SQL = "INSERT INTO data (" +
-                cols.joinToString(",") +
-                ") VALUES (" +
-                cols.joinToString{"?"} +
-                ") ON CONFLICT (" +
-                pkeyCols.joinToString(",")+
-                ") DO UPDATE SET " +
-                cols.joinToString { col -> "$col = EXCLUDED.$col" }
+    override fun getSupportedVersion(): Long {
+        return Version.V2019_06_14.value
     }
-
 }
