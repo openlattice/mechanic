@@ -5,6 +5,7 @@ import com.openlattice.postgres.PostgresDataTables
 import com.openlattice.postgres.ResultSetAdapters
 import java.sql.PreparedStatement
 import java.sql.ResultSet
+import java.util.*
 
 class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade {
 
@@ -62,7 +63,7 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
                     ).use { rs ->
                         while (rs.next()){
                             conn.prepareStatement(INSERT_SQL).use { ps ->
-                                mapRow(ps, rs)
+                                mapRow(ps, rs, propertyEntry.key)
                                 val numUpdates = ps.executeUpdate()
                                 if ( numUpdates != 1 ){
                                     // rollback
@@ -81,17 +82,19 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
         return true
     }
 
-    fun mapRow(ps: PreparedStatement, row: ResultSet ) {
-        ps.setObject(0, ResultSetAdapters.entitySetId( row ) ) // entity_set_id
-        ps.setObject(1, ResultSetAdapters.id( row ) ) // id
-        ps.setObject(2, ResultSetAdapters.id( row ) ) // partition
-        ps.setObject(3, ResultSetAdapters.id( row ) ) // property_type_id
-        ps.setObject(4, ResultSetAdapters.id( row ) ) // hash
-        ps.setObject(5, ResultSetAdapters.id( row ) ) // last_write
-        ps.setObject(6, ResultSetAdapters.id( row ) ) // last_link_index
-        ps.setObject(7, ResultSetAdapters.id( row ) ) // version
-        ps.setObject(8, ResultSetAdapters.id( row ) ) // versions
-        ps.setObject(9, ResultSetAdapters.id( row ) ) // b_TEXT
+    fun mapRow(ps: PreparedStatement, row: ResultSet, propertyTypeId: UUID) {
+        val propertyMetadata = ResultSetAdapters.propertyMetadata(row)
+        ps.setObject(0, ResultSetAdapters.entitySetId( row ) )      // entity_set_id
+        ps.setObject(1, ResultSetAdapters.id( row ) )               // id
+        ps.setObject(2, ResultSetAdapters.id( row ) )               // partition TODO
+        ps.setObject(3, propertyTypeId )                            // property_type_id
+        ps.setObject(4, propertyMetadata.hash )                     // hash
+        ps.setObject(5, propertyMetadata.lastWrite )                // last_write
+        ps.setObject(6, ResultSetAdapters.lastLinkIndex( row ) )    // last_link_index
+        ps.setObject(7, propertyMetadata.version )                  // version
+        ps.setObject(8, propertyMetadata.versions )                 // versions
+//      vv TODO vv
+        ps.setObject(9, ResultSetAdapters.id( row ) )  // b_TEXT
         ps.setObject(10, ResultSetAdapters.id( row ) ) // b_UUID
         ps.setObject(11, ResultSetAdapters.id( row ) ) // b_TEXT
         ps.setObject(12, ResultSetAdapters.id( row ) ) // b_SMALLINT
