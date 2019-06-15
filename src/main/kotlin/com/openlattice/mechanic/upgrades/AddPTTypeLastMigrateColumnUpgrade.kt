@@ -72,10 +72,7 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
                         "SELECT * FROM pt_ $propertyId WHERE last_migrate < last_write"
                     ).use {
                         // migrate rows
-                        conn.createStatement().use { stmt ->
-                            stmt.execute(
-                                "INSERT INTO $newTableName () VALUES (?,?,?,?,?,?) ON CONFLICT DO UPDATE SET"
-                            )
+                        conn.prepareStatement(INSERT_SQL).use { ps ->
                         }
                     }
                 }
@@ -85,4 +82,6 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
 
         return true
     }
+
+    val INSERT_SQL = "INSERT INTO $newTableName () VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO UPDATE SET"
 }
