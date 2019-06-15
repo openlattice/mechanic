@@ -1,8 +1,11 @@
 package com.openlattice.mechanic.upgrades
 
+import com.openlattice.edm.type.PropertyType
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.postgres.IndexType
 import com.openlattice.postgres.PostgresDataTables
 import com.openlattice.postgres.ResultSetAdapters
+import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.util.*
@@ -63,7 +66,7 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
                     ).use { rs ->
                         while (rs.next()){
                             conn.prepareStatement(INSERT_SQL).use { ps ->
-                                mapRow(ps, rs, propertyEntry.key)
+                                mapRow(ps, rs, propertyEntry.key, propertyEntry.value)
                                 val numUpdates = ps.executeUpdate()
                                 if ( numUpdates != 1 ){
                                     // rollback
@@ -82,18 +85,26 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
         return true
     }
 
-    fun mapRow(ps: PreparedStatement, row: ResultSet, propertyTypeId: UUID) {
-        val propertyMetadata = ResultSetAdapters.propertyMetadata(row)
+    fun mapRow(ps: PreparedStatement, row: ResultSet, propTypeId: UUID, propType: PropertyType) {
+        val propMetadata = ResultSetAdapters.propertyMetadata(row)
         ps.setObject(0, ResultSetAdapters.entitySetId( row ) )      // entity_set_id
         ps.setObject(1, ResultSetAdapters.id( row ) )               // id
         ps.setObject(2, ResultSetAdapters.id( row ) )               // partition TODO
-        ps.setObject(3, propertyTypeId )                            // property_type_id
-        ps.setObject(4, propertyMetadata.hash )                     // hash
-        ps.setObject(5, propertyMetadata.lastWrite )                // last_write
+        ps.setObject(3, propTypeId )                                // property_type_id
+        ps.setObject(4, propMetadata.hash )                         // hash
+        ps.setObject(5, propMetadata.lastWrite )                    // last_write
         ps.setObject(6, ResultSetAdapters.lastLinkIndex( row ) )    // last_link_index
-        ps.setObject(7, propertyMetadata.version )                  // version
-        ps.setObject(8, propertyMetadata.versions )                 // versions
-//      vv TODO vv
+        ps.setObject(7, propMetadata.version )                      // version
+        ps.setObject(8, propMetadata.versions )                     // versions
+
+        propType.datatype
+        when (propType.postgresIndexType) {
+            IndexType.BTREE -> mapValueFromTypeWithOffset( ps, row, propType, 0 )
+            IndexType.GIN -> mapValueFromTypeWithOffset( ps, row, propType, 12 )
+            IndexType.NONE -> mapValueFromTypeWithOffset( ps, row, propType, 24 )
+        }
+
+//      vv TODO: null out the un-set ones? modify the insert query to just take one col? vv
         ps.setObject(9, ResultSetAdapters.id( row ) )  // b_TEXT
         ps.setObject(10, ResultSetAdapters.id( row ) ) // b_UUID
         ps.setObject(11, ResultSetAdapters.id( row ) ) // b_TEXT
@@ -106,6 +117,7 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
         ps.setObject(18, ResultSetAdapters.id( row ) ) // b_DOUBLE
         ps.setObject(19, ResultSetAdapters.id( row ) ) // b_BOOLEAN
         ps.setObject(20, ResultSetAdapters.id( row ) ) // b_TEXT
+
         ps.setObject(21, ResultSetAdapters.id( row ) ) // g_TEXT
         ps.setObject(22, ResultSetAdapters.id( row ) ) // g_UUID
         ps.setObject(23, ResultSetAdapters.id( row ) ) // g_TEXT
@@ -118,6 +130,7 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
         ps.setObject(30, ResultSetAdapters.id( row ) ) // g_DOUBLE
         ps.setObject(31, ResultSetAdapters.id( row ) ) // g_BOOLEAN
         ps.setObject(32, ResultSetAdapters.id( row ) ) // g_TEXT
+
         ps.setObject(33, ResultSetAdapters.id( row ) ) // n_TEXT
         ps.setObject(34, ResultSetAdapters.id( row ) ) // n_UUID
         ps.setObject(35, ResultSetAdapters.id( row ) ) // n_TEXT
@@ -130,6 +143,26 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
         ps.setObject(42, ResultSetAdapters.id( row ) ) // n_DOUBLE
         ps.setObject(43, ResultSetAdapters.id( row ) ) // n_BOOLEAN
         ps.setObject(44, ResultSetAdapters.id( row ) ) // n_TEXT
+
+    }
+
+    private fun mapValueFromTypeWithOffset(ps: PreparedStatement, row: ResultSet, propType: PropertyType, offset: Int) {
+        val ptFQN = propType.type.fullQualifiedNameAsString
+        when(propType.datatype) {
+            EdmPrimitiveTypeKind.String ->  ps.setObject(9 + offset, row.getObject(ptFQN) )          // _TEXT
+            EdmPrimitiveTypeKind.Guid ->    ps.setObject(10 + offset, row.getObject(ptFQN) )         // _UUID
+            EdmPrimitiveTypeKind.Byte ->    ps.setObject(11 + offset, row.getObject(ptFQN) )         // _TEXT
+            EdmPrimitiveTypeKind.Int16 ->   ps.setObject(12 + offset, row.getObject(ptFQN) )         // _SMALLINT
+            EdmPrimitiveTypeKind.Int32 ->   ps.setObject(13 + offset, row.getObject(ptFQN) )         // _INTEGER
+            EdmPrimitiveTypeKind.Duration ->ps.setObject(14 + offset, row.getObject(ptFQN) )         // _BIGINT
+            EdmPrimitiveTypeKind.Int64 ->   ps.setObject(15 + offset, row.getObject(ptFQN) )         // _BIGINT
+            EdmPrimitiveTypeKind.Date ->    ps.setObject(16 + offset, row.getObject(ptFQN) )         // _DATE
+            EdmPrimitiveTypeKind.DateTimeOffset ->  ps.setObject(17 + offset, row.getObject(ptFQN) ) // _TIMESTAMPTZ
+            EdmPrimitiveTypeKind.Double ->  ps.setObject(18 + offset, row.getObject(ptFQN) )         // _DOUBLE
+            EdmPrimitiveTypeKind.Boolean -> ps.setObject(19 + offset, row.getObject(ptFQN) )         // _BOOLEAN
+            EdmPrimitiveTypeKind.Binary ->  ps.setObject(20 + offset, row.getObject(ptFQN) )         // _TEXT
+            else -> ""
+        }
     }
 
     override fun getSupportedVersion(): Long {
