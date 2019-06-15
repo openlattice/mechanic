@@ -37,15 +37,16 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
                 // select rows to migrate
                 conn.createStatement().use { stmt ->
                     stmt.fetchSize = BATCH_SIZE
-                    val rs = stmt.executeQuery(
+                    stmt.executeQuery(
                             "SELECT * FROM pt_$propertyId WHERE last_migrate < last_write"
-                    )
-                    conn.prepareStatement(INSERT_SQL).use { ps ->
-                        var index = 0;
-                        while(index < BATCH_SIZE && rs.last()) {
-                            addRow(ps, rs)
+                    ).use { rs ->
+                        while (rs.next()){
+                            conn.prepareStatement(INSERT_SQL).use { ps ->
+                                mapRow(ps, rs)
+                                val numUpdates = ps.executeUpdate()
+                                conn.commit()
+                            }
                         }
-                        val numUpdates = ps.executeUpdate()
                     }
                 }
                 // migrate rows
@@ -56,7 +57,7 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
         return true
     }
 
-    fun addRow(ps: PreparedStatement, row: ResultSet ) {
+    fun mapRow(ps: PreparedStatement, row: ResultSet ) {
         ps.setObject(0, ResultSetAdapters.id( row ) )
         ps.setObject(1, ResultSetAdapters.entitySetId( row ) )
     }
