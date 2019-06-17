@@ -3,6 +3,7 @@ package com.openlattice.mechanic.upgrades
 import com.openlattice.edm.type.PropertyType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.IndexType
+import com.openlattice.postgres.PostgresDataTables
 import com.openlattice.postgres.ResultSetAdapters
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind
 import java.sql.PreparedStatement
@@ -10,6 +11,25 @@ import java.sql.ResultSet
 import java.util.*
 
 class MigratePropertyValuesToDataTable (private val toolbox: Toolbox) : Upgrade {
+
+    companion object {
+        val BATCH_SIZE = 1 shl 10 // 2048
+
+        val tableName = PostgresDataTables.buildDataTableDefinition().name
+
+        val pkeyCols = PostgresDataTables.buildDataTableDefinition().primaryKey.map { it.name }
+
+        val cols = PostgresDataTables.dataTableColumns.map{ it.name }
+
+        val INSERT_SQL = "INSERT INTO $tableName (" +
+                cols.joinToString(",") +
+                ") VALUES (" +
+                cols.joinToString{"?"} +
+                ") ON CONFLICT (" +
+                pkeyCols.joinToString(",")+
+                ") DO UPDATE SET " +
+                cols.joinToString { col -> "$col = EXCLUDED.$col" }
+    }
 
     override fun upgrade(): Boolean {
 
@@ -22,12 +42,12 @@ class MigratePropertyValuesToDataTable (private val toolbox: Toolbox) : Upgrade 
                 val propertyId = propertyEntry.key
                 // select rows to migrate
                 conn.createStatement().use { stmt ->
-                    stmt.fetchSize = AddPTTypeLastMigrateColumnUpgrade.BATCH_SIZE
+                    stmt.fetchSize = BATCH_SIZE
                     stmt.executeQuery(
                             "SELECT * FROM pt_$propertyId WHERE last_migrate < last_write"
                     ).use { rs ->
                         while (rs.next()) {
-                            conn.prepareStatement(AddPTTypeLastMigrateColumnUpgrade.INSERT_SQL).use { ps ->
+                            conn.prepareStatement(INSERT_SQL).use { ps ->
                                 mapRow(ps, rs, propertyEntry.key, propertyEntry.value)
                                 val numUpdates = ps.executeUpdate()
                                 if (numUpdates != 1) {
