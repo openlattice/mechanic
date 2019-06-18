@@ -7,7 +7,7 @@ import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresColumnsIndexDefinition
 import com.openlattice.postgres.PostgresExpressionIndexDefinition
 import com.openlattice.postgres.PostgresTable.ENTITY_SETS
-import com.openlattice.postgres.PostgresTable.IDS
+import com.openlattice.postgres.PostgresTable.ENTITY_KEY_IDS
 import org.slf4j.LoggerFactory
 import java.util.concurrent.Callable
 
@@ -24,10 +24,10 @@ class LinkedEntityIndexing(private val toolbox: Toolbox) : Upgrade {
     }
 
     private fun addLastLinkIndexColumn() {
-        logger.info("Starting to add ${LAST_LINK_INDEX.name} column to ${IDS.name} table")
+        logger.info("Starting to add ${LAST_LINK_INDEX.name} column to ${ENTITY_KEY_IDS.name} table")
 
         val updateStatement =
-                "alter table ${IDS.name} " +
+                "alter table ${ENTITY_KEY_IDS.name} " +
                         "add column if not exists ${LAST_LINK_INDEX.name} timestamp with time zone " +
                         "not null " +
                         "default '-infinity'::timestamp with time zone; "
@@ -45,17 +45,17 @@ class LinkedEntityIndexing(private val toolbox: Toolbox) : Upgrade {
 
     private fun addNewIndicesToEntityKeys() {
         logger.info("Starting to add entity_key_ids_needing_linking_indexing_idx and " +
-                "entity_key_ids_last_link_index_idx index to ${IDS.name} table")
+                "entity_key_ids_last_link_index_idx index to ${ENTITY_KEY_IDS.name} table")
 
-        val linkingEntitiesNeededIndexing = PostgresExpressionIndexDefinition(IDS,
-                ENTITY_SET_ID.name
+        val linkingEntitiesNeededIndexing = PostgresExpressionIndexDefinition(ENTITY_KEY_IDS,
+                                                                              ENTITY_SET_ID.name
                         + ", ( ${LINKING_ID.name} IS NOT NULL )"
                         + ", ( ${LAST_LINK.name} >= ${LAST_WRITE.name} )"
                         + ", ( ${LAST_INDEX.name} >= ${LAST_WRITE.name} )"
                         + ", ( ${LAST_LINK_INDEX.name} < ${LAST_WRITE.name} )")
                 .name("entity_key_ids_needing_linking_indexing_idx")
                 .ifNotExists()
-        val lastLinkIndex = PostgresColumnsIndexDefinition(IDS, LAST_LINK_INDEX)
+        val lastLinkIndex = PostgresColumnsIndexDefinition(ENTITY_KEY_IDS, LAST_LINK_INDEX)
                 .name("entity_key_ids_last_link_index_idx")
                 .ifNotExists()
 

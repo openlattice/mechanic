@@ -81,7 +81,7 @@ class RemoveEntitiesSinceDate(private val toolbox: Toolbox) : Upgrade {
         toolbox.hds.connection.use {
             it.createStatement().use { stmt ->
 
-                stmt.execute(deleteFromTableOnIdCol(PostgresTable.IDS.name, PostgresColumn.ID.name))
+                stmt.execute(deleteFromTableOnIdCol(PostgresTable.ENTITY_KEY_IDS.name, PostgresColumn.ID.name))
 
             }
         }
@@ -92,7 +92,7 @@ class RemoveEntitiesSinceDate(private val toolbox: Toolbox) : Upgrade {
 
 
     private fun loadSynclessEntityKeyIds(latestValidVersion: Long): String {
-        return "INSERT INTO $SYNCLESS_ENTITY_KEY_IDS_TABLE SELECT ${PostgresColumn.ID.name} FROM ${PostgresTable.IDS.name} " +
+        return "INSERT INTO $SYNCLESS_ENTITY_KEY_IDS_TABLE SELECT ${PostgresColumn.ID.name} FROM ${PostgresTable.ENTITY_KEY_IDS.name} " +
                 " ${versionsClause(latestValidVersion)} ON CONFLICT DO NOTHING"
     }
 
