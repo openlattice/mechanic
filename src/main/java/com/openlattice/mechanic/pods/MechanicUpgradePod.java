@@ -160,6 +160,11 @@ public class MechanicUpgradePod {
     }
 
     @Bean
+    AddPTTypeLastMigrateColumnUpgrade AddPTTypeLastMigrateColumnUpgrade() {
+        return new AddPTTypeLastMigrateColumnUpgrade( toolbox() );
+    }
+
+    @Bean
     EntitySetFlags entitySetFlags() {
         return new EntitySetFlags( toolbox() );
     }
