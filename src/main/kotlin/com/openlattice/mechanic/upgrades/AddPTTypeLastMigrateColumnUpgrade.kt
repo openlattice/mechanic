@@ -11,10 +11,10 @@ class LastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade {
         toolbox.hds.connection.use {conn ->
             conn.autoCommit = true
             toolbox.propertyTypes.keys.forEach {propertyTypeId ->
-                val propertyTable = quote(propertyTableName(propertyTypeId))
+                val table = quote(propertyTableName(propertyTypeId))
                 conn.createStatement().use { statement ->
                     statement.execute(
-                        "ALTER TABLE $propertyTable ADD COLUMN last_migrate timestamp with time zone NOT NULL DEFAULT '-infinity'"
+                        "ALTER TABLE $table ADD COLUMN last_migrate timestamp with time zone NOT NULL DEFAULT '-infinity'"
                     )
                 }
             }

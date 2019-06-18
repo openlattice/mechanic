@@ -1,18 +1,16 @@
 package com.openlattice.mechanic.upgrades
 
+
 import com.openlattice.data.storage.getColumnDefinition
 import com.openlattice.edm.type.PropertyType
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.*
 import com.openlattice.postgres.DataTables.propertyTableName
 import com.openlattice.postgres.DataTables.quote
+import com.openlattice.postgres.IndexType
+import com.openlattice.postgres.PostgresDataTables
 import com.openlattice.postgres.PostgresTable.DATA
 import com.openlattice.postgres.PostgresTable.ENTITY_SETS
-import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind
 import org.slf4j.LoggerFactory
-import java.sql.PreparedStatement
-import java.sql.ResultSet
-import java.util.*
 
 class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 
@@ -23,9 +21,15 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
     override fun upgrade(): Boolean {
         toolbox.hds.connection.use { conn ->
             toolbox.propertyTypes.entries.forEach { (propertyTypeId, propertyType) ->
-                val insertSql = getInsertQuery( propertyType )
+                val insertSql = getInsertQuery(propertyType)
                 val inserted = conn.createStatement().executeUpdate(insertSql)
-                logger.info("Inserted {} properties into DATA table of type {} ({})", inserted, propertyType.type.fullQualifiedNameAsString, propertyTypeId)
+                logger.info(
+                        "Inserted {} properties into DATA table of type {} ({})",
+                        inserted,
+                        propertyType.type.fullQualifiedNameAsString,
+                        propertyTypeId
+                )
+
             }
         }
 
@@ -36,7 +40,7 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
         val col = getColumnDefinition(IndexType.NONE, propertyType.datatype)
         val selectCols = PostgresDataTables.dataTableMetadataColumns.joinToString(",")
         val propertyTable = quote(propertyTableName(propertyType.id))
-        val propertyColumn = quote( propertyType.type.fullQualifiedNameAsString )
+        val propertyColumn = quote(propertyType.type.fullQualifiedNameAsString)
         return "INSERT INTO ${DATA.name} (${PostgresDataTables.dataTableMetadataColumns},${col.name}) " +
                 "SELECT $selectCols,$propertyColumn FROM $propertyTable INNER JOIN (select id as entity_set_id, partitions, partition_versions) as ${ENTITY_SETS.name} USING(entity_set_id)"
     }
