@@ -160,8 +160,8 @@ public class MechanicUpgradePod {
     }
 
     @Bean
-    AddPTTypeLastMigrateColumnUpgrade AddPTTypeLastMigrateColumnUpgrade() {
-        return new AddPTTypeLastMigrateColumnUpgrade( toolbox() );
+    LastMigrateColumnUpgrade lastMigrateColumnUpgrade() {
+        return new LastMigrateColumnUpgrade( toolbox() );
     }
 
     @Bean
