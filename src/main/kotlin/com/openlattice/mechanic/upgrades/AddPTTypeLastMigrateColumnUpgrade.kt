@@ -1,6 +1,8 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.postgres.DataTables.propertyTableName
+import com.openlattice.postgres.DataTables.quote
 
 class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade {
 
@@ -10,8 +12,9 @@ class AddPTTypeLastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade 
             conn.autoCommit = true
             toolbox.propertyTypes.keys.forEach {propertyTypeId ->
                 conn.createStatement().use { statement ->
+                    val table = quote(propertyTableName(propertyTypeId))
                     statement.execute(
-                        "ALTER TABLE pt_$propertyTypeId ADD COLUMN last_migrate timestamp with time zone NOT NULL DEFAULT '-infinity'::timestamptz"
+                        "ALTER TABLE $table ADD COLUMN last_migrate timestamp with time zone NOT NULL DEFAULT '-infinity'::timestamptz"
                     )
                 }
             }

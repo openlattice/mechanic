@@ -2,15 +2,18 @@ package com.openlattice.mechanic.upgrades
 
 import com.openlattice.edm.type.PropertyType
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.postgres.DataTables.propertyTableName
+import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.IndexType
 import com.openlattice.postgres.PostgresDataTables
 import com.openlattice.postgres.ResultSetAdapters
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind
 import java.sql.PreparedStatement
 import java.sql.ResultSet
+import java.sql.Types
 import java.util.*
 
-class MigratePropertyValuesToDataTable (private val toolbox: Toolbox) : Upgrade {
+class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 
     companion object {
         val BATCH_SIZE = 1 shl 10 // 2048
@@ -39,12 +42,13 @@ class MigratePropertyValuesToDataTable (private val toolbox: Toolbox) : Upgrade 
             conn.autoCommit = false
 
             toolbox.propertyTypes.entries.forEach { propertyEntry ->
-                val propertyId = propertyEntry.key
+                val propertyTypeId = propertyEntry.key
                 // select rows to migrate
                 conn.createStatement().use { stmt ->
                     stmt.fetchSize = BATCH_SIZE
+                    val table = quote(propertyTableName(propertyTypeId))
                     stmt.executeQuery(
-                            "SELECT * FROM pt_$propertyId WHERE last_migrate < last_write"
+                            "SELECT * FROM $table WHERE last_migrate < last_write"
                     ).use { rs ->
                         while (rs.next()) {
                             conn.prepareStatement(INSERT_SQL).use { ps ->
