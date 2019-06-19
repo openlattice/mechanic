@@ -7,10 +7,12 @@ import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.propertyTableName
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.IndexType
+import com.openlattice.postgres.PostgresColumn
 import com.openlattice.postgres.PostgresDataTables
 import com.openlattice.postgres.PostgresTable.DATA
 import com.openlattice.postgres.PostgresTable.ENTITY_SETS
 import org.slf4j.LoggerFactory
+import java.util.*
 
 class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 
@@ -35,18 +37,23 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
         return true
     }
 
-    private val GET_ENTITY_SET_COUNT = "SELECT count FROM entity_set_counts WHERE ${ENTITY_SET_ID.name} = ?"
+    private val GET_ENTITY_SET_COUNT = "SELECT count FROM entity_set_counts WHERE id = ?"
 
-    fun generatePartitionIDs() {
-        toolbox.entitySets.keys.map{ esid ->
+    fun getESSizes(): Map<UUID, Long> {
+        return toolbox.entitySets.keys.map { esid ->
             toolbox.hds.connection.use { conn ->
-                conn.prepareStatement(GET_ENTITY_SET_COUNT ).use { stmt ->
+                conn.prepareStatement(GET_ENTITY_SET_COUNT).use { stmt ->
                     stmt.setObject(0, esid)
                     stmt.executeQuery().use { rs ->
+                        if (rs.next()) {
+                            val count = rs.getLong(1)
+                            return@map esid to count
+                        }
+                        return@map esid to 0L
                     }
                 }
             }
-        }
+        }.toMap()
     }
 
     fun getInsertQuery(propertyType: PropertyType): String {
