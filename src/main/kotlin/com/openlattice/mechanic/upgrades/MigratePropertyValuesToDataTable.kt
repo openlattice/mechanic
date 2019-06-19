@@ -43,7 +43,7 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 
     private val GET_ENTITY_SET_COUNT = "SELECT $COUNT FROM entity_set_counts WHERE ${ENTITY_SET_ID.name} = ?"
 
-    fun getESSizes(): Map<UUID, Long> {
+    fun getESSizes(): Map<UUID, MutableList<List<IntRange>>> {
         return toolbox.entitySets.keys.map { esid ->
             toolbox.hds.connection.use { conn ->
                 conn.prepareStatement(GET_ENTITY_SET_COUNT).use { stmt ->
@@ -54,22 +54,22 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
                             if ( count > THE_BIG_ONE ){
                                 THE_BIG_ONE = count;
                             }
-                            return@map esid to count
+                            return@map esid to getPartitionValues( count )
                         }
-                        return@map esid to 0L
+                        return@map esid to getPartitionValues( 0L)
                     }
                 }
             }
         }.toMap()
     }
 
-    fun getPartitionValues( esSize: Int ): MutableList<List<IntRange>> {
-        val spread = Math.ceil(THE_BIG_ONE / esSize.toDouble()).toInt()
+    fun getPartitionValues(esSize: Long): MutableList<List<IntRange>> {
+        val spread = Math.ceil(esSize.toDouble() / THE_BIG_ONE).toInt()
         var numChunks = PRIMEY_BOI / spread
         var actualChunks = mutableListOf(1..PRIMEY_BOI) // need MutableList for the shuffle
         actualChunks.shuffle()
 
-        val finalList = arrayListOf<List<IntRange>>()
+        val finalList = mutableListOf<List<IntRange>>()
         while (numChunks > 0 ){
             val chunk = actualChunks.take(spread)
             finalList.add(chunk)
