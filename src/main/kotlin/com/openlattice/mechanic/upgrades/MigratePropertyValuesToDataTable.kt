@@ -36,6 +36,20 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
         return true
     }
 
+    prvate val GET_ENTITY_SET_COUNT = "SELECT count FROM entity_set_counts WHERE ${ENTITY_SET_ID.name} = ?"
+
+    fun generatePartitionIDs() {
+        toolbox.entitySets.keys.map{ esid ->
+            toolbox.hds.connection.use { conn ->
+                conn.prepareStatement(GET_ENTITY_SET_COUNT ).use { stmt ->
+                    stmt.setObject(0, esid)
+                    stmt.executeQuery().use { rs ->
+                    }
+                }
+            }
+        }
+    }
+
     fun getInsertQuery(propertyType: PropertyType): String {
         val col = getColumnDefinition(IndexType.NONE, propertyType.datatype)
         val selectCols = PostgresDataTables.dataTableMetadataColumns.joinToString(",")
