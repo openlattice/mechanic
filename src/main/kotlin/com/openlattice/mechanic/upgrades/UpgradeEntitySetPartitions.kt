@@ -35,7 +35,7 @@ class UpgradeEntitySetPartitions(private val toolbox: Toolbox) : Upgrade {
                 entitySet.setPartitions(partitions)
                 toolbox.esms.store(entitySetId, entitySet)
                 logger.info(
-                        "Partitiosn for entity set {} ({}) => ({},{})",
+                        "Partitions for entity set {} ({}) => ({},{})",
                         entitySet.name,
                         entitySet.id,
                         entitySet.partitions,
