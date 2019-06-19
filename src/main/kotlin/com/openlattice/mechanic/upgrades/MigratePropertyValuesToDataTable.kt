@@ -17,6 +17,7 @@ import java.util.*
 class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 
     companion object {
+        private var THE_BIG_ONE = 0L
         private val logger = LoggerFactory.getLogger(MigratePropertyValuesToDataTable::class.java)
     }
 
@@ -47,6 +48,9 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
                     stmt.executeQuery().use { rs ->
                         if (rs.next()) {
                             val count = rs.getLong(1)
+                            if ( count > THE_BIG_ONE ){
+                                THE_BIG_ONE = count;
+                            }
                             return@map esid to count
                         }
                         return@map esid to 0L
