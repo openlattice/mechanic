@@ -37,7 +37,7 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
         return true
     }
 
-    private val GET_ENTITY_SET_COUNT = "SELECT count FROM entity_set_counts WHERE id = ?"
+    private val GET_ENTITY_SET_COUNT = "SELECT $COUNT FROM entity_set_counts WHERE ${ENTITY_SET_ID.name} = ?"
 
     fun getESSizes(): Map<UUID, Long> {
         return toolbox.entitySets.keys.map { esid ->
