@@ -3,9 +3,9 @@ package com.openlattice.mechanic.upgrades
 
 import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.PostgresColumn.*
+import com.openlattice.postgres.PostgresColumn.ENTITY_SET_ID
+import com.openlattice.postgres.PostgresColumn.FLAGS
 import com.openlattice.postgres.PostgresTable.ENTITY_KEY_IDS
-import com.openlattice.postgres.PostgresTable.ENTITY_SETS
 import com.openlattice.postgres.ResultSetAdapters
 import com.openlattice.postgres.streams.BasePostgresIterable
 import com.openlattice.postgres.streams.StatementHolderSupplier
@@ -84,7 +84,8 @@ class UpgradeEntitySetPartitions(private val toolbox: Toolbox) : Upgrade {
                 UUID.fromString("b47a9f9a-60eb-42c1-9cb2-02957aaa80de") -> PARTITION_RANGE.toList()
                 //Chronicle data sets
                 UUID.fromString("fda9b1c1-6cea-4130-8d86-057e659bb9ea"),
-                UUID.fromString("671ec7c3-99a1-423b-98ff-c7e2b3ea6efc") -> PARTITION_RANGE.toList()
+                UUID.fromString("671ec7c3-99a1-423b-98ff-c7e2b3ea6efc"),
+                UUID.fromString("d960f6c4-08b7-4d75-af18-396af170639d") -> PARTITION_RANGE.toList()
                 else -> getPartitionValues(entitySetInfo.count)
             }
         }
