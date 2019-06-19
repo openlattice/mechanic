@@ -7,12 +7,12 @@ import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.propertyTableName
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.IndexType
-import com.openlattice.postgres.PostgresColumn
-import com.openlattice.postgres.PostgresColumn.COUNT
 import com.openlattice.postgres.PostgresColumn.ENTITY_SET_ID
 import com.openlattice.postgres.PostgresDataTables
-import com.openlattice.postgres.PostgresTable.DATA
-import com.openlattice.postgres.PostgresTable.ENTITY_SETS
+import com.openlattice.postgres.PostgresTable.*
+import com.openlattice.postgres.ResultSetAdapters
+import com.openlattice.postgres.streams.BasePostgresIterable
+import com.openlattice.postgres.streams.StatementHolderSupplier
 import org.slf4j.LoggerFactory
 import java.util.*
 
@@ -41,54 +41,17 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
         return true
     }
 
-    private val GET_ENTITY_SET_COUNT = "SELECT $COUNT FROM entity_set_counts WHERE ${ENTITY_SET_ID.name} = ?"
-
-    fun getESSizes(): Map<UUID, MutableList<List<IntRange>>> {
-        return toolbox.entitySets.keys.map { esid ->
-            toolbox.hds.connection.use { conn ->
-                conn.prepareStatement(GET_ENTITY_SET_COUNT).use { stmt ->
-                    stmt.setObject(0, esid)
-                    stmt.executeQuery().use { rs ->
-                        if (rs.next()) {
-                            val count = rs.getLong(1)
-                            if ( count > THE_BIG_ONE ){
-                                THE_BIG_ONE = count;
-                            }
-                            return@map esid to getPartitionValues( count )
-                        }
-                        return@map esid to getPartitionValues( 0L)
-                    }
-                }
-            }
-        }.toMap()
-    }
-
-    fun getPartitionValues(esSize: Long): MutableList<List<IntRange>> {
-        val spread = Math.ceil(esSize.toDouble() / THE_BIG_ONE).toInt()
-        var numChunks = PRIMEY_BOI / spread
-        var actualChunks = mutableListOf(1..PRIMEY_BOI) // need MutableList for the shuffle
-        actualChunks.shuffle()
-
-        val finalList = mutableListOf<List<IntRange>>()
-        while (numChunks > 0 ){
-            val chunk = actualChunks.take(spread)
-            finalList.add(chunk)
-            actualChunks = actualChunks.takeLast( actualChunks.size - spread ).toMutableList()
-            numChunks--
-        }
-        return finalList
-    }
-
-    fun getInsertQuery(propertyType: PropertyType): String {
+    private fun getInsertQuery(propertyType: PropertyType): String {
         val col = getColumnDefinition(IndexType.NONE, propertyType.datatype)
         val selectCols = PostgresDataTables.dataTableMetadataColumns.joinToString(",")
         val propertyTable = quote(propertyTableName(propertyType.id))
         val propertyColumn = quote(propertyType.type.fullQualifiedNameAsString)
         return "INSERT INTO ${DATA.name} (${PostgresDataTables.dataTableMetadataColumns},${col.name}) " +
-                "SELECT $selectCols,$propertyColumn FROM $propertyTable INNER JOIN (select id as entity_set_id, partitions, partition_versions) as ${ENTITY_SETS.name} USING(entity_set_id)"
+                "SELECT $selectCols,$propertyColumn FROM $propertyTable INNER JOIN (select id as entity_set_id, partitions, partition_versions from ${ENTITY_SETS.name}) as ${ENTITY_SETS.name} USING(entity_set_id)"
     }
 
     override fun getSupportedVersion(): Long {
         return Version.V2019_07_01.value
     }
 }
+

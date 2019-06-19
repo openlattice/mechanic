@@ -7,7 +7,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.kryptnostic.rhizome.configuration.amazon.AmazonLaunchConfiguration
 import com.kryptnostic.rhizome.configuration.amazon.AwsLaunchConfiguration
 import com.openlattice.ResourceConfigurationLoader
-import com.openlattice.data.storage.AwsBlobDataService
+import com.openlattice.data.storage.aws.AwsBlobDataService
 import com.openlattice.data.storage.ByteBlobDataManager
 import com.openlattice.data.util.PostgresDataHasher
 import com.openlattice.datastore.configuration.DatastoreConfiguration

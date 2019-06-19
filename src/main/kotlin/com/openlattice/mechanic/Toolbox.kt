@@ -37,7 +37,7 @@ class Toolbox(
         val hds: HikariDataSource,
         private val ptms: PropertyTypeMapstore,
         private val etms: EntityTypeMapstore,
-        private val esms: EntitySetMapstore,
+        internal val esms: EntitySetMapstore,
         val executor: ListeningExecutorService
 ) {
     val entitySets = esms.loadAllKeys().map { it to esms.load(it) }.toMap()
