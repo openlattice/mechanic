@@ -8,6 +8,8 @@ import com.openlattice.postgres.DataTables.propertyTableName
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.IndexType
 import com.openlattice.postgres.PostgresColumn
+import com.openlattice.postgres.PostgresColumn.COUNT
+import com.openlattice.postgres.PostgresColumn.ENTITY_SET_ID
 import com.openlattice.postgres.PostgresDataTables
 import com.openlattice.postgres.PostgresTable.DATA
 import com.openlattice.postgres.PostgresTable.ENTITY_SETS
@@ -18,6 +20,7 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 
     companion object {
         private var THE_BIG_ONE = 0L
+        private var PRIMEY_BOI = 127
         private val logger = LoggerFactory.getLogger(MigratePropertyValuesToDataTable::class.java)
     }
 
@@ -58,6 +61,22 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
                 }
             }
         }.toMap()
+    }
+
+    fun getPartitionValues( esSize: Int ): MutableList<List<IntRange>> {
+        val spread = Math.ceil(THE_BIG_ONE / esSize.toDouble()).toInt()
+        var numChunks = PRIMEY_BOI / spread
+        var actualChunks = mutableListOf(1..PRIMEY_BOI) // need MutableList for the shuffle
+        actualChunks.shuffle()
+
+        val finalList = arrayListOf<List<IntRange>>()
+        while (numChunks > 0 ){
+            val chunk = actualChunks.take(spread)
+            finalList.add(chunk)
+            actualChunks = actualChunks.takeLast( actualChunks.size - spread ).toMutableList()
+            numChunks--
+        }
+        return finalList
     }
 
     fun getInsertQuery(propertyType: PropertyType): String {
