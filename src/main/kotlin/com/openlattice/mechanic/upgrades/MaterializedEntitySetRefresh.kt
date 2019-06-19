@@ -30,9 +30,9 @@ class MaterializedEntitySetRefresh(private val toolbox: Toolbox) : Upgrade {
     }
 
     override fun upgrade(): Boolean {
-        logger.info("Removing unused column dn_name from ${PostgresTable.ORGANIZATION_ASSEMBLIES.name} table")
+        /*logger.info("Removing unused column dn_name from ${PostgresTable.ORGANIZATION_ASSEMBLIES.name} table")
         removeDbNameColumn()
-        logger.info("Finished removing column.")
+        logger.info("Finished removing column.")*/
 
         logger.info("Starting to add columns ${PostgresColumn.REFRESH_RATE.name}, ${PostgresColumn.LAST_REFRESH.name}" +
                 " to ${PostgresTable.MATERIALIZED_ENTITY_SETS.name} table.")
