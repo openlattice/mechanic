@@ -32,11 +32,10 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 
             }
         }
-
         return true
     }
 
-    prvate val GET_ENTITY_SET_COUNT = "SELECT count FROM entity_set_counts WHERE ${ENTITY_SET_ID.name} = ?"
+    private val GET_ENTITY_SET_COUNT = "SELECT count FROM entity_set_counts WHERE ${ENTITY_SET_ID.name} = ?"
 
     fun generatePartitionIDs() {
         toolbox.entitySets.keys.map{ esid ->
