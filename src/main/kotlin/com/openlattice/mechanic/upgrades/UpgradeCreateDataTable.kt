@@ -20,6 +20,7 @@ class UpgradeCreateDataTable(private val toolbox: Toolbox) : Upgrade {
                 stmt.execute(tableDefinition.createTableQuery())
             }
             tableDefinition.createIndexQueries.forEach {indexSql ->
+                indexSql.replace("CONCURRENTLY","")
                 conn.createStatement().use { stmt ->
                     logger.info("Creating index with query {}", indexSql )
                     stmt.execute(indexSql)

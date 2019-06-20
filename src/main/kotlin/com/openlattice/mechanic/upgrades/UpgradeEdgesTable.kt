@@ -34,10 +34,21 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
         val insertCols = E.columns.joinToString(",") { it.name }
 
         val srcPartitionSql = "INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(SRC_ENTITY_SET_ID)
-        val dstPartitionSql = "INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(SRC_ENTITY_SET_ID)
-        val edgePartitionSql = "INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(SRC_ENTITY_SET_ID)
+        val dstPartitionSql = "INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(DST_ENTITY_SET_ID)
+        val edgePartitionSql = "INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(EDGE_ENTITY_SET_ID)
 
-        logger.info( "Src sql ")
+        logger.info("Src sql: {}", srcPartitionSql)
+        logger.info("Dst sql: {}", dstPartitionSql)
+        logger.info("Edge sql: {}", edgePartitionSql)
+
+        toolbox.hds.connection.use { conn ->
+            val srcCount = conn.createStatement().use { it.executeUpdate(srcPartitionSql) }
+            logger.info("Inserted {} edges into src partitions.", srcCount)
+            val dstCount = conn.createStatement().use { it.executeUpdate(dstPartitionSql) }
+            logger.info("Inserted {} edges into dst partitions.", dstCount)
+            val edgeCount = conn.createStatement().use { it.executeUpdate(edgePartitionSql) }
+            logger.info("Inserted {} edges into edge partitions.", edgeCount)
+        }
         return true
     }
 
