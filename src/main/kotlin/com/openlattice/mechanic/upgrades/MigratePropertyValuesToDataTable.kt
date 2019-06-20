@@ -12,6 +12,7 @@ import com.openlattice.postgres.PostgresDataTables.Companion.getColumnDefinition
 import com.openlattice.postgres.PostgresTable.DATA
 import com.openlattice.postgres.PostgresTable.ENTITY_SETS
 import org.slf4j.LoggerFactory
+import java.util.*
 
 class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 
@@ -24,7 +25,11 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
     override fun upgrade(): Boolean {
         toolbox.hds.connection.use { conn ->
             conn.autoCommit = false
-            toolbox.propertyTypes.entries.forEach { (propertyTypeId, propertyType) ->
+            toolbox.entityTypes
+                    .getValue(UUID.fromString("31cf5595-3fe9-4d3e-a9cf-39355a4b8cab")).properties //Only general.person
+                    .associateWith { toolbox.propertyTypes.getValue(it) }
+//            toolbox.propertyTypes.entries
+                    .forEach { (propertyTypeId, propertyType) ->
                 val markSql = markAsMigrated(propertyType)
                 val insertSql = getInsertQuery(propertyType)
                 val marked = conn.createStatement().executeUpdate(markSql)
