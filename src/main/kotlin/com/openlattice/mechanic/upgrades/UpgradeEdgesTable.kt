@@ -1,7 +1,10 @@
 package com.openlattice.mechanic.upgrades
 
+import com.openlattice.graph.ComponentType
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.PostgresTable
+import com.openlattice.postgres.PostgresColumn.*
+import com.openlattice.postgres.PostgresColumnDefinition
+import com.openlattice.postgres.PostgresTable.*
 import org.slf4j.LoggerFactory
 
 /**
@@ -9,14 +12,32 @@ import org.slf4j.LoggerFactory
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
 class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
-    companion object{
+    companion object {
         private val logger = LoggerFactory.getLogger(UpgradeEdgesTable::class.java)
     }
 
     override fun upgrade(): Boolean {
-        toolbox.createTable(PostgresTable.E)
+        toolbox.createTable(E)
+        /*
+                            PARTITION,
+                            ID_VALUE,
+                            SRC_ENTITY_SET_ID,
+                            SRC_ENTITY_KEY_ID,
+                            DST_ENTITY_SET_ID,
+                            DST_ENTITY_KEY_ID,
+                            EDGE_ENTITY_SET_ID,
+                            EDGE_ENTITY_KEY_ID,
+                            VERSION,
+                            VERSIONS,
+                            PARTITIONS_VERSION
+         */
+        val insertCols = E.columns.joinToString(",") { it.name }
 
-        
+        val srcPartitionSql = "INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(SRC_ENTITY_SET_ID)
+        val dstPartitionSql = "INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(SRC_ENTITY_SET_ID)
+        val edgePartitionSql = "INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(SRC_ENTITY_SET_ID)
+
+        logger.info( "Src sql ")
         return true
     }
 
@@ -25,8 +46,21 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
     }
 
 
-
-    private fun migrateEdgesTable() {
-
+    private fun buildEdgeSelection(joinColumn: PostgresColumnDefinition): String {
+        val selectCols = listOf(
+                "partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition",
+                SRC_ENTITY_SET_ID.name,
+                "${ID_VALUE.name} as ${SRC_ENTITY_KEY_ID.name}",
+                DST_ENTITY_SET_ID.name,
+                "${EDGE_COMP_1.name} as ${DST_ENTITY_KEY_ID.name}",
+                EDGE_ENTITY_SET_ID.name,
+                "${EDGE_COMP_2.name} as ${EDGE_ENTITY_KEY_ID.name}",
+                VERSION.name,
+                VERSIONS.name,
+                PARTITIONS_VERSION.name
+        ).joinToString(",")
+        return "SELECT $selectCols FROM ${EDGES.name} INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name} where entity_type_id in (select id from entity_types where id in (select id from association_types where '31cf5595-3fe9-4d3e-a9cf-39355a4b8cab' = ANY(src) or '31cf5595-3fe9-4d3e-a9cf-39355a4b8cab' = ANY(dst)) ) as entity_set_partitions USING(${joinColumn.name}) " +
+                "WHERE ${COMPONENT_TYPES.name} = ${ComponentType.SRC.ordinal}"
     }
+
 }
