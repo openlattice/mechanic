@@ -23,13 +23,14 @@ package com.openlattice.mechanic.upgrades
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.assembler.AssemblerConnectionManager
 import com.openlattice.assembler.PostgresDatabases
+import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 import java.util.*
 
 class MaterializationForeignServer(
-        private val organizationIds: Iterable<UUID>,
+        private val organizationAssemblyMapstore: OrganizationAssemblyMapstore,
         private val assemblerConfiguration: AssemblerConfiguration) : Upgrade {
 
     companion object {
@@ -37,6 +38,8 @@ class MaterializationForeignServer(
     }
 
     override fun upgrade(): Boolean {
+        val organizationIds = organizationAssemblyMapstore.loadAllKeys()
+
         logger.info("Starting to update foreign server ports")
         organizationIds.forEach(::updateForeignServerPort)
         logger.info("Finished updating foreign server ports")
