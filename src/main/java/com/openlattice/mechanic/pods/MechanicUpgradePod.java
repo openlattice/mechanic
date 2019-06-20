@@ -41,6 +41,7 @@ import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore;
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
 import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
 import javax.inject.Inject;
@@ -48,6 +49,7 @@ import javax.inject.Inject;
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
+@Configuration
 public class MechanicUpgradePod {
     public static final String INTEGRITY = "integrity";
     public static final String REGEN     = "regen";
