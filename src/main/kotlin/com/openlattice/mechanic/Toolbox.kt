@@ -45,7 +45,7 @@ class Toolbox(
         private val logger = LoggerFactory.getLogger(Toolbox::class.java)
     }
     init {
-        logger.info("Toolbox being re-initialized.")
+        logger.info("Toolbox being initialized.")
     }
     val entitySets = esms.loadAll(esms.loadAllKeys().toSet()).toMap()
     val entityTypes = etms.loadAll(etms.loadAllKeys().toSet()).toMap()
