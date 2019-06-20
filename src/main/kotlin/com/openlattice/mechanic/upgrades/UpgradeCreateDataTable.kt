@@ -1,16 +1,9 @@
 package com.openlattice.mechanic.upgrades
 
 
-import com.openlattice.edm.type.PropertyType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.CitusDistributedTableDefinition
-import com.openlattice.postgres.DataTables.propertyTableName
-import com.openlattice.postgres.DataTables.quote
-import com.openlattice.postgres.IndexType
 import com.openlattice.postgres.PostgresDataTables
-import com.openlattice.postgres.PostgresDataTables.Companion.getColumnDefinition
-import com.openlattice.postgres.PostgresTable.DATA
-import com.openlattice.postgres.PostgresTable.ENTITY_SETS
 import org.slf4j.LoggerFactory
 
 class UpgradeCreateDataTable(private val toolbox: Toolbox) : Upgrade {
@@ -21,14 +14,20 @@ class UpgradeCreateDataTable(private val toolbox: Toolbox) : Upgrade {
 
     override fun upgrade(): Boolean {
         toolbox.hds.connection.use { conn ->
+            val tableDefinition = PostgresDataTables.buildDataTableDefinition()
             conn.createStatement().use { stmt ->
-                val tableDefinition = PostgresDataTables.buildDataTableDefinition()
+                logger.info("Creating the data table.")
                 stmt.execute(tableDefinition.createTableQuery())
-                tableDefinition.createIndexQueries.forEach {
+            }
+            tableDefinition.createIndexQueries.forEach {
+                conn.createStatement().use { stmt ->
                     logger.info("Creating index with query {}", it)
                     stmt.execute(it)
                 }
+            }
 
+            conn.createStatement().use { stmt ->
+                logger.info("Making table a distributed table.")
                 stmt.execute((tableDefinition as CitusDistributedTableDefinition).createDistributedTableQuery())
             }
         }
