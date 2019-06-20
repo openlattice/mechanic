@@ -30,6 +30,9 @@ import com.openlattice.ids.IdGenerationMapstore;
 import com.openlattice.mechanic.Toolbox;
 import com.openlattice.mechanic.integrity.EdmChecks;
 import com.openlattice.mechanic.integrity.IntegrityChecks;
+import com.openlattice.mechanic.retired.DropEdmVersions;
+import com.openlattice.mechanic.retired.DropPrincipalTree;
+import com.openlattice.mechanic.retired.EntitySetFlags;
 import com.openlattice.mechanic.upgrades.*;
 import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
@@ -192,5 +195,20 @@ public class MechanicUpgradePod {
         return new MaterializationForeignServer(
                 ( ( OrganizationAssemblyMapstore ) mapstoresPod.organizationAssemblies() ).loadAllKeys(),
                 assemblerConfiguration );
+    }
+
+    @Bean
+    UpgradeCreateDataTable upgradeCreateDataTable() {
+        return new UpgradeCreateDataTable( toolbox() );
+    }
+
+    @Bean
+    UpgradeEntitySetPartitions upgradeEntitySetPartitions() {
+        return new UpgradeEntitySetPartitions(toolbox());
+    }
+
+    @Bean
+    MigratePropertyValuesToDataTable migratePropertyValuesToDataTable() {
+        return new MigratePropertyValuesToDataTable( toolbox() );
     }
 }
