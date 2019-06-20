@@ -62,7 +62,8 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
         val propertyTable = quote(propertyTableName(propertyType.id))
         val propertyColumn = quote(propertyType.type.fullQualifiedNameAsString)
         return "INSERT INTO ${DATA.name} (${PostgresDataTables.dataTableMetadataColumns},${col.name}) " +
-                "SELECT $selectCols,$propertyColumn FROM $propertyTable INNER JOIN (select id as entity_set_id, partitions, partition_versions from ${ENTITY_SETS.name}) as ${ENTITY_SETS.name} USING(entity_set_id)"
+                "SELECT $selectCols,$propertyColumn, partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition" +
+                "FROM $propertyTable INNER JOIN (select id as entity_set_id, partitions, partitions_versions from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id)"
     }
 
     override fun getSupportedVersion(): Long {

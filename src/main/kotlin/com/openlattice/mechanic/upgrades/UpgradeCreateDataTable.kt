@@ -21,7 +21,7 @@ class UpgradeCreateDataTable(private val toolbox: Toolbox) : Upgrade {
     override fun upgrade(): Boolean {
         toolbox.hds.connection.use { conn ->
             conn.createStatement().use { stmt ->
-                val tableDefinition = PostgresDataTables.buildDataTableDefinition();
+                val tableDefinition = PostgresDataTables.buildDataTableDefinition()
                 stmt.execute(tableDefinition.createTableQuery())
                 tableDefinition.createIndexQueries.forEach { stmt.execute(it) }
             }
