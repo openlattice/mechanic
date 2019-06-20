@@ -49,6 +49,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
             val edgeCount = conn.createStatement().use { it.executeUpdate(edgePartitionSql) }
             logger.info("Inserted {} edges into edge partitions.", edgeCount)
         }
+
         return true
     }
 

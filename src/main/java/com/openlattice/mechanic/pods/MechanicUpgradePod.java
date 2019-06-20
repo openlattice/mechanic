@@ -33,18 +33,33 @@ import com.openlattice.mechanic.integrity.IntegrityChecks;
 import com.openlattice.mechanic.retired.DropEdmVersions;
 import com.openlattice.mechanic.retired.DropPrincipalTree;
 import com.openlattice.mechanic.retired.EntitySetFlags;
-import com.openlattice.mechanic.upgrades.*;
+import com.openlattice.mechanic.upgrades.GraphProcessing;
+import com.openlattice.mechanic.upgrades.LastMigrateColumnUpgrade;
+import com.openlattice.mechanic.upgrades.LinkedEntityIndexing;
+import com.openlattice.mechanic.upgrades.Linking;
+import com.openlattice.mechanic.upgrades.MaterializationForeignServer;
+import com.openlattice.mechanic.upgrades.MaterializedEntitySets;
+import com.openlattice.mechanic.upgrades.MediaServerCleanup;
+import com.openlattice.mechanic.upgrades.MediaServerUpgrade;
+import com.openlattice.mechanic.upgrades.MigratePropertyValuesToDataTable;
+import com.openlattice.mechanic.upgrades.PropertyValueIndexing;
+import com.openlattice.mechanic.upgrades.ReadLinking;
+import com.openlattice.mechanic.upgrades.RegenerateIds;
+import com.openlattice.mechanic.upgrades.RemoveEntitiesSinceDate;
+import com.openlattice.mechanic.upgrades.RemoveEntitySetTables;
+import com.openlattice.mechanic.upgrades.UpgradeCreateDataTable;
+import com.openlattice.mechanic.upgrades.UpgradeEdgesTable;
+import com.openlattice.mechanic.upgrades.UpgradeEntitySetPartitions;
 import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
 import com.openlattice.postgres.mapstores.EntityTypeMapstore;
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore;
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
 import com.zaxxer.hikari.HikariDataSource;
+import javax.inject.Inject;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-
-import javax.inject.Inject;
 
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
@@ -123,9 +138,9 @@ public class MechanicUpgradePod {
         return new Toolbox(
                 tableManager,
                 hikariDataSource,
-                ( PropertyTypeMapstore ) mapstoresPod.propertyTypeMapstore(),
-                ( EntityTypeMapstore ) mapstoresPod.entityTypeMapstore(),
-                ( EntitySetMapstore ) mapstoresPod.entitySetMapstore(),
+                (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
+                (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
+                (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
                 executor );
     }
 
@@ -176,7 +191,9 @@ public class MechanicUpgradePod {
     }
 
     @Bean
-    MaterializedEntitySets materializedEntitySets() { return new MaterializedEntitySets( toolbox() ); }
+    MaterializedEntitySets materializedEntitySets() {
+        return new MaterializedEntitySets( toolbox() );
+    }
 
     @Bean
     DropEdmVersions dropEdmVersions() {
@@ -196,7 +213,7 @@ public class MechanicUpgradePod {
     @Bean
     MaterializationForeignServer materializationForeignServer() {
         return new MaterializationForeignServer(
-                ( ( OrganizationAssemblyMapstore ) mapstoresPod.organizationAssemblies() ).loadAllKeys(),
+                ( (OrganizationAssemblyMapstore) mapstoresPod.organizationAssemblies() ).loadAllKeys(),
                 assemblerConfiguration );
     }
 
@@ -207,7 +224,7 @@ public class MechanicUpgradePod {
 
     @Bean
     UpgradeEntitySetPartitions upgradeEntitySetPartitions() {
-        return new UpgradeEntitySetPartitions(toolbox());
+        return new UpgradeEntitySetPartitions( toolbox() );
     }
 
     @Bean
@@ -215,4 +232,8 @@ public class MechanicUpgradePod {
         return new MigratePropertyValuesToDataTable( toolbox() );
     }
 
+    @Bean
+    UpgradeEdgesTable edgesTable() {
+        return new UpgradeEdgesTable( toolbox() );
+    }
 }
