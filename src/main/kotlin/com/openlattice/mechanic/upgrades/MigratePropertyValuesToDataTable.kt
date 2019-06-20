@@ -3,11 +3,9 @@ package com.openlattice.mechanic.upgrades
 
 import com.openlattice.edm.type.PropertyType
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.DataTables.propertyTableName
-import com.openlattice.postgres.DataTables.quote
-import com.openlattice.postgres.IndexType
-import com.openlattice.postgres.PostgresColumn
-import com.openlattice.postgres.PostgresDataTables
+import com.openlattice.postgres.*
+import com.openlattice.postgres.DataTables.*
+import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresDataTables.Companion.getColumnDefinition
 import com.openlattice.postgres.PostgresTable.DATA
 import com.openlattice.postgres.PostgresTable.ENTITY_SETS
@@ -59,17 +57,34 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 
     private fun markAsMigrated(propertyType: PropertyType): String {
         val propertyTable = quote(propertyTableName(propertyType.id))
-        return "UPDATE $propertyTable SET ${PostgresColumn.LAST_MIGRATE.name} = now()"
+        return "UPDATE $propertyTable SET ${LAST_MIGRATE.name} = now()"
     }
 
     private fun getInsertQuery(propertyType: PropertyType): String {
         val col = getColumnDefinition(IndexType.NONE, propertyType.datatype)
         val selectCols = PostgresDataTables.dataTableMetadataColumns.joinToString(",") { it.name }
+        val conflictSql = buildConflictSql()
         val propertyTable = quote(propertyTableName(propertyType.id))
         val propertyColumn = quote(propertyType.type.fullQualifiedNameAsString)
         return "INSERT INTO ${DATA.name} ($selectCols,${col.name}) " +
                 "SELECT $selectCols,$propertyColumn as ${col.name}, partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition" +
-                "FROM $propertyTable INNER JOIN (select id as entity_set_id, partitions, partitions_versions from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id)"
+                "FROM $propertyTable INNER JOIN (select id as entity_set_id, partitions, partitions_versions from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
+                "ON CONFLICT SET $conflictSql"
+    }
+
+    private fun buildConflictSql() : String {
+        //This isn't usable for repartitioning.
+        return listOf(
+                ENTITY_SET_ID,
+                LAST_WRITE,
+                LAST_PROPAGATE,
+                LAST_MIGRATE,
+                VERSION,
+                VERSIONS,
+                PARTITIONS_VERSION
+        ).joinToString(",") { "${it.name} = EXCLUDED.${it.name}"}
+        //"${VERSIONS.name} = ${VERSIONS.name} || EXCLUDED.${VERSIONS.name}"
+        //"${VERSION.name} = CASE WHEN abs(${VERSION.name}) < EXCLUDED.${VERSION.name} THEN EXCLUDED.${VERSION.name} ELSE ${DATA.name}.${VERSION.name} END "
     }
 
     override fun getSupportedVersion(): Long {
