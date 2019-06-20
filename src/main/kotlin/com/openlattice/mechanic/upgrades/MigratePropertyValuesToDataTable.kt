@@ -64,7 +64,7 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 
     private fun getInsertQuery(propertyType: PropertyType): String {
         val col = getColumnDefinition(IndexType.NONE, propertyType.datatype)
-        val selectCols = PostgresDataTables.dataTableMetadataColumns.joinToString(",")
+        val selectCols = PostgresDataTables.dataTableMetadataColumns.joinToString(",") { it.name }
         val propertyTable = quote(propertyTableName(propertyType.id))
         val propertyColumn = quote(propertyType.type.fullQualifiedNameAsString)
         return "INSERT INTO ${DATA.name} (${PostgresDataTables.dataTableMetadataColumns},${col.name}) " +
