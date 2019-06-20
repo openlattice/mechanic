@@ -67,7 +67,7 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
         val propertyTable = quote(propertyTableName(propertyType.id))
         val propertyColumn = quote(propertyType.type.fullQualifiedNameAsString)
         return "INSERT INTO ${DATA.name} ($selectCols,${col.name}) " +
-                "SELECT $selectCols,$propertyColumn as ${col.name}, partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition" +
+                "SELECT $selectCols,$propertyColumn as ${col.name}, partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition " +
                 "FROM $propertyTable INNER JOIN (select id as entity_set_id, partitions, partitions_versions from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
                 "ON CONFLICT SET $conflictSql"
     }
