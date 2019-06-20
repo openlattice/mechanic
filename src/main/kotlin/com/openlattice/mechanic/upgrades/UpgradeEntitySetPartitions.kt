@@ -267,4 +267,4 @@ class UpgradeEntitySetPartitions(private val toolbox: Toolbox) : Upgrade {
 
 private data class EntitySetInfo(val count: Long, val flags: Set<EntitySetFlag>)
 
-private val GET_ENTITY_SET_COUNT = "SELECT * FROM (SELECT ${ENTITY_SET_ID.name}, count(*)  FROM ${ENTITY_KEY_IDS.name} GROUP BY (${ENTITY_SET_ID.name}) as entity_set_counts INNER JOIN (select id as entity_set_id ,${FLAGS.name} from entity_sets) USING (entity_set_id) "
+private val GET_ENTITY_SET_COUNT = "SELECT * FROM (SELECT ${ENTITY_SET_ID.name}, count(*) FROM ${ENTITY_KEY_IDS.name} GROUP BY ${ENTITY_SET_ID.name}) as entity_set_counts INNER JOIN (select id as entity_set_id, ${FLAGS.name} from entity_sets) as entity_set_flags USING (entity_set_id) "
