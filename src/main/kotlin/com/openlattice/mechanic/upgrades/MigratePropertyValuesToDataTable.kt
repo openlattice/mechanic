@@ -1,20 +1,16 @@
 package com.openlattice.mechanic.upgrades
 
 
-import com.openlattice.data.storage.getColumnDefinition
 import com.openlattice.edm.type.PropertyType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.propertyTableName
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.IndexType
-import com.openlattice.postgres.PostgresColumn.ENTITY_SET_ID
 import com.openlattice.postgres.PostgresDataTables
-import com.openlattice.postgres.PostgresTable.*
-import com.openlattice.postgres.ResultSetAdapters
-import com.openlattice.postgres.streams.BasePostgresIterable
-import com.openlattice.postgres.streams.StatementHolderSupplier
+import com.openlattice.postgres.PostgresDataTables.Companion.getColumnDefinition
+import com.openlattice.postgres.PostgresTable.DATA
+import com.openlattice.postgres.PostgresTable.ENTITY_SETS
 import org.slf4j.LoggerFactory
-import java.util.*
 
 class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 
