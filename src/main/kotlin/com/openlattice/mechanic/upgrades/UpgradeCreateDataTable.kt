@@ -3,6 +3,7 @@ package com.openlattice.mechanic.upgrades
 
 import com.openlattice.edm.type.PropertyType
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.postgres.CitusDistributedTableDefinition
 import com.openlattice.postgres.DataTables.propertyTableName
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.IndexType
@@ -23,7 +24,12 @@ class UpgradeCreateDataTable(private val toolbox: Toolbox) : Upgrade {
             conn.createStatement().use { stmt ->
                 val tableDefinition = PostgresDataTables.buildDataTableDefinition()
                 stmt.execute(tableDefinition.createTableQuery())
-                tableDefinition.createIndexQueries.forEach { stmt.execute(it) }
+                tableDefinition.createIndexQueries.forEach {
+                    logger.info("Creating index with query {}", it)
+                    stmt.execute(it)
+                }
+                
+                stmt.execute((tableDefinition as CitusDistributedTableDefinition).createDistributedTableQuery())
             }
         }
         return true
