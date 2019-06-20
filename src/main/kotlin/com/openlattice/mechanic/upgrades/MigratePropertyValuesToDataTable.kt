@@ -62,13 +62,26 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 
     private fun getInsertQuery(propertyType: PropertyType): String {
         val col = getColumnDefinition(IndexType.NONE, propertyType.datatype)
-        val selectCols = PostgresDataTables.dataTableMetadataColumns.joinToString(",") { it.name }
+        val insertCols = PostgresDataTables.dataTableMetadataColumns.joinToString(",") { it.name }
+        val selectCols = listOf(
+        ENTITY_SET_ID.name,
+        ID_VALUE.name,
+        "partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition",
+        "'${propertyType.id}'::uuid as ${PROPERTY_TYPE_ID.name}",
+        HASH.name,
+        LAST_WRITE.name,
+        LAST_PROPAGATE.name,
+        LAST_MIGRATE.name,
+        VERSION.name,
+        VERSIONS.name,
+        PARTITIONS_VERSION.name
+        ).joinToString(",")
         val conflictSql = buildConflictSql()
         val propertyTable = quote(propertyTableName(propertyType.id))
         val propertyColumn = quote(propertyType.type.fullQualifiedNameAsString)
         return "INSERT INTO ${DATA.name} ($selectCols,${col.name}) " +
-                "SELECT $selectCols,$propertyColumn as ${col.name}, partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition " +
-                "FROM $propertyTable INNER JOIN (select id as entity_set_id, partitions, partitions_versions from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
+                "SELECT $selectCols,$propertyColumn as ${col.name},  " +
+                "FROM $propertyTable INNER JOIN (select id as entity_set_id, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
                 "ON CONFLICT DO UPDATE SET $conflictSql"
     }
 
