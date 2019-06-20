@@ -22,6 +22,9 @@
 package com.openlattice.mechanic
 
 import com.google.common.util.concurrent.ListeningExecutorService
+import com.openlattice.postgres.CitusDistributedTableDefinition
+import com.openlattice.postgres.PostgresDataTables
+import com.openlattice.postgres.PostgresTableDefinition
 import com.openlattice.postgres.PostgresTableManager
 import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.postgres.mapstores.EntityTypeMapstore
@@ -41,13 +44,38 @@ class Toolbox(
         internal val esms: EntitySetMapstore,
         val executor: ListeningExecutorService
 ) {
-    companion object{
+    companion object {
         private val logger = LoggerFactory.getLogger(Toolbox::class.java)
     }
+
     init {
         logger.info("Toolbox being initialized.")
     }
+
     val entitySets = esms.loadAll(esms.loadAllKeys().toSet()).toMap()
     val entityTypes = etms.loadAll(etms.loadAllKeys().toSet()).toMap()
     val propertyTypes = ptms.loadAll(ptms.loadAllKeys().toSet()).toMap()
+
+    fun createTable(tableDefinition: PostgresTableDefinition) {
+        hds.connection.use { conn ->
+            val tableDefinition = PostgresDataTables.buildDataTableDefinition()
+            conn.createStatement().use { stmt ->
+                logger.info("Creating the table ${tableDefinition.name}.")
+                stmt.execute(tableDefinition.createTableQuery())
+            }
+            tableDefinition.createIndexQueries.forEach { indexSql ->
+                conn.createStatement().use { stmt ->
+                    logger.info("Creating index with query {}", indexSql)
+                    stmt.execute(indexSql)
+                }
+            }
+
+            if (tableDefinition is CitusDistributedTableDefinition) {
+                conn.createStatement().use { stmt ->
+                    logger.info("Distributing Table")
+                    stmt.execute(tableDefinition.createDistributedTableQuery())
+                }
+            }
+        }
+    }
 }
