@@ -28,7 +28,7 @@ class UpgradeCreateDataTable(private val toolbox: Toolbox) : Upgrade {
                     logger.info("Creating index with query {}", it)
                     stmt.execute(it)
                 }
-                
+
                 stmt.execute((tableDefinition as CitusDistributedTableDefinition).createDistributedTableQuery())
             }
         }

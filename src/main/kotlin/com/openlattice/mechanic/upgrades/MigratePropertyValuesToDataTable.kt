@@ -30,28 +30,34 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
                     .associateWith { toolbox.propertyTypes.getValue(it) }
 //            toolbox.propertyTypes.entries
                     .forEach { (propertyTypeId, propertyType) ->
-                val markSql = markAsMigrated(propertyType)
-                val insertSql = getInsertQuery(propertyType)
-                val marked = conn.createStatement().executeUpdate(markSql)
-                val inserted = conn.createStatement().executeUpdate(insertSql)
-                logger.info("Marked {} properties as migrated in table of type {} ({}",
-                                                   marked,
-                                                   propertyType.type.fullQualifiedNameAsString,
-                                                   propertyTypeId)
-                logger.info(
-                        "Inserted {} properties into DATA table of type {} ({})",
-                        inserted,
-                        propertyType.type.fullQualifiedNameAsString,
-                        propertyTypeId
-                )
-                conn.commit()
-            }
+                        val markSql = markAsMigrated(propertyType)
+                        val insertSql = getInsertQuery(propertyType)
+                        logger.info("Mark SQL: {}", markSql)
+                        logger.info("Insert SQL: {}", insertSql)
+                        val marked = conn.createStatement().executeUpdate(markSql)
+                        logger.info(
+                                "Marked {} properties as migrated in table of type {} ({}",
+                                marked,
+                                propertyType.type.fullQualifiedNameAsString,
+                                propertyTypeId
+                        )
+
+                        val inserted = conn.createStatement().executeUpdate(insertSql)
+
+                        logger.info(
+                                "Inserted {} properties into DATA table of type {} ({})",
+                                inserted,
+                                propertyType.type.fullQualifiedNameAsString,
+                                propertyTypeId
+                        )
+                        conn.commit()
+                    }
             conn.autoCommit = true
         }
         return true
     }
 
-    private fun markAsMigrated( propertyType: PropertyType ) : String {
+    private fun markAsMigrated(propertyType: PropertyType): String {
         val propertyTable = quote(propertyTableName(propertyType.id))
         return "UPDATE $propertyTable SET ${PostgresColumn.LAST_MIGRATE.name} = now()"
     }
