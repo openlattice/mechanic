@@ -27,6 +27,7 @@ import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.postgres.mapstores.EntityTypeMapstore
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore
 import com.zaxxer.hikari.HikariDataSource
+import org.slf4j.LoggerFactory
 
 /**
  *
@@ -40,7 +41,13 @@ class Toolbox(
         internal val esms: EntitySetMapstore,
         val executor: ListeningExecutorService
 ) {
-    val entitySets = esms.loadAllKeys().map { it to esms.load(it) }.toMap()
-    val entityTypes = etms.loadAllKeys().map { it to etms.load(it) }.toMap()
-    val propertyTypes = ptms.loadAllKeys().map { it to ptms.load(it) }.toMap()
+    companion object{
+        private val logger = LoggerFactory.getLogger(Toolbox::class.java)
+    }
+    init {
+        logger.info("Toolbox being re-initialized.")
+    }
+    val entitySets = esms.loadAll(esms.loadAllKeys().toSet()).toMap()
+    val entityTypes = etms.loadAll(etms.loadAllKeys().toSet()).toMap()
+    val propertyTypes = ptms.loadAll(ptms.loadAllKeys().toSet()).toMap()
 }

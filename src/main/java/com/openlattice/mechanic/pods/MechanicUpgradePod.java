@@ -116,7 +116,8 @@ public class MechanicUpgradePod {
                 executor );
     }
 
-    @Bean Toolbox toolbox() {
+    @Bean
+    public Toolbox toolbox() {
         return new Toolbox(
                 tableManager,
                 hikariDataSource,
