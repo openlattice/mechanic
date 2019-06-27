@@ -1,6 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
-import com.openlattice.graph.ComponentType
+import com.openlattice.graph.IdType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresColumnDefinition
@@ -72,7 +72,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                 PARTITIONS_VERSION.name
         ).joinToString(",")
         return "SELECT $selectCols FROM ${EDGES.name} INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name} where entity_type_id in (select id from entity_types where id in (select id from association_types where '31cf5595-3fe9-4d3e-a9cf-39355a4b8cab' = ANY(src) or '31cf5595-3fe9-4d3e-a9cf-39355a4b8cab' = ANY(dst)) ) as entity_set_partitions USING(${joinColumn.name}) " +
-                "WHERE ${COMPONENT_TYPES.name} = ${ComponentType.SRC.ordinal}"
+                "WHERE ${COMPONENT_TYPES.name} = ${IdType.SRC.ordinal}"
     }
 
 }
