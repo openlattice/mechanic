@@ -186,4 +186,9 @@ public class MechanicUpgradePod {
     MaterializedEntitySetRefresh materializedEntitySetRefresh() {
         return new MaterializedEntitySetRefresh( toolbox() );
     }
+
+    @Bean
+    RemovePermissionsForNonexistentPrincipals removePermissionsForNonexistentPrincipals() {
+        return new RemovePermissionsForNonexistentPrincipals( toolbox() );
+    }
 }
