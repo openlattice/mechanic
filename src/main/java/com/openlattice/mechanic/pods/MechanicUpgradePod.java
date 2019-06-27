@@ -33,23 +33,7 @@ import com.openlattice.mechanic.integrity.IntegrityChecks;
 import com.openlattice.mechanic.retired.DropEdmVersions;
 import com.openlattice.mechanic.retired.DropPrincipalTree;
 import com.openlattice.mechanic.retired.EntitySetFlags;
-import com.openlattice.mechanic.upgrades.GraphProcessing;
-import com.openlattice.mechanic.upgrades.LastMigrateColumnUpgrade;
-import com.openlattice.mechanic.upgrades.LinkedEntityIndexing;
-import com.openlattice.mechanic.upgrades.Linking;
-import com.openlattice.mechanic.upgrades.MaterializationForeignServer;
-import com.openlattice.mechanic.upgrades.MaterializedEntitySets;
-import com.openlattice.mechanic.upgrades.MediaServerCleanup;
-import com.openlattice.mechanic.upgrades.MediaServerUpgrade;
-import com.openlattice.mechanic.upgrades.MigratePropertyValuesToDataTable;
-import com.openlattice.mechanic.upgrades.PropertyValueIndexing;
-import com.openlattice.mechanic.upgrades.ReadLinking;
-import com.openlattice.mechanic.upgrades.RegenerateIds;
-import com.openlattice.mechanic.upgrades.RemoveEntitiesSinceDate;
-import com.openlattice.mechanic.upgrades.RemoveEntitySetTables;
-import com.openlattice.mechanic.upgrades.UpgradeCreateDataTable;
-import com.openlattice.mechanic.upgrades.UpgradeEdgesTable;
-import com.openlattice.mechanic.upgrades.UpgradeEntitySetPartitions;
+import com.openlattice.mechanic.upgrades.*;
 import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
 import com.openlattice.postgres.mapstores.EntityTypeMapstore;
@@ -176,10 +160,6 @@ public class MechanicUpgradePod {
         return new PropertyValueIndexing( toolbox() );
     }
 
-    @Bean LinkedEntityIndexing linkedEntityIndexing() {
-        return new LinkedEntityIndexing( toolbox() );
-    }
-
     @Bean
     LastMigrateColumnUpgrade lastMigrateColumnUpgrade() {
         return new LastMigrateColumnUpgrade( toolbox() );
@@ -206,15 +186,15 @@ public class MechanicUpgradePod {
     }
 
     @Bean
-    RemoveEntitiesSinceDate removeEntitiesSinceDate() {
-        return new RemoveEntitiesSinceDate( toolbox() );
-    }
-
-    @Bean
     MaterializationForeignServer materializationForeignServer() {
         return new MaterializationForeignServer(
                 ( OrganizationAssemblyMapstore ) mapstoresPod.organizationAssemblies(),
                 assemblerConfiguration );
+    }
+
+    @Bean
+    MaterializedEntitySetRefresh materializedEntitySetRefresh() {
+        return new MaterializedEntitySetRefresh( toolbox() );
     }
 
     @Bean
