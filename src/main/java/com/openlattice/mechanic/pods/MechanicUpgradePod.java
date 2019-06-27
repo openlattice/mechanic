@@ -185,7 +185,12 @@ public class MechanicUpgradePod {
     @Bean
     MaterializationForeignServer materializationForeignServer() {
         return new MaterializationForeignServer(
-                ( ( OrganizationAssemblyMapstore ) mapstoresPod.organizationAssemblies() ).loadAllKeys(),
+                ( OrganizationAssemblyMapstore ) mapstoresPod.organizationAssemblies(),
                 assemblerConfiguration );
+    }
+
+    @Bean
+    MaterializedEntitySetRefresh materializedEntitySetRefresh() {
+        return new MaterializedEntitySetRefresh( toolbox() );
     }
 }
