@@ -117,9 +117,9 @@ public class MechanicUpgradePod {
         return new Toolbox(
                 tableManager,
                 hikariDataSource,
-                ( PropertyTypeMapstore ) mapstoresPod.propertyTypeMapstore(),
-                ( EntityTypeMapstore ) mapstoresPod.entityTypeMapstore(),
-                ( EntitySetMapstore ) mapstoresPod.entitySetMapstore(),
+                (PropertyTypeMapstore) mapstoresPod.propertyTypeMapstore(),
+                (EntityTypeMapstore) mapstoresPod.entityTypeMapstore(),
+                (EntitySetMapstore) mapstoresPod.entitySetMapstore(),
                 executor );
     }
 
@@ -155,17 +155,15 @@ public class MechanicUpgradePod {
         return new PropertyValueIndexing( toolbox() );
     }
 
-    @Bean LinkedEntityIndexing linkedEntityIndexing() {
-        return new LinkedEntityIndexing( toolbox() );
-    }
-
     @Bean
     EntitySetFlags entitySetFlags() {
         return new EntitySetFlags( toolbox() );
     }
 
     @Bean
-    MaterializedEntitySets materializedEntitySets() { return new MaterializedEntitySets( toolbox() ); }
+    MaterializedEntitySets materializedEntitySets() {
+        return new MaterializedEntitySets( toolbox() );
+    }
 
     @Bean
     DropEdmVersions dropEdmVersions() {
@@ -178,14 +176,9 @@ public class MechanicUpgradePod {
     }
 
     @Bean
-    RemoveEntitiesSinceDate removeEntitiesSinceDate() {
-        return new RemoveEntitiesSinceDate( toolbox() );
-    }
-
-    @Bean
     MaterializationForeignServer materializationForeignServer() {
         return new MaterializationForeignServer(
-                ( OrganizationAssemblyMapstore ) mapstoresPod.organizationAssemblies(),
+                (OrganizationAssemblyMapstore) mapstoresPod.organizationAssemblies(),
                 assemblerConfiguration );
     }
 
