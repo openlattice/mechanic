@@ -5,6 +5,7 @@ import com.openlattice.edm.type.PropertyType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.*
 import com.openlattice.postgres.IndexType
+import com.openlattice.postgres.PostgresColumn
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresDataTables
 import com.openlattice.postgres.PostgresDataTables.Companion.getColumnDefinition
@@ -63,7 +64,10 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 
     private fun getInsertQuery(propertyType: PropertyType): String {
         val col = getColumnDefinition(IndexType.NONE, propertyType.datatype)
-        val insertCols = PostgresDataTables.dataTableMetadataColumns.joinToString(",") { it.name }
+        val insertCols = PostgresDataTables
+                .dataTableMetadataColumns
+                .filter { it != ORIGIN_ID}
+                .joinToString(",") { it.name }
         val selectCols = listOf(
                 ENTITY_SET_ID.name,
                 ID_VALUE.name,
