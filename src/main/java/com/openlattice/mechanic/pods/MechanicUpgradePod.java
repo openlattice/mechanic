@@ -198,8 +198,8 @@ public class MechanicUpgradePod {
     }
 
     @Bean
-    UpgradeCreateDataTable upgradeCreateDataTable() {
-        return new UpgradeCreateDataTable( toolbox() );
+    CreateDataTable upgradeCreateDataTable() {
+        return new CreateDataTable( toolbox() );
     }
 
     @Bean

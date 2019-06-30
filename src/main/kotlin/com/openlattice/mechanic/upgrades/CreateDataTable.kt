@@ -6,10 +6,13 @@ import com.openlattice.postgres.CitusDistributedTableDefinition
 import com.openlattice.postgres.PostgresDataTables
 import org.slf4j.LoggerFactory
 
-class UpgradeCreateDataTable(private val toolbox: Toolbox) : Upgrade {
+/**
+ * This upgrade creates the data table without creating indexes in preparation for migration.
+ */
+class CreateDataTable(private val toolbox: Toolbox) : Upgrade {
 
     companion object {
-        private val logger = LoggerFactory.getLogger(UpgradeCreateDataTable::class.java)
+        private val logger = LoggerFactory.getLogger(CreateDataTable::class.java)
     }
 
     override fun upgrade(): Boolean {
@@ -18,13 +21,6 @@ class UpgradeCreateDataTable(private val toolbox: Toolbox) : Upgrade {
             conn.createStatement().use { stmt ->
                 logger.info("Creating the data table.")
                 stmt.execute(tableDefinition.createTableQuery())
-            }
-            tableDefinition.createIndexQueries.forEach {indexSql ->
-                val filteredIndexSql = indexSql.replace("CONCURRENTLY","")
-                conn.createStatement().use { stmt ->
-                    logger.info("Creating index with query {}", filteredIndexSql )
-                    stmt.execute(indexSql)
-                }
             }
 
             conn.createStatement().use { stmt ->
