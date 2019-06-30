@@ -1,5 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
+import com.openlattice.authorization.PrincipalType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn
 import com.openlattice.postgres.PostgresTable
@@ -15,7 +16,8 @@ class RemovePermissionsForNonexistentPrincipals(val toolbox: Toolbox) : Upgrade 
         logger.info("About to remove permissions for nonexistent principals")
 
         val deleteSql = "DELETE FROM ${PostgresTable.PERMISSIONS.name} WHERE NOT EXISTS (SELECT NULL FROM ${PostgresTable.PRINCIPALS.name} " +
-                "WHERE ${PostgresTable.PERMISSIONS.name}.${PostgresColumn.PRINCIPAL_ID.name} = ${PostgresTable.PRINCIPALS.name}.${PostgresColumn.PRINCIPAL_ID.name})"
+                "WHERE ${PostgresTable.PERMISSIONS.name}.${PostgresColumn.PRINCIPAL_ID.name} = ${PostgresTable.PRINCIPALS.name}.${PostgresColumn.PRINCIPAL_ID.name}) " +
+                " AND (${PostgresTable.PERMISSIONS.name}.${PostgresColumn.PRINCIPAL_TYPE.name} = '${PrincipalType.ROLE.name}' OR ${PostgresTable.PERMISSIONS.name}.${PostgresColumn.PRINCIPAL_TYPE.name} = '${PrincipalType.USER.name}')"
 
         toolbox.hds.connection.use {
             it.createStatement().use {
