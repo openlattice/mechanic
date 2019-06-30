@@ -31,12 +31,10 @@ class LastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade {
                     logger.info("Ensured that table pt_$propertyTypeId has migrated_version column")
 
                     val indexName = quote("${rawTableName}_needs_migration_idx")
-
+                    val indexSql = "CREATE INDEX IF NOT EXISTS $indexName ON $table (migrated_version < abs(${VERSION.name}))"
+                    logger.info("Executing sql: $indexSql")
                     val sw = Stopwatch.createStarted()
-                    statement.execute(
-                            "CREATE INDEX IF NOT EXISTS $indexName ON $table (migrated_version < abs(${VERSION.name}))"
-                    )
-
+                    statement.execute( indexSql )
                     val duration = sw.elapsed(TimeUnit.MILLISECONDS)
                     logger.info("Created index for row that need migration on $table in $duration ms")
                 }
