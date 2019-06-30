@@ -221,4 +221,9 @@ public class MechanicUpgradePod {
     CreateDataTableIndexes createDataTableIndexes(){
         return new CreateDataTableIndexes( toolbox() );
     }
+
+    @Bean
+    ResetMigratedVersions resetMigratedVersions() {
+        return new ResetMigratedVersions( toolbox() );
+    }
 }

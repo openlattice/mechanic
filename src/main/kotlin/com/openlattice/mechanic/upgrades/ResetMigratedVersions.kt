@@ -1,17 +1,14 @@
 package com.openlattice.mechanic.upgrades
 
-import com.google.common.base.Stopwatch
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.propertyTableName
 import com.openlattice.postgres.DataTables.quote
-import com.openlattice.postgres.PostgresColumn.VERSION
 import org.slf4j.LoggerFactory
-import java.util.concurrent.TimeUnit
 
-class ResetMigratedVersion(private val toolbox: Toolbox) : Upgrade {
+class ResetMigratedVersions(private val toolbox: Toolbox) : Upgrade {
 
     companion object {
-        private val logger = LoggerFactory.getLogger(ResetMigratedVersion::class.java)
+        private val logger = LoggerFactory.getLogger(ResetMigratedVersions::class.java)
     }
 
     override fun upgrade(): Boolean {
@@ -19,24 +16,10 @@ class ResetMigratedVersion(private val toolbox: Toolbox) : Upgrade {
         toolbox.propertyTypes.entries.parallelStream().forEach { (propertyTypeId, propertyType) ->
             toolbox.hds.connection.use { conn ->
                 conn.createStatement().use { statement ->
-
                     val rawTableName = propertyTableName(propertyTypeId)
                     val table = quote(rawTableName)
-                    statement.execute(
-                            "ALTER TABLE $table DROP COLUMN if exists last_migrate"
-                    )
-                    statement.execute(
-                            "ALTER TABLE $table ADD COLUMN if not exists migrated_version bigint NOT NULL DEFAULT 0"
-                    )
-                    logger.info("Ensured that table pt_$propertyTypeId has migrated_version column")
-
-                    val indexName = quote("${rawTableName}_needs_migration_idx")
-                    val indexSql = "CREATE INDEX IF NOT EXISTS $indexName ON $table ((migrated_version < abs(${VERSION.name})))"
-                    logger.info("Executing sql: $indexSql")
-                    val sw = Stopwatch.createStarted()
-                    statement.execute( indexSql )
-                    val duration = sw.elapsed(TimeUnit.MILLISECONDS)
-                    logger.info("Created index for row that need migration on $table in $duration ms")
+                    val count = statement.executeUpdate("UPDATE $table SET migrated_version = 0")
+                    logger.info("Reset $count migrated_versions for $rawTableName")
                 }
             }
         }
