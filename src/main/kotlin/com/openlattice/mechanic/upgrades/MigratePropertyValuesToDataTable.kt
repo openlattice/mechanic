@@ -55,7 +55,7 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
                 "'${propertyType.id}'::uuid as ${PROPERTY_TYPE_ID.name}",
                 HASH.name,
                 LAST_WRITE.name,
-                LAST_PROPAGATE.name,
+                "COALESCE(${LAST_PROPAGATE.name},now())",
                 VERSION.name,
                 VERSIONS.name,
                 PARTITIONS_VERSION.name
