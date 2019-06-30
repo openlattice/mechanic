@@ -216,4 +216,9 @@ public class MechanicUpgradePod {
     UpgradeEdgesTable edgesTable() {
         return new UpgradeEdgesTable( toolbox() );
     }
+
+    @Bean
+    CreateDataTableIndexes createDataTableIndexes(){
+        return new CreateDataTableIndexes( toolbox() );
+    }
 }
