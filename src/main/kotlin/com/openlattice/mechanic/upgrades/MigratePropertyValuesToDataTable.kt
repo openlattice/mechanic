@@ -21,10 +21,10 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 
     override fun upgrade(): Boolean {
 
-//        toolbox.entityTypes
-//                .getValue(UUID.fromString("31cf5595-3fe9-4d3e-a9cf-39355a4b8cab")).properties //Only general.person
-//                .associateWith { toolbox.propertyTypes.getValue(it) }.entries.stream().parallel()
-            toolbox.propertyTypes.entries.stream().parallel()
+        toolbox.entityTypes
+                .getValue(UUID.fromString("31cf5595-3fe9-4d3e-a9cf-39355a4b8cab")).properties //Only general.person
+                .associateWith { toolbox.propertyTypes.getValue(it) }.entries.stream().parallel()
+//            toolbox.propertyTypes.entries.stream().parallel()
                 .forEach { (propertyTypeId, propertyType) ->
                     val insertSql = getInsertQuery(propertyType)
                     logger.info("Insert SQL: {}", insertSql)
