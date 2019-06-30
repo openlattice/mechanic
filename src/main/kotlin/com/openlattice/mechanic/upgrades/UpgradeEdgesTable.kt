@@ -6,11 +6,13 @@ import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresColumnDefinition
 import com.openlattice.postgres.PostgresTable.*
 import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Component
 
 /**
  *
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
+@Component
 class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
     companion object {
         private val logger = LoggerFactory.getLogger(UpgradeEdgesTable::class.java)
@@ -31,11 +33,15 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                             VERSIONS,
                             PARTITIONS_VERSION
          */
+        addMigratedVersionColumn()
+
         val insertCols = E.columns.joinToString(",") { it.name }
 
-        val srcPartitionSql = "INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(SRC_ENTITY_SET_ID)
-        val dstPartitionSql = "INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(DST_ENTITY_SET_ID)
-        val edgePartitionSql = "INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(EDGE_ENTITY_SET_ID)
+        val migratedVersionSql = "WITH ( UPDATE ${E.name} SET migrated_version = abs(version) WHERE migrated_version < abs(version) RETURNING *) "
+
+        val srcPartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(SRC_ENTITY_SET_ID)
+        val dstPartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(DST_ENTITY_SET_ID)
+        val edgePartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(EDGE_ENTITY_SET_ID)
 
         logger.info("Src sql: {}", srcPartitionSql)
         logger.info("Dst sql: {}", dstPartitionSql)
@@ -51,6 +57,20 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
         }
 
         return true
+    }
+
+    fun addMigratedVersionColumn() {
+
+        logger.info("About to add migrated_version to edges table")
+
+        toolbox.hds.connection.use { conn ->
+            conn.createStatement().use {
+                it.execute(
+                        "ALTER TABLE ${E.name} ADD COLUMN if not exists migrated_version bigint NOT NULL DEFAULT 0"
+                )
+            }
+        }
+        logger.info("Added migrated_version to edges table")
     }
 
     override fun getSupportedVersion(): Long {
