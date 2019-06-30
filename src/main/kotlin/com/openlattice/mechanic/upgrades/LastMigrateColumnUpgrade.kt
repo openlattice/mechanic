@@ -34,7 +34,7 @@ class LastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade {
                     val indexName = quote("${rawTableName}_needs_migration_idx")
 
             val sw = Stopwatch.createStarted()
-                    statement.execute("CREATE INDEX IF NOT EXISTS $indexName ON $table (migrated_version < ${VERSION.name})")
+                    statement.execute("CREATE INDEX IF NOT EXISTS $indexName ON $table (migrated_version < abs(${VERSION.name}))")
                     logger.info("Created index for row that need migration on $table in ${sw.elapsed(TimeUnit.MILLISECONDS)}ms")
                 }
             }

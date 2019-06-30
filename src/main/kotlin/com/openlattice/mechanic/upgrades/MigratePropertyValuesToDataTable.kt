@@ -3,10 +3,8 @@ package com.openlattice.mechanic.upgrades
 
 import com.openlattice.edm.type.PropertyType
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.*
 import com.openlattice.postgres.IndexType
-import com.openlattice.postgres.PostgresColumn
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresDataTables
 import com.openlattice.postgres.PostgresDataTables.Companion.getColumnDefinition
@@ -67,7 +65,7 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
         val conflictSql = buildConflictSql()
         val propertyTable = quote(propertyTableName(propertyType.id))
         val propertyColumn = quote(propertyType.type.fullQualifiedNameAsString)
-        val withClause = "WITH for_migration as ( UPDATE $propertyTable set migrated_version = version WHERE migrated_version < version RETURNING * ) "
+        val withClause = "WITH for_migration as ( UPDATE $propertyTable set migrated_version = abs(version) WHERE migrated_version < abs(version) RETURNING * ) "
         return "$withClause INSERT INTO ${DATA.name} ($insertCols,${col.name}) " +
                 "SELECT $selectCols,$propertyColumn as ${col.name} " +
                 "FROM for_migration INNER JOIN (select id as entity_set_id, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
