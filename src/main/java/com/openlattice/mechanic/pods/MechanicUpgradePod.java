@@ -213,7 +213,7 @@ public class MechanicUpgradePod {
     }
 
     @Bean
-    UpgradeEdgesTable edgesTable() {
+    UpgradeEdgesTable upgradeEdgesTable() {
         return new UpgradeEdgesTable( toolbox() );
     }
 
