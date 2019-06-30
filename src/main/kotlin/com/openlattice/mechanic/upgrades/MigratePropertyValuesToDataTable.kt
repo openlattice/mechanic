@@ -56,7 +56,6 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
                 HASH.name,
                 LAST_WRITE.name,
                 LAST_PROPAGATE.name,
-                LAST_MIGRATE.name,
                 VERSION.name,
                 VERSIONS.name,
                 PARTITIONS_VERSION.name
@@ -77,7 +76,6 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
                 ENTITY_SET_ID,
                 LAST_WRITE,
                 LAST_PROPAGATE,
-                LAST_MIGRATE,
                 VERSION,
                 VERSIONS,
                 PARTITIONS_VERSION
