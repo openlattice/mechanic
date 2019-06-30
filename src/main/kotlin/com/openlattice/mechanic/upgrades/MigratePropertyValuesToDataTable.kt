@@ -20,26 +20,25 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
     }
 
     override fun upgrade(): Boolean {
-        toolbox.hds.connection.use { conn ->
-            toolbox.entityTypes
-                    .getValue(UUID.fromString("31cf5595-3fe9-4d3e-a9cf-39355a4b8cab")).properties //Only general.person
-                    .associateWith { toolbox.propertyTypes.getValue(it) }
+
+        toolbox.entityTypes
+                .getValue(UUID.fromString("31cf5595-3fe9-4d3e-a9cf-39355a4b8cab")).properties //Only general.person
+                .associateWith { toolbox.propertyTypes.getValue(it) }.entries.stream().parallel()
 //            toolbox.propertyTypes.entries
-                    .forEach { (propertyTypeId, propertyType) ->
-                        val insertSql = getInsertQuery(propertyType)
-                        logger.info("Insert SQL: {}", insertSql)
-
-                        val inserted = conn.createStatement().executeUpdate(insertSql)
-
-                        logger.info(
-                                "Migrated {} properties into DATA table of type {} ({})",
-                                inserted,
-                                propertyType.type.fullQualifiedNameAsString,
-                                propertyTypeId
-                        )
-                        conn.commit()
+                .forEach { (propertyTypeId, propertyType) ->
+                    val insertSql = getInsertQuery(propertyType)
+                    logger.info("Insert SQL: {}", insertSql)
+                    val inserted = toolbox.hds.connection.use { conn ->
+                        conn.createStatement().use { stmt -> stmt.executeUpdate(insertSql) }
                     }
-        }
+                    logger.info(
+                            "Migrated {} properties into DATA table of type {} ({})",
+                            inserted,
+                            propertyType.type.fullQualifiedNameAsString,
+                            propertyTypeId
+                    )
+
+                }
         return true
     }
 
@@ -47,7 +46,7 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
         val col = getColumnDefinition(IndexType.NONE, propertyType.datatype)
         val insertCols = PostgresDataTables
                 .dataTableMetadataColumns
-                .filter { it != ORIGIN_ID}
+                .filter { it != ORIGIN_ID }
                 .joinToString(",") { it.name }
         val selectCols = listOf(
                 ENTITY_SET_ID.name,
@@ -69,7 +68,7 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
         return "$withClause INSERT INTO ${DATA.name} ($insertCols,${col.name}) " +
                 "SELECT $selectCols,$propertyColumn as ${col.name} " +
                 "FROM for_migration INNER JOIN (select id as entity_set_id, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
-                "WHERE last_migrate = ?" +
+                "WHERE last_migrate = ? " +
                 "ON CONFLICT (${DATA.primaryKey.joinToString(",") { it.name }} ) DO UPDATE SET $conflictSql"
     }
 
