@@ -37,7 +37,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
 
         val insertCols = E.columns.joinToString(",") { it.name }
 
-        val migratedVersionSql = "WITH ( UPDATE ${E.name} SET migrated_version = abs(version) WHERE migrated_version < abs(version) RETURNING *) "
+        val migratedVersionSql = "WITH ( UPDATE ${E.name} SET migrated_version = abs(version) WHERE ( migrated_version < abs(migrated_version) ) RETURNING *) "
 
         val srcPartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(SRC_ENTITY_SET_ID)
         val dstPartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(DST_ENTITY_SET_ID)
