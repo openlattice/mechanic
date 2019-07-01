@@ -15,7 +15,7 @@ import java.util.*
 import java.util.concurrent.Semaphore
 
 class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
-    private val limiter = Semaphore(4)
+    private val limiter = Semaphore(16)
     companion object {
         private val logger = LoggerFactory.getLogger(MigratePropertyValuesToDataTable::class.java)
     }
