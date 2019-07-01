@@ -12,9 +12,10 @@ import com.openlattice.postgres.PostgresTable.DATA
 import com.openlattice.postgres.PostgresTable.ENTITY_SETS
 import org.slf4j.LoggerFactory
 import java.util.*
+import java.util.concurrent.Semaphore
 
 class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
-
+    private val limiter = Semaphore(4)
     companion object {
         private val logger = LoggerFactory.getLogger(MigratePropertyValuesToDataTable::class.java)
     }
@@ -24,20 +25,25 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 //        toolbox.entityTypes
 //                .getValue(UUID.fromString("31cf5595-3fe9-4d3e-a9cf-39355a4b8cab")).properties //Only general.person
 //                .associateWith { toolbox.propertyTypes.getValue(it) }.entries.stream().parallel()
-            toolbox.propertyTypes.entries
+            toolbox.propertyTypes.entries.stream().parallel()
                 .forEach { (propertyTypeId, propertyType) ->
-                    val insertSql = getInsertQuery(propertyType)
-                    logger.info("Insert SQL: {}", insertSql)
-                    val inserted = toolbox.hds.connection.use { conn ->
-                        conn.createStatement().use { stmt -> stmt.executeUpdate(insertSql) }
-                    }
-                    logger.info(
-                            "Migrated {} properties into DATA table of type {} ({})",
-                            inserted,
-                            propertyType.type.fullQualifiedNameAsString,
-                            propertyTypeId
-                    )
+                    try {
+                        limiter.acquire()
 
+                        val insertSql = getInsertQuery(propertyType)
+                        logger.info("Insert SQL: {}", insertSql)
+                        val inserted = toolbox.hds.connection.use { conn ->
+                            conn.createStatement().use { stmt -> stmt.executeUpdate(insertSql) }
+                        }
+                        logger.info(
+                                "Migrated {} properties into DATA table of type {} ({})",
+                                inserted,
+                                propertyType.type.fullQualifiedNameAsString,
+                                propertyTypeId
+                        )
+                    } finally {
+                        limiter.release()
+                    }
                 }
         return true
     }
