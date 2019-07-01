@@ -21,7 +21,7 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 
     companion object {
         private val logger = LoggerFactory.getLogger(MigratePropertyValuesToDataTable::class.java)
-        private const val BATCH_SIZE = 32000
+        private const val BATCH_SIZE = 6400
     }
 
     override fun upgrade(): Boolean {
@@ -56,6 +56,7 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
                                     )
                                 }
                             }
+                            insertCounter
                         }
                         logger.info(
                                 "Migrated {} properties into DATA table of type {} ({})",
