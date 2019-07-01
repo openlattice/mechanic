@@ -1,6 +1,7 @@
 package com.openlattice.mechanic.upgrades
 
 
+import com.google.common.base.Stopwatch
 import com.openlattice.edm.type.PropertyType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.*
@@ -13,11 +14,14 @@ import com.openlattice.postgres.PostgresTable.ENTITY_SETS
 import org.slf4j.LoggerFactory
 import java.util.*
 import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
 
 class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
     private val limiter = Semaphore(16)
+
     companion object {
         private val logger = LoggerFactory.getLogger(MigratePropertyValuesToDataTable::class.java)
+        private const val BATCH_SIZE = 32000
     }
 
     override fun upgrade(): Boolean {
@@ -25,7 +29,7 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
 //        toolbox.entityTypes
 //                .getValue(UUID.fromString("31cf5595-3fe9-4d3e-a9cf-39355a4b8cab")).properties //Only general.person
 //                .associateWith { toolbox.propertyTypes.getValue(it) }.entries.stream().parallel()
-            toolbox.propertyTypes.entries.stream().parallel()
+        toolbox.propertyTypes.entries.stream().parallel()
                 .forEach { (propertyTypeId, propertyType) ->
                     try {
                         limiter.acquire()
@@ -33,7 +37,25 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
                         val insertSql = getInsertQuery(propertyType)
                         logger.info("Insert SQL: {}", insertSql)
                         val inserted = toolbox.hds.connection.use { conn ->
-                            conn.createStatement().use { stmt -> stmt.executeUpdate(insertSql) }
+                            var insertCounter = 0
+                            var insertCount = 1
+                            val swTotal = Stopwatch.createStarted()
+                            conn.createStatement().use { stmt ->
+                                while (insertCount > 0) {
+                                    val sw = Stopwatch.createStarted()
+                                    insertCount = stmt.executeUpdate(insertSql)
+                                    insertCounter += insertCount
+                                    logger.info(
+                                            "Migrated batch of {} properties into DATA table of type {} ({}) in {} ms. Total so far: {} in {} ms",
+                                            insertCount,
+                                            propertyType.type.fullQualifiedNameAsString,
+                                            propertyTypeId,
+                                            sw.elapsed(TimeUnit.MILLISECONDS),
+                                            insertCounter,
+                                            swTotal.elapsed(TimeUnit.MILLISECONDS)
+                                    )
+                                }
+                            }
                         }
                         logger.info(
                                 "Migrated {} properties into DATA table of type {} ({})",
@@ -69,7 +91,7 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
         val conflictSql = buildConflictSql()
         val propertyTable = quote(propertyTableName(propertyType.id))
         val propertyColumn = quote(propertyType.type.fullQualifiedNameAsString)
-        val withClause = "WITH for_migration as ( UPDATE $propertyTable set migrated_version = abs(version) WHERE (migrated_version < abs(version)) RETURNING * ) "
+        val withClause = "WITH for_migration as ( UPDATE $propertyTable set migrated_version = abs(version) WHERE id in (SELECT id from $propertyTable WHERE (migrated_version < abs(version)) order by id limit $BATCH_SIZE) RETURNING * ) "
         return "$withClause INSERT INTO ${DATA.name} ($insertCols,${col.name}) " +
                 "SELECT $selectCols,$propertyColumn as ${col.name} " +
                 "FROM for_migration INNER JOIN (select id as entity_set_id, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
