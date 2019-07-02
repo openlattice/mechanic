@@ -182,7 +182,7 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
                 LAST_PROPAGATE.name,
                 LAST_LINK_INDEX.name,
                 PARTITIONS_VERSION.name
-        )
+        ).joinToString(",")
         val selectCols = listOf(
                 ENTITY_SET_ID.name,
                 ID_VALUE.name,
