@@ -171,7 +171,7 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
         val insertCols = listOf(
                 ENTITY_SET_ID.name,
                 ID_VALUE.name,
-                "partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition",
+                PARTITION.name,
                 ENTITY_ID.name,
                 LINKING_ID.name,
                 VERSION.name,
