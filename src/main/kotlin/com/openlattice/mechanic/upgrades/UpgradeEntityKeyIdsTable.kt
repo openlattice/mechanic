@@ -200,7 +200,7 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
         ).joinToString(",")
         val conflictSql = buildConflictSql()
         val withClause = "WITH for_migration as ( UPDATE entity_key_ids set migrated_version = abs(version) WHERE id in (SELECT id from entity_key_ids WHERE (migrated_version < abs(version)) limit $BATCH_SIZE) RETURNING * ) "
-        return "$withClause INSERT INTO ${ENTITY_KEY_IDS.name} ($insertCols) " +
+        return "$withClause INSERT INTO ${IDS.name} ($insertCols) " +
                 "SELECT $selectCols " +
                 "FROM for_migration INNER JOIN (select id as entity_set_id, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
                 "ON CONFLICT (${IDS.primaryKey.joinToString(",") { it.name }} ) DO UPDATE SET $conflictSql"
