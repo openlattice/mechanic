@@ -226,4 +226,9 @@ public class MechanicUpgradePod {
     ResetMigratedVersions resetMigratedVersions() {
         return new ResetMigratedVersions( toolbox() );
     }
+
+    @Bean
+    UpgradeEntityKeyIdsTable upgradeEntityKeyIdsTable(){
+        return new UpgradeEntityKeyIdsTable( toolbox() );
+    }
 }
