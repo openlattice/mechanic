@@ -177,7 +177,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                     insertCount = srcCount +dstCount+edgeCount
                     insertCounter += insertCount
                     logger.info(
-                            "Migrated batch of {} edges into E table of type in {} ms. Total so far: {} in {} ms",
+                            "Migrated batch of {} edges into E table in {} ms. Total so far: {} in {} ms",
                             insertCount,
                             sw.elapsed(TimeUnit.MILLISECONDS),
                             insertCounter,
