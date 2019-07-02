@@ -228,7 +228,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                 VERSIONS.name,
                 PARTITIONS_VERSION.name
         ).joinToString(",")
-        return "SELECT $selectCols FROM ${EDGES.name} INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name} where entity_type_id in (select id from entity_types where id in (select id from association_types where '31cf5595-3fe9-4d3e-a9cf-39355a4b8cab' = ANY(src) or '31cf5595-3fe9-4d3e-a9cf-39355a4b8cab' = ANY(dst)) ) as entity_set_partitions USING(${joinColumn.name}) " +
+        return "SELECT $selectCols FROM ${EDGES.name} INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name} as entity_set_partitions USING(${joinColumn.name}) " +
                 "WHERE ${COMPONENT_TYPES.name} = ${IdType.SRC.ordinal}"
     }
 
