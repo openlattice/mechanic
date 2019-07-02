@@ -71,9 +71,13 @@ class Toolbox(
 //            }
 
             if (tableDefinition is CitusDistributedTableDefinition) {
-                conn.createStatement().use { stmt ->
-                    logger.info("Distributing Table")
-                    stmt.execute(tableDefinition.createDistributedTableQuery())
+                try {
+                    conn.createStatement().use { stmt ->
+                        logger.info("Distributing Table")
+                        stmt.execute(tableDefinition.createDistributedTableQuery())
+                    }
+                } catch (e: Exception) {
+                    logger.info("Could not distribute table: ", e)
                 }
             }
         }
