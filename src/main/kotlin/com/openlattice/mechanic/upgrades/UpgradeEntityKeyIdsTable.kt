@@ -132,7 +132,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
     }
 
     override fun upgrade(): Boolean {
-        toolbox.createTable(E)
+        toolbox.createTable(IDS)
         /*
                             PARTITION,
                             ID_VALUE,
@@ -153,7 +153,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
 
         val insertCols = E.columns.joinToString(",") { it.name }
 
-        val migratedVersionSql = "WITH for_migration AS ( UPDATE ${EDGES.name} SET migrated_version = abs(version) WHERE (id,edge_comp_1,edge_comp_2,component_types) in ( select id,edge_comp_1,edge_comp_2,component_types FROM ${EDGES.name} WHERE (${filterSDEntitySetsClause()})  AND (migrated_version < abs(migrated_version)) LIMIT $BATCH_SIZE) ) RETURNING *) "
+        val migratedVersionSql = "WITH ( UPDATE ${IDS.name} SET migrated_version = abs(version) WHERE ids IN  (migrated_version < abs(migrated_version)) LIMIT $BATCH_SIZE) RETURNING *) "
 
         val srcPartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(SRC_ENTITY_SET_ID)
         val dstPartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(DST_ENTITY_SET_ID)
@@ -203,7 +203,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
         toolbox.hds.connection.use { conn ->
             conn.createStatement().use {
                 it.execute(
-                        "ALTER TABLE ${EDGES.name} ADD COLUMN if not exists migrated_version bigint NOT NULL DEFAULT 0"
+                        "ALTER TABLE ${ENTITY_KEY_IDS.name} ADD COLUMN if not exists migrated_version bigint NOT NULL DEFAULT 0"
                 )
             }
         }
