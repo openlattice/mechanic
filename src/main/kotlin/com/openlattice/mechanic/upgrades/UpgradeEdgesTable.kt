@@ -1,5 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
+import com.google.common.base.Stopwatch
 import com.openlattice.graph.IdType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn.*
@@ -7,12 +8,14 @@ import com.openlattice.postgres.PostgresColumnDefinition
 import com.openlattice.postgres.PostgresTable.*
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import java.util.concurrent.TimeUnit
 
 /**
  *
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
 
+private const val BATCH_SIZE = 16000
 private val SOUTH_DAKOTA_ENTITY_SET_IDS = listOf(
         "066aab8f-1703-44e4-8dea-82bf88310d6b",
         "0a48710c-3899-4743-b1f7-28c6f99aa202",
@@ -144,10 +147,13 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                             PARTITIONS_VERSION
          */
         addMigratedVersionColumn()
+        var insertCounter = 0
+        var insertCount = 1
+        val swTotal = Stopwatch.createStarted()
 
         val insertCols = E.columns.joinToString(",") { it.name }
 
-        val migratedVersionSql = "WITH ( UPDATE ${E.name} SET migrated_version = abs(version) WHERE (${filterSDEntitySetsClause()} AND migrated_version < abs(migrated_version) ) RETURNING *) "
+        val migratedVersionSql = "WITH ( UPDATE ${EDGES.name} SET migrated_version = abs(version) WHERE (${filterSDEntitySetsClause()})  AND (migrated_version < abs(migrated_version)) LIMIT $BATCH_SIZE) RETURNING *) "
 
         val srcPartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(SRC_ENTITY_SET_ID)
         val dstPartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(DST_ENTITY_SET_ID)
@@ -158,12 +164,28 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
         logger.info("Edge sql: {}", edgePartitionSql)
 
         toolbox.hds.connection.use { conn ->
-            val srcCount = conn.createStatement().use { it.executeUpdate(srcPartitionSql) }
-            logger.info("Inserted {} edges into src partitions.", srcCount)
-            val dstCount = conn.createStatement().use { it.executeUpdate(dstPartitionSql) }
-            logger.info("Inserted {} edges into dst partitions.", dstCount)
-            val edgeCount = conn.createStatement().use { it.executeUpdate(edgePartitionSql) }
-            logger.info("Inserted {} edges into edge partitions.", edgeCount)
+            conn.autoCommit = false
+            conn.createStatement().use { stmt ->
+                while (insertCount > 0) {
+                    val sw = Stopwatch.createStarted()
+                    val srcCount = stmt.executeUpdate(srcPartitionSql)
+                    val dstCount = stmt.executeUpdate(dstPartitionSql)
+                    val edgeCount = stmt.executeUpdate(edgePartitionSql)
+                    logger.info("Inserted {} edges into src partitions.", srcCount)
+                    logger.info("Inserted {} edges into dst partitions.", dstCount)
+                    logger.info("Inserted {} edges into edge partitions.", edgeCount)
+                    insertCount = srcCount +dstCount+edgeCount
+                    insertCounter += insertCount
+                    logger.info(
+                            "Migrated batch of {} edges into E table of type in {} ms. Total so far: {} in {} ms",
+                            insertCount,
+                            sw.elapsed(TimeUnit.MILLISECONDS),
+                            insertCounter,
+                            swTotal.elapsed(TimeUnit.MILLISECONDS)
+                    )
+                }
+            }
+
         }
 
         return true
@@ -181,7 +203,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
         toolbox.hds.connection.use { conn ->
             conn.createStatement().use {
                 it.execute(
-                        "ALTER TABLE ${E.name} ADD COLUMN if not exists migrated_version bigint NOT NULL DEFAULT 0"
+                        "ALTER TABLE ${EDGES.name} ADD COLUMN if not exists migrated_version bigint NOT NULL DEFAULT 0"
                 )
             }
         }
