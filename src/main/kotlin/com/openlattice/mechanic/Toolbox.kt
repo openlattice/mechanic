@@ -63,12 +63,12 @@ class Toolbox(
                 logger.info("Creating the table ${tableDefinition.name}.")
                 stmt.execute(tableDefinition.createTableQuery())
             }
-            tableDefinition.createIndexQueries.forEach { indexSql ->
-                conn.createStatement().use { stmt ->
-                    logger.info("Creating index with query {}", indexSql)
-                    stmt.execute(indexSql)
-                }
-            }
+//            tableDefinition.createIndexQueries.forEach { indexSql ->
+//                conn.createStatement().use { stmt ->
+//                    logger.info("Creating index with query {}", indexSql)
+//                    stmt.execute(indexSql)
+//                }
+//            }
 
             if (tableDefinition is CitusDistributedTableDefinition) {
                 conn.createStatement().use { stmt ->
