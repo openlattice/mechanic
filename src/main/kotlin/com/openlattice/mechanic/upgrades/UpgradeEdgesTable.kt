@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component
 import java.util.*
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
+import kotlin.IllegalStateException
 
 /**
  *
@@ -241,6 +242,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
     private fun buildEdgeSelection(joinColumn: PostgresColumnDefinition): String {
         val selectCols = listOf(
                 "partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition",
+                getType(joinColumn),
                 SRC_ENTITY_SET_ID.name,
                 "${ID_VALUE.name} as ${SRC_ENTITY_KEY_ID.name}",
                 DST_ENTITY_SET_ID.name,
@@ -252,6 +254,15 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                 PARTITIONS_VERSION.name
         ).joinToString(",")
         return "SELECT $selectCols FROM ${EDGES.name} INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(${joinColumn.name}) "
+    }
+
+    private fun getType( colDef: PostgresColumnDefinition) : IdType {
+        return when (colDef) {
+            SRC_ENTITY_SET_ID -> IdType.SRC
+            DST_ENTITY_SET_ID -> IdType.DST
+            EDGE_ENTITY_SET_ID -> IdType.EDGE
+            else -> throw IllegalStateException("apocalypse realized")
+        }
     }
 
 }
