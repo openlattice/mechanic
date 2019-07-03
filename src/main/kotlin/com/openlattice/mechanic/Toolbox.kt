@@ -58,7 +58,6 @@ class Toolbox(
 
     fun createTable(tableDefinition: PostgresTableDefinition) {
         hds.connection.use { conn ->
-            val tableDefinition = PostgresDataTables.buildDataTableDefinition()
             conn.createStatement().use { stmt ->
                 logger.info("Creating the table ${tableDefinition.name}.")
                 stmt.execute(tableDefinition.createTableQuery())
