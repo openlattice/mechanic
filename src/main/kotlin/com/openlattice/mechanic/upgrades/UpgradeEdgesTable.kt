@@ -125,7 +125,7 @@ private val SOUTH_DAKOTA_ENTITY_SET_IDS = listOf(
         "fb3ce259-e4ab-4346-93ff-fbb459cda47c",
         "fdbc7dc9-9f5e-4438-8837-bb969cbdf4d0",
         "fdec4c8e-4086-4b21-8c2f-b14ac7269ba7"
-)
+).map(UUID::fromString)
 
 @Component
 class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
@@ -151,23 +151,26 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                             PARTITIONS_VERSION
          */
         addMigratedVersionColumn()
-        var insertCounter = 0
-        var insertCount = 1
-        val swTotal = Stopwatch.createStarted()
 
         val insertCols = E.columns.joinToString(",") { it.name }
 
         val migratedVersionSql = "WITH for_migration AS ( UPDATE ${EDGES.name} SET migrated_version = abs(version) WHERE (id,edge_comp_1,edge_comp_2,component_types) in ( select id,edge_comp_1,edge_comp_2,component_types FROM ${EDGES.name} WHERE (migrated_version < abs(migrated_version)) LIMIT $BATCH_SIZE) ) RETURNING *) "
 
 //        toolbox.entitySets.values.map { it.id }.stream().parallel().forEach { // TODO use this one for all edges
-        SOUTH_DAKOTA_ENTITY_SET_IDS.map { UUID.fromString(it) }.stream().parallel().forEach {
+        toolbox.entitySets.keys.filter { SOUTH_DAKOTA_ENTITY_SET_IDS.contains(it) }.stream().parallel().forEach {
 
             try {
                 limiter.acquire()
 
-                val srcPartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(SRC_ENTITY_SET_ID, it)
-                val dstPartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(DST_ENTITY_SET_ID, it)
-                val edgePartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(EDGE_ENTITY_SET_ID, it)
+                val srcPartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(
+                        SRC_ENTITY_SET_ID, it
+                )
+                val dstPartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(
+                        DST_ENTITY_SET_ID, it
+                )
+                val edgePartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(
+                        EDGE_ENTITY_SET_ID, it
+                )
 
                 logger.info("Src sql: {}", srcPartitionSql)
                 logger.info("Dst sql: {}", dstPartitionSql)
@@ -175,9 +178,13 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
 
                 toolbox.hds.connection.use { conn ->
                     conn.autoCommit = false
+                    var insertCounter = 0
+                    var insertCount = 1
+                    val swTotal = Stopwatch.createStarted()
+
                     conn.createStatement().use { stmt ->
+                        val sw = Stopwatch.createStarted()
                         while (insertCount > 0) {
-                            val sw = Stopwatch.createStarted()
                             val srcCount = stmt.executeUpdate(srcPartitionSql)
                             val dstCount = stmt.executeUpdate(dstPartitionSql)
                             val edgeCount = stmt.executeUpdate(edgePartitionSql)
@@ -186,14 +193,16 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                             logger.info("Inserted {} edges into edge partitions.", edgeCount)
                             insertCount = srcCount + dstCount + edgeCount
                             insertCounter += insertCount
-                            logger.info(
-                                    "Migrated batch of {} edges into E table in {} ms. Total so far: {} in {} ms",
-                                    insertCount,
-                                    sw.elapsed(TimeUnit.MILLISECONDS),
-                                    insertCounter,
-                                    swTotal.elapsed(TimeUnit.MILLISECONDS)
-                            )
+
+                            conn.commit()
                         }
+                        logger.info(
+                                "Migrated batch of {} edges into E table in {} ms. Total so far: {} in {} ms",
+                                insertCount,
+                                sw.elapsed(TimeUnit.MILLISECONDS),
+                                insertCounter,
+                                swTotal.elapsed(TimeUnit.MILLISECONDS)
+                        )
                     }
                 }
 
