@@ -155,8 +155,7 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
                 toolbox.hds.connection.use { conn ->
                     conn.createStatement().use { stmt ->
                         while (insertCount > 0) {
-                            val sw = Stopwatch.createStarted()
-                            val insertCount = stmt.executeUpdate(insertSql)
+                            val sw = Stopwatch.createStarted()insertCount = stmt.executeUpdate(insertSql)
                             logger.info("Inserted {} edges into edge partitions.", insertCount)
                             insertCounter += insertCount
                             logger.info(
