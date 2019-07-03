@@ -212,8 +212,8 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
     fun migratedVersionSql(joinColumn: PostgresColumnDefinition, entitySetId: UUID): String {
         return "WITH for_migration AS ( UPDATE ${EDGES.name} SET migrated_version = abs(version) " +
                 "WHERE ${COMPONENT_TYPES.name} = ${IdType.SRC.ordinal} AND ${joinColumn.name} = '$entitySetId' AND " +
-                "(id,edge_comp_1,edge_comp_2,component_types) in ( select id,edge_comp_1,edge_comp_2,component_types FROM ${EDGES.name} migrated_version < abs(migrated_version)) " +
-                "LIMIT $BATCH_SIZE) ) RETURNING *) "
+                "(id,edge_comp_1,edge_comp_2,${COMPONENT_TYPES.name}) in ( select id,edge_comp_1,edge_comp_2,${COMPONENT_TYPES.name} FROM ${EDGES.name} WHERE (migrated_version < abs(migrated_version)) " +
+                "LIMIT $BATCH_SIZE) RETURNING *) "
     }
 
     fun addMigratedVersionColumn() {
@@ -248,7 +248,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                 VERSIONS.name,
                 PARTITIONS_VERSION.name
         ).joinToString(",")
-        return "SELECT $selectCols FROM ${EDGES.name} INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name} as entity_set_partitions USING(${joinColumn.name}) "
+        return "SELECT $selectCols FROM ${EDGES.name} INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(${joinColumn.name}) "
     }
 
 }
