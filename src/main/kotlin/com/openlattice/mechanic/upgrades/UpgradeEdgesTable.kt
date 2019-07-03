@@ -215,6 +215,9 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                 "WHERE ${COMPONENT_TYPES.name} = ${IdType.SRC.ordinal} AND ${joinColumn.name} = '$entitySetId' AND " +
                 "(id,edge_comp_1,edge_comp_2,${COMPONENT_TYPES.name}) in ( select id,edge_comp_1,edge_comp_2,${COMPONENT_TYPES.name} FROM ${EDGES.name} WHERE (migrated_version < abs(migrated_version)) " +
                 "LIMIT $BATCH_SIZE) RETURNING *) "
+
+//                "(id,edge_comp_1,edge_comp_2,component_types) in ( select id,edge_comp_1,edge_comp_2,component_types FROM ${EDGES.name} WHERE migrated_version < abs(migrated_version)) " +
+//                "LIMIT $BATCH_SIZE) ) RETURNING *) "
     }
 
     fun addMigratedVersionColumn() {
