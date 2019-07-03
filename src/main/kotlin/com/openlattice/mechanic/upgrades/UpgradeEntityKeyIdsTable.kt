@@ -139,9 +139,7 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
     override fun upgrade(): Boolean {
         toolbox.createTable(IDS)
         addMigratedVersionColumn()
-        var insertCounter = 0
-        var insertCount = 1
-        val swTotal = Stopwatch.createStarted()
+
         val limiter = Semaphore(16)
 
 
@@ -151,7 +149,9 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
             logger.info("Insert SQL for ids sql: {}", insertSql)
             try {
                 limiter.acquire()
-
+                var insertCounter = 0
+                var insertCount = 1
+                val swTotal = Stopwatch.createStarted()
                 toolbox.hds.connection.use { conn ->
                     conn.createStatement().use { stmt ->
                         val sw = Stopwatch.createStarted()
