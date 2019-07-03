@@ -154,23 +154,18 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
 
         val insertCols = E.columns.joinToString(",") { it.name }
 
-        val migratedVersionSql = "WITH for_migration AS ( UPDATE ${EDGES.name} SET migrated_version = abs(version) WHERE (id,edge_comp_1,edge_comp_2,component_types) in ( select id,edge_comp_1,edge_comp_2,component_types FROM ${EDGES.name} WHERE (migrated_version < abs(migrated_version)) LIMIT $BATCH_SIZE) ) RETURNING *) "
-
 //        toolbox.entitySets.values.map { it.id }.stream().parallel().forEach { // TODO use this one for all edges
         toolbox.entitySets.keys.filter { SOUTH_DAKOTA_ENTITY_SET_IDS.contains(it) }.stream().parallel().forEach {
 
             try {
                 limiter.acquire()
 
-                val srcPartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(
-                        SRC_ENTITY_SET_ID, it
-                )
-                val dstPartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(
-                        DST_ENTITY_SET_ID, it
-                )
-                val edgePartitionSql = "$migratedVersionSql INSERT INTO ${E.name} ( $insertCols ) " + buildEdgeSelection(
-                        EDGE_ENTITY_SET_ID, it
-                )
+                val srcPartitionSql = "${migratedVersionSql(SRC_ENTITY_SET_ID, it)} INSERT INTO ${E.name} ( $insertCols ) " +
+                        buildEdgeSelection(SRC_ENTITY_SET_ID)
+                val dstPartitionSql = "${migratedVersionSql(DST_ENTITY_SET_ID, it)} INSERT INTO ${E.name} ( $insertCols ) " +
+                        buildEdgeSelection(DST_ENTITY_SET_ID)
+                val edgePartitionSql = "${migratedVersionSql(EDGE_ENTITY_SET_ID, it)} INSERT INTO ${E.name} ( $insertCols ) " +
+                        buildEdgeSelection(EDGE_ENTITY_SET_ID)
 
                 logger.info("Src sql: {}", srcPartitionSql)
                 logger.info("Dst sql: {}", dstPartitionSql)
@@ -214,6 +209,13 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
         return true
     }
 
+    fun migratedVersionSql(joinColumn: PostgresColumnDefinition, entitySetId: UUID) {
+        "WITH for_migration AS ( UPDATE ${EDGES.name} SET migrated_version = abs(version) " +
+                "WHERE ${COMPONENT_TYPES.name} = ${IdType.SRC.ordinal} AND ${joinColumn.name} = '$entitySetId' AND " +
+                "(id,edge_comp_1,edge_comp_2,component_types) in ( select id,edge_comp_1,edge_comp_2,component_types FROM ${EDGES.name} migrated_version < abs(migrated_version)) " +
+                "LIMIT $BATCH_SIZE) ) RETURNING *) "
+    }
+
     fun addMigratedVersionColumn() {
 
         logger.info("About to add migrated_version to edges table")
@@ -233,7 +235,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
     }
 
 
-    private fun buildEdgeSelection(joinColumn: PostgresColumnDefinition, entitySetId: UUID): String {
+    private fun buildEdgeSelection(joinColumn: PostgresColumnDefinition): String {
         val selectCols = listOf(
                 "partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition",
                 SRC_ENTITY_SET_ID.name,
@@ -246,8 +248,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                 VERSIONS.name,
                 PARTITIONS_VERSION.name
         ).joinToString(",")
-        return "SELECT $selectCols FROM ${EDGES.name} INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name} as entity_set_partitions USING(${joinColumn.name}) " +
-                "WHERE ${COMPONENT_TYPES.name} = ${IdType.SRC.ordinal} AND ${joinColumn.name} = '$entitySetId'"
+        return "SELECT $selectCols FROM ${EDGES.name} INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name} as entity_set_partitions USING(${joinColumn.name}) "
     }
 
 }
