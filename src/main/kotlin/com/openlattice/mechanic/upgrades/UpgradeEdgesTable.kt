@@ -137,6 +137,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
 
     override fun upgrade(): Boolean {
         toolbox.createTable(E)
+        logger.info("Created table E.")
         /*
                             PARTITION,
                             ID_VALUE,
