@@ -163,11 +163,11 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                 limiter.acquire()
 
                 val srcPartitionSql = "${migratedVersionSql(SRC_ENTITY_SET_ID, it)} INSERT INTO ${E.name} ( $insertCols ) " +
-                        buildEdgeSelection(SRC_ENTITY_SET_ID)
+                        buildEdgeSelection(SRC_ENTITY_SET_ID, it)
                 val dstPartitionSql = "${migratedVersionSql(DST_ENTITY_SET_ID, it)} INSERT INTO ${E.name} ( $insertCols ) " +
-                        buildEdgeSelection(DST_ENTITY_SET_ID)
+                        buildEdgeSelection(DST_ENTITY_SET_ID, it)
                 val edgePartitionSql = "${migratedVersionSql(EDGE_ENTITY_SET_ID, it)} INSERT INTO ${E.name} ( $insertCols ) " +
-                        buildEdgeSelection(EDGE_ENTITY_SET_ID)
+                        buildEdgeSelection(EDGE_ENTITY_SET_ID, it)
 
                 logger.info("Src sql: {}", srcPartitionSql)
                 logger.info("Dst sql: {}", dstPartitionSql)
@@ -213,7 +213,8 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
 
     fun migratedVersionSql(joinColumn: PostgresColumnDefinition, entitySetId: UUID): String {
         return "WITH for_migration AS ( UPDATE ${EDGES.name} SET migrated_version = abs(version) " +
-                "WHERE (id,edge_comp_1,edge_comp_2,${COMPONENT_TYPES.name}) in ( select id,edge_comp_1,edge_comp_2,${COMPONENT_TYPES.name} FROM ${EDGES.name} WHERE ${COMPONENT_TYPES.name} = ${IdType.SRC.ordinal} AND ${joinColumn.name} = '$entitySetId' AND (migrated_version < abs(version)) " +
+                "WHERE (id,edge_comp_1,edge_comp_2,${COMPONENT_TYPES.name}) in ( select id,edge_comp_1,edge_comp_2,${COMPONENT_TYPES.name} FROM ${EDGES.name} " +
+                "WHERE ${COMPONENT_TYPES.name} = ${IdType.SRC.ordinal} AND ${joinColumn.name} = '$entitySetId' AND (migrated_version < abs(version)) " +
                 "LIMIT $BATCH_SIZE) RETURNING *) "
 
 
@@ -238,7 +239,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
     }
 
 
-    private fun buildEdgeSelection(joinColumn: PostgresColumnDefinition): String {
+    private fun buildEdgeSelection(joinColumn: PostgresColumnDefinition, entitySetId: UUID): String {
         val selectCols = listOf(
                 "partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition",
                 getType(joinColumn).ordinal,
@@ -252,7 +253,9 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                 VERSIONS.name,
                 PARTITIONS_VERSION.name
         ).joinToString(",")
-        return "SELECT $selectCols FROM ${EDGES.name} INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(${joinColumn.name}) "
+
+        val selectEdgesSql = " (SELECT * FROM ${EDGES.name} WHERE ${SRC_ENTITY_SET_ID.name} = $entitySetId LIMIT $BATCH_SIZE) AS ${EDGES.name} "
+        return "SELECT $selectCols FROM $selectEdgesSql INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(${joinColumn.name}) "
     }
 
     private fun getType( colDef: PostgresColumnDefinition) : IdType {
