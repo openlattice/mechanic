@@ -242,7 +242,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
     private fun buildEdgeSelection(joinColumn: PostgresColumnDefinition): String {
         val selectCols = listOf(
                 "partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition",
-                getType(joinColumn),
+                getType(joinColumn).ordinal,
                 SRC_ENTITY_SET_ID.name,
                 "${ID_VALUE.name} as ${SRC_ENTITY_KEY_ID.name}",
                 DST_ENTITY_SET_ID.name,
