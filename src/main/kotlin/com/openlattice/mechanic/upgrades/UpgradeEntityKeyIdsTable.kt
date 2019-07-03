@@ -146,27 +146,28 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
 
 
 
-        toolbox.entitySets.keys.filter { SOUTH_DAKOTA_ENTITY_SET_IDS.contains(it) }.parallelStream().forEach {
-            val insertSql = getInsertQuery(it)
+        toolbox.entitySets.keys.filter { SOUTH_DAKOTA_ENTITY_SET_IDS.contains(it) }.parallelStream().forEach { entitySetId ->
+            val insertSql = getInsertQuery(entitySetId)
             logger.info("Insert SQL for ids sql: {}", insertSql)
             try {
                 limiter.acquire()
 
                 toolbox.hds.connection.use { conn ->
                     conn.createStatement().use { stmt ->
+                        val sw = Stopwatch.createStarted()
                         while (insertCount > 0) {
-                            val sw = Stopwatch.createStarted()
                             insertCount = stmt.executeUpdate(insertSql)
-                            logger.info("Inserted {} edges into edge partitions.", insertCount)
+                            logger.info("Inserted {} entity key ids into ids table partitions.", insertCount)
                             insertCounter += insertCount
-                            logger.info(
-                                    "Migrated batch of {} entity key ids into ids table in {} ms. Total so far: {} in {} ms",
-                                    insertCount,
-                                    sw.elapsed(TimeUnit.MILLISECONDS),
-                                    insertCounter,
-                                    swTotal.elapsed(TimeUnit.MILLISECONDS)
-                            )
                         }
+                        logger.info(
+                                "Migrated batch of {} entity key ids for entity set id {} into ids table in {} ms. Total so far: {} in {} ms",
+                                insertCount,
+                                entitySetId,
+                                sw.elapsed(TimeUnit.MILLISECONDS),
+                                insertCounter,
+                                swTotal.elapsed(TimeUnit.MILLISECONDS)
+                        )
                     }
                 }
             } finally {
