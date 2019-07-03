@@ -11,6 +11,8 @@ import com.openlattice.postgres.PostgresDataTables
 import com.openlattice.postgres.PostgresTable.*
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import java.util.*
+import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 
 /**
@@ -19,7 +21,7 @@ import java.util.concurrent.TimeUnit
  */
 
 private const val BATCH_SIZE = 16000
-private val SOUTH_DAKOTA_ENTITY_SET_IDS = listOf(
+private val SOUTH_DAKOTA_ENTITY_SET_IDS = setOf(
         "066aab8f-1703-44e4-8dea-82bf88310d6b",
         "0a48710c-3899-4743-b1f7-28c6f99aa202",
         "0ac30441-caac-4949-b835-f37b9e19a3ca",
@@ -126,7 +128,7 @@ private val SOUTH_DAKOTA_ENTITY_SET_IDS = listOf(
         "fb3ce259-e4ab-4346-93ff-fbb459cda47c",
         "fdbc7dc9-9f5e-4438-8837-bb969cbdf4d0",
         "fdec4c8e-4086-4b21-8c2f-b14ac7269ba7"
-)
+).map(UUID::fromString)
 
 @Component
 class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
@@ -140,34 +142,44 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
         var insertCounter = 0
         var insertCount = 1
         val swTotal = Stopwatch.createStarted()
+        val limiter = Semaphore(16)
 
-        val insertSql = getInsertQuery()
-        logger.info("Insert SQL for ids sql: {}", insertSql)
 
-        toolbox.hds.connection.use { conn ->
-            conn.autoCommit = false
-            conn.createStatement().use { stmt ->
-                while (insertCount > 0) {
-                    val sw = Stopwatch.createStarted()
-                    val insertCount = stmt.executeUpdate(insertSql)
-                    logger.info("Inserted {} edges into edge partitions.", insertCount)
-                    insertCounter += insertCount
-                    logger.info(
-                            "Migrated batch of {} entity key ids into ids table in {} ms. Total so far: {} in {} ms",
-                            insertCount,
-                            sw.elapsed(TimeUnit.MILLISECONDS),
-                            insertCounter,
-                            swTotal.elapsed(TimeUnit.MILLISECONDS)
-                    )
+
+        toolbox.entitySets.keys.filter { SOUTH_DAKOTA_ENTITY_SET_IDS.contains(it) }.parallelStream().forEach {
+            val insertSql = getInsertQuery(it)
+            logger.info("Insert SQL for ids sql: {}", insertSql)
+            try {
+                limiter.acquire()
+
+                toolbox.hds.connection.use { conn ->
+                    conn.autoCommit = false
+                    conn.createStatement().use { stmt ->
+                        while (insertCount > 0) {
+                            val sw = Stopwatch.createStarted()
+                            val insertCount = stmt.executeUpdate(insertSql)
+                            logger.info("Inserted {} edges into edge partitions.", insertCount)
+                            insertCounter += insertCount
+                            logger.info(
+                                    "Migrated batch of {} entity key ids into ids table in {} ms. Total so far: {} in {} ms",
+                                    insertCount,
+                                    sw.elapsed(TimeUnit.MILLISECONDS),
+                                    insertCounter,
+                                    swTotal.elapsed(TimeUnit.MILLISECONDS)
+                            )
+                        }
+                    }
                 }
+            } finally {
+                limiter.release()
             }
-
         }
 
         return true
     }
 
-    private fun getInsertQuery(): String {
+    private fun getInsertQuery(entitySetId:UUID): String {
+        val entitySetsClause = "entity_set_id = $entitySetId"
         val insertCols = listOf(
                 ENTITY_SET_ID.name,
                 ID_VALUE.name,
@@ -199,7 +211,7 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
                 PARTITIONS_VERSION.name
         ).joinToString(",")
         val conflictSql = buildConflictSql()
-        val withClause = "WITH for_migration as ( UPDATE entity_key_ids set migrated_version = abs(version) WHERE id in (SELECT id from entity_key_ids WHERE (migrated_version < abs(version)) limit $BATCH_SIZE) RETURNING * ) "
+        val withClause = "WITH for_migration as ( UPDATE entity_key_ids set migrated_version = abs(version) WHERE id in (SELECT id from entity_key_ids WHERE (migrated_version < abs(version)) AND $entitySetsClause limit $BATCH_SIZE) RETURNING * ) "
         return "$withClause INSERT INTO ${IDS.name} ($insertCols) " +
                 "SELECT $selectCols " +
                 "FROM for_migration INNER JOIN (select id as entity_set_id, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
