@@ -153,7 +153,6 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
                 limiter.acquire()
 
                 toolbox.hds.connection.use { conn ->
-                    conn.autoCommit = false
                     conn.createStatement().use { stmt ->
                         while (insertCount > 0) {
                             val sw = Stopwatch.createStarted()
