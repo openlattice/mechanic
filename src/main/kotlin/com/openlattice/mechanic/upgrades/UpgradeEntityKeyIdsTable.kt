@@ -179,7 +179,7 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
     }
 
     private fun getInsertQuery(entitySetId:UUID): String {
-        val entitySetsClause = "entity_set_id = $entitySetId"
+        val entitySetsClause = "entity_set_id = '$entitySetId'"
         val insertCols = listOf(
                 ENTITY_SET_ID.name,
                 ID_VALUE.name,
