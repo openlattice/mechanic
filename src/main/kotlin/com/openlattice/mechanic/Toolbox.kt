@@ -58,22 +58,25 @@ class Toolbox(
 
     fun createTable(tableDefinition: PostgresTableDefinition) {
         hds.connection.use { conn ->
-            val tableDefinition = PostgresDataTables.buildDataTableDefinition()
             conn.createStatement().use { stmt ->
                 logger.info("Creating the table ${tableDefinition.name}.")
                 stmt.execute(tableDefinition.createTableQuery())
             }
-            tableDefinition.createIndexQueries.forEach { indexSql ->
-                conn.createStatement().use { stmt ->
-                    logger.info("Creating index with query {}", indexSql)
-                    stmt.execute(indexSql)
-                }
-            }
+//            tableDefinition.createIndexQueries.forEach { indexSql ->
+//                conn.createStatement().use { stmt ->
+//                    logger.info("Creating index with query {}", indexSql)
+//                    stmt.execute(indexSql)
+//                }
+//            }
 
             if (tableDefinition is CitusDistributedTableDefinition) {
-                conn.createStatement().use { stmt ->
-                    logger.info("Distributing Table")
-                    stmt.execute(tableDefinition.createDistributedTableQuery())
+                try {
+                    conn.createStatement().use { stmt ->
+                        logger.info("Distributing Table")
+                        stmt.execute(tableDefinition.createDistributedTableQuery())
+                    }
+                } catch (e: Exception) {
+                    logger.info("Could not distribute table: ", e)
                 }
             }
         }

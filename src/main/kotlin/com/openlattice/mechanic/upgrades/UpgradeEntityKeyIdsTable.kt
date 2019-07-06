@@ -1,17 +1,19 @@
 package com.openlattice.mechanic.upgrades
 
 import com.google.common.base.Stopwatch
+import com.openlattice.edm.type.PropertyType
 import com.openlattice.graph.IdType
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.postgres.DataTables.*
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresColumnDefinition
+import com.openlattice.postgres.PostgresDataTables
 import com.openlattice.postgres.PostgresTable.*
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.util.*
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
-import kotlin.IllegalStateException
 
 /**
  *
@@ -19,7 +21,7 @@ import kotlin.IllegalStateException
  */
 
 private const val BATCH_SIZE = 16000
-private val SOUTH_DAKOTA_ENTITY_SET_IDS = listOf(
+private val SOUTH_DAKOTA_ENTITY_SET_IDS = setOf(
         "066aab8f-1703-44e4-8dea-82bf88310d6b",
         "0a48710c-3899-4743-b1f7-28c6f99aa202",
         "0ac30441-caac-4949-b835-f37b9e19a3ca",
@@ -129,80 +131,45 @@ private val SOUTH_DAKOTA_ENTITY_SET_IDS = listOf(
 ).map(UUID::fromString)
 
 @Component
-class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
-    private val limiter = Semaphore(16)
-
+class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
     companion object {
         private val logger = LoggerFactory.getLogger(UpgradeEdgesTable::class.java)
     }
 
     override fun upgrade(): Boolean {
-        toolbox.createTable(E)
-        logger.info("Created table E.")
-        /*
-                            PARTITION,
-                            ID_VALUE,
-                            SRC_ENTITY_SET_ID,
-                            SRC_ENTITY_KEY_ID,
-                            DST_ENTITY_SET_ID,
-                            DST_ENTITY_KEY_ID,
-                            EDGE_ENTITY_SET_ID,
-                            EDGE_ENTITY_KEY_ID,
-                            VERSION,
-                            VERSIONS,
-                            PARTITIONS_VERSION
-         */
+        toolbox.createTable(IDS)
         addMigratedVersionColumn()
 
-        val insertCols = E.columns.joinToString(",") { it.name }
+        val limiter = Semaphore(16)
 
-//        toolbox.entitySets.values.map { it.id }.stream().parallel().forEach { // TODO use this one for all edges
-        toolbox.entitySets.keys.filter { SOUTH_DAKOTA_ENTITY_SET_IDS.contains(it) }.stream().parallel().forEach {
 
+
+        toolbox.entitySets.keys.filter { SOUTH_DAKOTA_ENTITY_SET_IDS.contains(it) }.parallelStream().forEach { entitySetId ->
+            val insertSql = getInsertQuery(entitySetId)
+            logger.info("Insert SQL for ids sql: {}", insertSql)
             try {
                 limiter.acquire()
-
-                val srcPartitionSql = "${migratedVersionSql(SRC_ENTITY_SET_ID, it)} INSERT INTO ${E.name} ( $insertCols ) " +
-                        buildEdgeSelection(SRC_ENTITY_SET_ID, it)
-                val dstPartitionSql = "${migratedVersionSql(DST_ENTITY_SET_ID, it)} INSERT INTO ${E.name} ( $insertCols ) " +
-                        buildEdgeSelection(DST_ENTITY_SET_ID, it)
-                val edgePartitionSql = "${migratedVersionSql(EDGE_ENTITY_SET_ID, it)} INSERT INTO ${E.name} ( $insertCols ) " +
-                        buildEdgeSelection(EDGE_ENTITY_SET_ID, it)
-
-                logger.info("Src sql: {}", srcPartitionSql)
-                logger.info("Dst sql: {}", dstPartitionSql)
-                logger.info("Edge sql: {}", edgePartitionSql)
-
+                var insertCounter = 0
+                var insertCount = 1
+                val swTotal = Stopwatch.createStarted()
                 toolbox.hds.connection.use { conn ->
-                    conn.autoCommit = false
-                    var insertCounter = 0
-                    var insertCount = 1
-                    val swTotal = Stopwatch.createStarted()
-
                     conn.createStatement().use { stmt ->
                         val sw = Stopwatch.createStarted()
                         while (insertCount > 0) {
-                            val srcCount = stmt.executeUpdate(srcPartitionSql)
-                            val dstCount = stmt.executeUpdate(dstPartitionSql)
-                            val edgeCount = stmt.executeUpdate(edgePartitionSql)
-                            logger.info("Inserted {} edges into src partitions.", srcCount)
-                            logger.info("Inserted {} edges into dst partitions.", dstCount)
-                            logger.info("Inserted {} edges into edge partitions.", edgeCount)
-                            insertCount = srcCount + dstCount + edgeCount
+                            insertCount = stmt.executeUpdate(insertSql)
+                            logger.info("Inserted {} entity key ids into ids table partitions.", insertCount)
                             insertCounter += insertCount
-
-                            conn.commit()
                         }
                         logger.info(
-                                "Migrated batch of {} edges into E table in {} ms. Total so far: {} in {} ms",
+                                "Migrated batch of {} entity key ids for entity set id {} into ids table in {} ms. Total so far: {} in {} ms",
                                 insertCount,
+                                entitySetId,
                                 sw.elapsed(TimeUnit.MILLISECONDS),
                                 insertCounter,
                                 swTotal.elapsed(TimeUnit.MILLISECONDS)
                         )
                     }
                 }
-
             } finally {
                 limiter.release()
             }
@@ -211,13 +178,61 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
         return true
     }
 
-    fun migratedVersionSql(joinColumn: PostgresColumnDefinition, entitySetId: UUID): String {
-        return "WITH for_migration AS ( UPDATE ${EDGES.name} SET migrated_version = abs(version) " +
-                "WHERE (id,edge_comp_1,edge_comp_2,${COMPONENT_TYPES.name}) in ( select id,edge_comp_1,edge_comp_2,${COMPONENT_TYPES.name} FROM ${EDGES.name} " +
-                "WHERE ${COMPONENT_TYPES.name} = ${IdType.SRC.ordinal} AND ${joinColumn.name} = '$entitySetId' AND (migrated_version < abs(version)) " +
-                "LIMIT $BATCH_SIZE) RETURNING *) "
+    private fun getInsertQuery(entitySetId:UUID): String {
+        val entitySetsClause = "entity_set_id = '$entitySetId'"
+        val insertCols = listOf(
+                ENTITY_SET_ID.name,
+                ID_VALUE.name,
+                PARTITION.name,
+                ENTITY_ID.name,
+                LINKING_ID.name,
+                VERSION.name,
+                VERSIONS.name,
+                LAST_WRITE.name,
+                LAST_INDEX.name,
+                LAST_LINK.name,
+                LAST_PROPAGATE.name,
+                LAST_LINK_INDEX.name,
+                PARTITIONS_VERSION.name
+        ).joinToString(",")
+        val selectCols = listOf(
+                ENTITY_SET_ID.name,
+                ID_VALUE.name,
+                "partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition",
+                ENTITY_ID.name,
+                LINKING_ID.name,
+                VERSION.name,
+                VERSIONS.name,
+                LAST_WRITE.name,
+                LAST_INDEX.name,
+                LAST_LINK.name,
+                "COALESCE(${LAST_PROPAGATE.name},now())",
+                LAST_LINK_INDEX.name,
+                PARTITIONS_VERSION.name
+        ).joinToString(",")
+        val conflictSql = buildConflictSql()
+        val withClause = "WITH for_migration as ( UPDATE entity_key_ids set migrated_version = abs(version) WHERE id in (SELECT id from entity_key_ids WHERE (migrated_version < abs(version)) AND $entitySetsClause limit $BATCH_SIZE) RETURNING * ) "
+        return "$withClause INSERT INTO ${IDS.name} ($insertCols) " +
+                "SELECT $selectCols " +
+                "FROM for_migration INNER JOIN (select id as entity_set_id, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
+                "ON CONFLICT (${IDS.primaryKey.joinToString(",") { it.name }} ) DO UPDATE SET $conflictSql"
+    }
 
-
+    private fun buildConflictSql(): String {
+        //This isn't usable for repartitioning.
+        return listOf(
+                ENTITY_SET_ID,
+                ENTITY_ID,
+                LINKING_ID,
+                VERSION,
+                VERSIONS,
+                LAST_WRITE,
+                LAST_INDEX,
+                LAST_LINK,
+                LAST_PROPAGATE,
+                LAST_LINK_INDEX,
+                PARTITIONS_VERSION
+        ).joinToString(",") { "${it.name} = EXCLUDED.${it.name}" }
     }
 
     fun addMigratedVersionColumn() {
@@ -227,7 +242,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
         toolbox.hds.connection.use { conn ->
             conn.createStatement().use {
                 it.execute(
-                        "ALTER TABLE ${EDGES.name} ADD COLUMN if not exists migrated_version bigint NOT NULL DEFAULT 0"
+                        "ALTER TABLE ${ENTITY_KEY_IDS.name} ADD COLUMN if not exists migrated_version bigint NOT NULL DEFAULT 0"
                 )
             }
         }
@@ -236,35 +251,6 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
 
     override fun getSupportedVersion(): Long {
         return Version.V2019_07_01.value
-    }
-
-
-    private fun buildEdgeSelection(joinColumn: PostgresColumnDefinition, entitySetId: UUID): String {
-        val selectCols = listOf(
-                "partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition",
-                getType(joinColumn).ordinal,
-                SRC_ENTITY_SET_ID.name,
-                "${ID_VALUE.name} as ${SRC_ENTITY_KEY_ID.name}",
-                DST_ENTITY_SET_ID.name,
-                "${EDGE_COMP_1.name} as ${DST_ENTITY_KEY_ID.name}",
-                EDGE_ENTITY_SET_ID.name,
-                "${EDGE_COMP_2.name} as ${EDGE_ENTITY_KEY_ID.name}",
-                VERSION.name,
-                VERSIONS.name,
-                PARTITIONS_VERSION.name
-        ).joinToString(",")
-
-        val selectEdgesSql = " (SELECT * FROM ${EDGES.name} WHERE ${SRC_ENTITY_SET_ID.name} = $entitySetId LIMIT $BATCH_SIZE) AS ${EDGES.name} "
-        return "SELECT $selectCols FROM $selectEdgesSql INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(${joinColumn.name}) "
-    }
-
-    private fun getType( colDef: PostgresColumnDefinition) : IdType {
-        return when (colDef) {
-            SRC_ENTITY_SET_ID -> IdType.SRC
-            DST_ENTITY_SET_ID -> IdType.DST
-            EDGE_ENTITY_SET_ID -> IdType.EDGE
-            else -> throw IllegalStateException("apocalypse realized")
-        }
     }
 
 }
