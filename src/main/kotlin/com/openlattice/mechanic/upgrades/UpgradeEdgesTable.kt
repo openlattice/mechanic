@@ -254,7 +254,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                 PARTITIONS_VERSION.name
         ).joinToString(",")
 
-        val selectEdgesSql = " (SELECT * FROM ${EDGES.name} WHERE ${SRC_ENTITY_SET_ID.name} = $entitySetId LIMIT $BATCH_SIZE) AS ${EDGES.name} "
+        val selectEdgesSql = " (SELECT * FROM ${EDGES.name} WHERE ${SRC_ENTITY_SET_ID.name} = '$entitySetId' LIMIT $BATCH_SIZE) AS ${EDGES.name} "
         return "SELECT $selectCols FROM $selectEdgesSql INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(${joinColumn.name}) "
     }
 
