@@ -203,6 +203,10 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                     }
                 }
 
+            } catch (e: Exception) {
+                logger.error("Uh oh, entity set {} has failed and is no longer edgy.", it, e)
+                limiter.release()
+
             } finally {
                 limiter.release()
             }
@@ -254,7 +258,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                 PARTITIONS_VERSION.name
         ).joinToString(",")
 
-        val selectEdgesSql = " (SELECT * FROM ${EDGES.name} WHERE ${SRC_ENTITY_SET_ID.name} = '$entitySetId' LIMIT $BATCH_SIZE) AS ${EDGES.name} "
+        val selectEdgesSql = " (SELECT * FROM ${EDGES.name} WHERE ${SRC_ENTITY_SET_ID.name} = '$entitySetId' AND ${COMPONENT_TYPES.name} = ${IdType.SRC.ordinal} LIMIT $BATCH_SIZE) AS ${EDGES.name} "
         return "SELECT $selectCols FROM $selectEdgesSql INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(${joinColumn.name}) ON CONFLICT DO NOTHING "
     }
 
