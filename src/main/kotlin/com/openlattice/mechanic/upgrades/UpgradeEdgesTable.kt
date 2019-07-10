@@ -258,8 +258,8 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                 PARTITIONS_VERSION.name
         ).joinToString(",")
 
-        val selectEdgesSql = " (SELECT * FROM ${EDGES.name} WHERE ${SRC_ENTITY_SET_ID.name} = '$entitySetId' AND ${COMPONENT_TYPES.name} = ${IdType.SRC.ordinal} LIMIT $BATCH_SIZE) AS ${EDGES.name} "
-        return "SELECT $selectCols FROM $selectEdgesSql INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(${joinColumn.name}) ON CONFLICT DO NOTHING "
+//        val selectEdgesSql = " (SELECT * FROM ${EDGES.name} WHERE ${SRC_ENTITY_SET_ID.name} = '$entitySetId' AND ${COMPONENT_TYPES.name} = ${IdType.SRC.ordinal} LIMIT $BATCH_SIZE) AS ${EDGES.name} "
+        return "SELECT $selectCols FROM for_migration INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(${joinColumn.name}) ON CONFLICT DO NOTHING "
     }
 
     private fun getType( colDef: PostgresColumnDefinition) : IdType {
