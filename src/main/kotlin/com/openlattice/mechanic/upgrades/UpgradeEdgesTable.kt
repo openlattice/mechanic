@@ -231,7 +231,8 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
         toolbox.hds.connection.use { conn ->
             conn.createStatement().use {
                 it.execute(
-                        "ALTER TABLE ${EDGES.name} ADD COLUMN if not exists migrated_version bigint NOT NULL DEFAULT 0"
+                        "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '${EDGES.name}' AND column_name = 'migrated_version') " +
+                                "BEGIN ALTER TABLE ${EDGES.name} ADD COLUMN migrated_version bigint NOT NULL DEFAULT 0 END"
                 )
             }
         }
