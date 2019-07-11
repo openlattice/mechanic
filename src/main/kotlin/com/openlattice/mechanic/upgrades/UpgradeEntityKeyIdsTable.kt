@@ -237,16 +237,19 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
 
     fun addMigratedVersionColumn() {
 
-        logger.info("About to add migrated_version to edges table")
-
+        logger.info("About to add migrated_version to entity_key_ids table")
+        
         toolbox.hds.connection.use { conn ->
             conn.createStatement().use {
                 it.execute(
-                        "ALTER TABLE ${ENTITY_KEY_IDS.name} ADD COLUMN if not exists migrated_version bigint NOT NULL DEFAULT 0"
+                        "DO $$ BEGIN " +
+                                "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '${ENTITY_KEY_IDS.name}' AND column_name = 'migrated_version') " +
+                                "THEN ALTER TABLE ${ENTITY_KEY_IDS.name} ADD COLUMN if not exists migrated_version bigint NOT NULL DEFAULT 0 ; else raise NOTICE 'Column migrated_version already exists'; " +
+                                "END IF; END $$"
                 )
             }
         }
-        logger.info("Added migrated_version to edges table")
+        logger.info("Added migrated_version to entity_key_ids table")
     }
 
     override fun getSupportedVersion(): Long {
