@@ -231,8 +231,10 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
         toolbox.hds.connection.use { conn ->
             conn.createStatement().use {
                 it.execute(
-                        "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '${EDGES.name}' AND column_name = 'migrated_version') " +
-                                "BEGIN ALTER TABLE ${EDGES.name} ADD COLUMN migrated_version bigint NOT NULL DEFAULT 0 END"
+                        "DO $$ BEGIN " +
+                                "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '${EDGES.name}' AND column_name = 'migrated_version') " +
+                                "THEN ALTER TABLE ${EDGES.name} ADD COLUMN migrated_version bigint NOT NULL DEFAULT 0 ; else raise NOTICE 'Column migrated_version already exists'; " +
+                                "END IF; END $$"
                 )
             }
         }
@@ -263,7 +265,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
         return "SELECT $selectCols FROM for_migration INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(${joinColumn.name}) ON CONFLICT DO NOTHING "
     }
 
-    private fun getType( colDef: PostgresColumnDefinition) : IdType {
+    private fun getType(colDef: PostgresColumnDefinition): IdType {
         return when (colDef) {
             SRC_ENTITY_SET_ID -> IdType.SRC
             DST_ENTITY_SET_ID -> IdType.DST
