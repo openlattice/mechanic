@@ -225,6 +225,9 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
                         )
                     }
                 }
+            } catch (e: Exception) {
+                logger.info("Something bad happened :(", e)
+                limiter.release()
             } finally {
                 limiter.release()
             }

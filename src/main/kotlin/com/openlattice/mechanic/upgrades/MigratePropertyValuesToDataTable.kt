@@ -228,6 +228,9 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
                                 propertyType.type.fullQualifiedNameAsString,
                                 propertyTypeId
                         )
+                    } catch (e: Exception) {
+                        logger.info("Something bad happened :(", e)
+                        limiter.release()
                     } finally {
                         limiter.release()
                     }
