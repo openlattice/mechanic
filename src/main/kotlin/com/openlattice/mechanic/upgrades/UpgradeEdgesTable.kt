@@ -18,7 +18,7 @@ import kotlin.IllegalStateException
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
 
-private const val BATCH_SIZE = 16000
+private const val BATCH_SIZE = 8000
 private val SOUTH_DAKOTA_ENTITY_SET_IDS = listOf(
         "066aab8f-1703-44e4-8dea-82bf88310d6b",
         "0a48710c-3899-4743-b1f7-28c6f99aa202",
