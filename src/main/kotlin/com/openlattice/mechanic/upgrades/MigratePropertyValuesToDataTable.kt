@@ -264,7 +264,7 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
     }
 
     private fun filterSDEntitySetsClause(): String {
-        val entitySetIds = SETTINGS_ENTITY_SETS.joinToString(",")
+        val entitySetIds = SOUTH_DAKOTA_ENTITY_SET_IDS.joinToString(",")
         return " AND ${ENTITY_SET_ID.name} = ANY('{$entitySetIds}') "
     }
 
