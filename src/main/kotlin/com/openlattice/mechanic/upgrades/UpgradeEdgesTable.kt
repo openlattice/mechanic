@@ -1,6 +1,7 @@
 package com.openlattice.mechanic.upgrades
 
 import com.google.common.base.Stopwatch
+import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.graph.IdType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn.*
@@ -185,17 +186,22 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
 
         val insertCols = E.columns.joinToString(",") { it.name }
 
+        val auditEdgeEntitySetIds = toolbox.entitySets.values
+                .filter { it.flags.contains(EntitySetFlag.AUDIT) && it.flags.contains(EntitySetFlag.ASSOCIATION) }
+                .map { it.id }
+                .toSet()
+
 //        toolbox.entitySets.values.map { it.id }.stream().parallel().forEach { // TODO use this one for all edges
         toolbox.entitySets.keys.filter { CHRONICLE_ENTITY_SET_IDS.contains(it) }.stream().parallel().forEach {
 
             try {
                 limiter.acquire()
 
-                val srcPartitionSql = "${migratedVersionSql(SRC_ENTITY_SET_ID, it)} INSERT INTO ${E.name} ( $insertCols ) " +
+                val srcPartitionSql = "${migratedVersionSql(SRC_ENTITY_SET_ID, it, auditEdgeEntitySetIds)} INSERT INTO ${E.name} ( $insertCols ) " +
                         buildEdgeSelection(SRC_ENTITY_SET_ID, it)
-                val dstPartitionSql = "${migratedVersionSql(DST_ENTITY_SET_ID, it)} INSERT INTO ${E.name} ( $insertCols ) " +
+                val dstPartitionSql = "${migratedVersionSql(DST_ENTITY_SET_ID, it, auditEdgeEntitySetIds)} INSERT INTO ${E.name} ( $insertCols ) " +
                         buildEdgeSelection(DST_ENTITY_SET_ID, it)
-                val edgePartitionSql = "${migratedVersionSql(EDGE_ENTITY_SET_ID, it)} INSERT INTO ${E.name} ( $insertCols ) " +
+                val edgePartitionSql = "${migratedVersionSql(EDGE_ENTITY_SET_ID, it, auditEdgeEntitySetIds)} INSERT INTO ${E.name} ( $insertCols ) " +
                         buildEdgeSelection(EDGE_ENTITY_SET_ID, it)
 
                 logger.info("Src sql: {}", srcPartitionSql)
@@ -244,10 +250,11 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
         return true
     }
 
-    fun migratedVersionSql(joinColumn: PostgresColumnDefinition, entitySetId: UUID): String {
+    fun migratedVersionSql(joinColumn: PostgresColumnDefinition, entitySetId: UUID, auditEdgeEntitySetIds: Set<UUID>): String {
         return "WITH for_migration AS ( UPDATE ${EDGES.name} SET migrated_version = abs(version) " +
                 "WHERE (id,edge_comp_1,edge_comp_2,${COMPONENT_TYPES.name}) in ( select id,edge_comp_1,edge_comp_2,${COMPONENT_TYPES.name} FROM ${EDGES.name} " +
-                "WHERE ${COMPONENT_TYPES.name} = ${IdType.SRC.ordinal} AND ${joinColumn.name} = '$entitySetId' AND (migrated_version < abs(version)) " +
+                "WHERE ${COMPONENT_TYPES.name} = ${IdType.SRC.ordinal} AND ${joinColumn.name} = '$entitySetId' " +
+                "AND NOT(${EDGE_ENTITY_SET_ID.name} = ANY('{${auditEdgeEntitySetIds.joinToString(",")}}')) AND (migrated_version < abs(version)) " +
                 "LIMIT $BATCH_SIZE) RETURNING *) "
 
 
