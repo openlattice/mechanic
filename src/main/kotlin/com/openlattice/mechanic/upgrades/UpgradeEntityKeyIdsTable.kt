@@ -131,13 +131,65 @@ private val SOUTH_DAKOTA_ENTITY_SET_IDS = setOf(
 ).map(UUID::fromString)
 
 private val SETTINGS_ENTITY_SETS = listOf(
+        "ea5277d2-532e-4506-bc4b-3b2efa0491b0",
+        "0e5f0491-a239-4c2e-a68e-5193f8673465",
+        "0f3fab19-c248-443d-8698-90405177e7a2",
+        "3781ff22-047b-4b4d-90d7-7bff05e7893e",
+        "e107ac65-8469-4948-a87d-654c56342045",
+        "ff5133e4-22b3-4c09-a6ce-d6ff414d42b8",
+        "61a27ff6-a794-4474-95de-8af0719ce812",
+        "7af29e89-cfac-48ff-b01c-d2763edc5b25",
+        "77167e37-8105-4c59-ac79-b2e1121d88bf",
+        "f810fb10-061a-4c3e-ab95-6b337d68c536",
+        "28f6a94c-67b0-41c0-967d-6ae0a3078ef3",
+        "32fd8d4c-cd4c-4531-baf6-38062abe1679",
+        "41ff28d3-4f07-472a-8a58-92863a116c67",
+        "5ce270d8-2bc8-4c9b-8946-567d19f8650e",
+        "33bcb32d-e2d4-4e93-bbb3-84af4387185b",
+        "55daa487-8732-404b-b7b4-3bec97fe78ae",
+        "b69d3d0e-760c-4533-b6ac-64fce574c489",
+        "f2f829a3-5f69-41fb-90b2-4c90a604034d",
+        "37707afc-dca3-4133-83f4-00828d48ed19",
+        "bcfa2189-3daf-4256-b44a-296e92f1363c",
+        "9aa8c4ac-e8be-45f2-bd3f-43435dc336ed",
+        "0a4b4ad5-7da4-4e03-8d37-05ac8c05fad9",
+        "2b829717-4361-4607-a1e0-8ab58f39b48f",
+        "0ac4ba5b-b771-4c63-8a0a-f352cde09090",
+        "29178614-ed29-40f5-941e-f9e0b043b220",
+        "5863df87-abaf-488b-9657-ed17e4cc5d65",
+        "1b92447e-284d-4d7c-99b8-0f3a1c9f5124",
+        "36fa2cb3-dbfa-4012-b1d3-d1806c3e4686",
+        "469927d2-1c99-46ca-ba24-b1b2c09b5725",
+        "ee2bfb7f-6fbd-4845-b237-fcb004859c94",
+        "fdbc7dc9-9f5e-4438-8837-bb969cbdf4d0",
+        "d1c7a2e7-1d6e-45e0-a573-331bb21e95d1",
+        "2a9f6134-8130-4de0-9ba8-48167b4208fc",
+        "a6f2500d-6442-4940-b4a2-d02ecb29fbad",
+        "ae1a9e2b-9f5e-4061-a0a3-8d93c0bbe09a",
+        "f63b42fe-5abd-4af7-9834-5e0d8f77aaed",
+        "095d21d1-a14c-488b-98d7-fe2bb853c3c0",
+        "819fa76b-6c1d-4d7a-9d99-9c90a9913390",
+        "334ccf68-379b-4478-9b77-af9ff8bf5d46",
+        "effaf864-376b-450b-9f56-6f7944784497",
+        "f73e454d-234e-40f5-87e0-d3e0738ec33f",
+        "678d888e-a1d2-4b5b-8f64-7d58b4b0f2ab",
+        "349f5261-eca6-40d6-b993-19193de5a243",
+        "1846358d-9315-4d48-8ae7-8757498a7e7f",
+        "6f3024da-72b2-4790-bc1e-efcf2ce77246",
+        "b01b3d11-0edf-4f09-b8a5-00a5a2535d02",
+        "a6e67939-5398-4a61-a196-ef338c1f179f",
+        "b6c46d52-b8b9-477e-b1d6-8ea64716fc76",
+        "05402dbe-a1a4-4c70-b53a-60e215f39709",
+        "8c9237fb-0319-4c08-9ab6-29a7525de1c9",
+        "626ade80-8bc2-4137-ae1b-c78967a9191c",
+        "78d93102-57cf-42a6-ab8f-8b78b9cb7e6f",
         "8ebf299f-52e8-43a0-b24e-977528e05b1f"
 ).map(UUID::fromString)
 
 @Component
 class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
     companion object {
-        private val logger = LoggerFactory.getLogger(UpgradeEdgesTable::class.java)
+        private val logger = LoggerFactory.getLogger(UpgradeEntityKeyIdsTable::class.java)
     }
 
     override fun upgrade(): Boolean {
@@ -148,7 +200,7 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
 
 
 
-        toolbox.entitySets.keys.filter { SETTINGS_ENTITY_SETS.contains(it) }.parallelStream().forEach { entitySetId ->
+        toolbox.entitySets.keys.filter { SOUTH_DAKOTA_ENTITY_SET_IDS.contains(it) }.parallelStream().forEach { entitySetId ->
             val insertSql = getInsertQuery(entitySetId)
             logger.info("Insert SQL for ids sql: {}", insertSql)
             try {
