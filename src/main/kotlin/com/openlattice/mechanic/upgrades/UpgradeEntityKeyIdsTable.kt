@@ -182,7 +182,8 @@ private val SETTINGS_ENTITY_SETS = listOf(
         "05402dbe-a1a4-4c70-b53a-60e215f39709",
         "8c9237fb-0319-4c08-9ab6-29a7525de1c9",
         "626ade80-8bc2-4137-ae1b-c78967a9191c",
-        "78d93102-57cf-42a6-ab8f-8b78b9cb7e6f"
+        "78d93102-57cf-42a6-ab8f-8b78b9cb7e6f",
+        "8ebf299f-52e8-43a0-b24e-977528e05b1f"
 ).map(UUID::fromString)
 
 @Component
@@ -199,7 +200,7 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
 
 
 
-        toolbox.entitySets.keys.filter { SOUTH_DAKOTA_ENTITY_SET_IDS.contains(it) }.parallelStream().forEach { entitySetId ->
+        toolbox.entitySets.keys.filter { SETTINGS_ENTITY_SETS.contains(it) }.parallelStream().forEach { entitySetId ->
             val insertSql = getInsertQuery(entitySetId)
             logger.info("Insert SQL for ids sql: {}", insertSql)
             try {
