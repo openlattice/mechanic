@@ -181,6 +181,35 @@ private val SETTINGS_ENTITY_SETS = listOf(
         "8ebf299f-52e8-43a0-b24e-977528e05b1f"
 )
 
+private val CHRONICLE_ENTITY_SET_IDS = listOf(
+        "12481c74-cfea-4b96-b132-dbbee3abb405",
+        "21a4de85-0faa-4417-b073-270dd72f6384",
+        "2be6cd8c-a66e-4d45-9197-66ff91d99102",
+        "38ee5039-cdf2-4158-9be9-5466c42d0345",
+        "4d6753af-376a-431f-9db1-1c5174a69fe5",
+        "4f4f94f1-5e04-425d-a22a-5f191671a817",
+        "52ef171a-37fb-445b-9c00-8dd99d0e3649",
+        "574e04d0-48ce-4f06-a30b-54bbd11a4754",
+        "5bfa1659-a03e-4da8-8f34-8565c5f6550e",
+        "61939128-b38f-400a-8183-4fb6a0d84bc7",
+        "65705aee-52af-4199-b013-83d8041af42d",
+        "671ec7c3-99a1-423b-98ff-c7e2b3ea6efc",
+        "6bd62b44-4bab-4df1-b8c3-69d9f6f25380",
+        "7416886d-ec88-4d42-b62d-322ad31dfe72",
+        "77a97eae-3a99-4b81-88a6-8ba2424cc936",
+        "77f1b8d0-9c75-4e52-8176-eb6913a74669",
+        "81c7e707-f8bf-4685-8761-f81800c5d2f1",
+        "892b4c4f-578d-45e7-81e6-acbbf849031c",
+        "a223cfd7-0906-48f5-81d5-f03f1ace7c01",
+        "b47a9f9a-60eb-42c1-9cb2-02957aaa80de",
+        "c8a4d76e-8a5d-43c1-9f36-661b898036ed",
+        "d960f6c4-08b7-4d75-af18-396af170639d",
+        "dddc71fa-305c-4f1f-9c7d-c2b9f0d1189b",
+        "e3f97f98-a36f-470e-aa90-dbbcc02184ca",
+        "ed316b25-e6de-4532-9043-e3f1c96982e3",
+        "fda9b1c1-6cea-4130-8d86-057e659bb9ea"
+)
+
 class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
     private val limiter = Semaphore(16)
 
@@ -268,7 +297,9 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
     }
 
     private fun filterSDEntitySetsClause(): String {
-        val entitySetIds = SOUTH_DAKOTA_ENTITY_SET_IDS.joinToString(",")
+        val entitySetIds = SOUTH_DAKOTA_ENTITY_SET_IDS
+                .plus(CHRONICLE_ENTITY_SET_IDS)
+                .joinToString(",")
         return " AND ${ENTITY_SET_ID.name} = ANY('{$entitySetIds}') "
     }
 
