@@ -186,9 +186,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
         val insertCols = E.columns.joinToString(",") { it.name }
 
 //        toolbox.entitySets.values.map { it.id }.stream().parallel().forEach { // TODO use this one for all edges
-        toolbox.entitySets.keys.filter {
-            SOUTH_DAKOTA_ENTITY_SET_IDS.contains(it) || CHRONICLE_ENTITY_SET_IDS.contains(it)
-        }.stream().parallel().forEach {
+        toolbox.entitySets.keys.filter { CHRONICLE_ENTITY_SET_IDS.contains(it) }.stream().parallel().forEach {
 
             try {
                 limiter.acquire()
