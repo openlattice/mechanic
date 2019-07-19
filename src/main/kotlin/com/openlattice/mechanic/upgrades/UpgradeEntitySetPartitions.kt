@@ -20,13 +20,15 @@ class UpgradeEntitySetPartitions(private val toolbox: Toolbox) : Upgrade {
 
     }
 
-    private val entitySetSizes = retrieveEntitySetSizes()
-    private val THE_BIG_ONE = entitySetSizes.values.maxBy { it.count }?.count ?: throw IllegalStateException(
-            "Entity set sizes cannot be null."
-    )
+    private var THE_BIG_ONE = 0L
 
     override fun upgrade(): Boolean {
         //Manually ran upgrade to alter entity sets table.
+
+        val entitySetSizes = retrieveEntitySetSizes()
+        THE_BIG_ONE = entitySetSizes.values.maxBy { it.count }?.count ?: throw IllegalStateException(
+                "Entity set sizes cannot be null."
+        )
 
         entitySetSizes.forEach { (entitySetId, entitySetInfo) ->
             val partitions = getPartitions(entitySetId, entitySetInfo)
