@@ -289,7 +289,7 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
 
 
 
-        toolbox.entitySets.keys.filter { CHRONICLE_ENTITY_SET_IDS.contains(it) }.parallelStream().forEach { entitySetId ->
+        toolbox.entitySets.keys.filter { SOUTH_DAKOTA_ENTITY_SET_IDS.contains(it) }.parallelStream().forEach { entitySetId ->
             val insertSql = getInsertQuery(entitySetId)
             logger.info("Insert SQL for ids sql: {}", insertSql)
             try {
