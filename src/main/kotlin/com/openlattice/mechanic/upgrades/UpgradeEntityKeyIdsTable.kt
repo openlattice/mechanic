@@ -272,7 +272,8 @@ private val CHRONICLE_ENTITY_SET_IDS = listOf(
         "dddc71fa-305c-4f1f-9c7d-c2b9f0d1189b",
         "e3f97f98-a36f-470e-aa90-dbbcc02184ca",
         "ed316b25-e6de-4532-9043-e3f1c96982e3",
-        "fda9b1c1-6cea-4130-8d86-057e659bb9ea"
+        "fda9b1c1-6cea-4130-8d86-057e659bb9ea",
+        "8ebf299f-52e8-43a0-b24e-977528e05b1f"
 ).map(UUID::fromString)
 
 @Component
