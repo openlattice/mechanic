@@ -3,8 +3,7 @@ package com.openlattice.mechanic.upgrades
 
 import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.PostgresColumn.ENTITY_SET_ID
-import com.openlattice.postgres.PostgresColumn.FLAGS
+import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresTable.ENTITY_KEY_IDS
 import com.openlattice.postgres.ResultSetAdapters
 import com.openlattice.postgres.streams.BasePostgresIterable
@@ -32,15 +31,19 @@ class UpgradeEntitySetPartitions(private val toolbox: Toolbox) : Upgrade {
         entitySetSizes.forEach { (entitySetId, entitySetInfo) ->
             val partitions = getPartitions(entitySetId, entitySetInfo)
             val entitySet = toolbox.entitySets.getValue(entitySetId)
-            entitySet.setPartitions(partitions)
-            toolbox.esms.store(entitySetId, entitySet)
-            logger.info(
-                    "Partitions for entity set {} ({}) => ({},{})",
-                    entitySet.name,
-                    entitySet.id,
-                    entitySet.partitions,
-                    entitySet.partitionsVersion
-            )
+            if (entitySet.partitions.size > 0) {
+                logger.error("SOMETHING BAD -- we came across entity set {} which has partitions assigned", entitySet.id)
+            } else {
+                entitySet.setPartitions(partitions)
+                toolbox.esms.store(entitySetId, entitySet)
+                logger.info(
+                        "Partitions for entity set {} ({}) => ({},{})",
+                        entitySet.name,
+                        entitySet.id,
+                        entitySet.partitions,
+                        entitySet.partitionsVersion
+                )
+            }
         }
 
         return true
@@ -327,4 +330,5 @@ class UpgradeEntitySetPartitions(private val toolbox: Toolbox) : Upgrade {
 
 private data class EntitySetInfo(val count: Long, val flags: Set<EntitySetFlag>)
 
-private val GET_ENTITY_SET_COUNT = "SELECT * FROM (SELECT ${ENTITY_SET_ID.name}, count(*) FROM ${ENTITY_KEY_IDS.name} GROUP BY ${ENTITY_SET_ID.name}) as entity_set_counts INNER JOIN (select id as entity_set_id, ${FLAGS.name} from entity_sets) as entity_set_flags USING (entity_set_id) "
+private val GET_ENTITY_SET_COUNT = "SELECT * FROM (SELECT ${ENTITY_SET_ID.name}, count(*) FROM ${ENTITY_KEY_IDS.name} GROUP BY ${ENTITY_SET_ID.name}) as entity_set_counts " +
+        "INNER JOIN (select id as entity_set_id, ${FLAGS.name} from entity_sets WHERE ${PARTITIONS.name} = '{}') as entity_set_flags USING (entity_set_id) "
