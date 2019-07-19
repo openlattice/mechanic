@@ -279,15 +279,17 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                         val sw = Stopwatch.createStarted()
                         while (insertCount > 0) {
                             val srcCount = stmt.executeUpdate(srcPartitionSql)
+                            conn.commit()
                             val dstCount = stmt.executeUpdate(dstPartitionSql)
+                            conn.commit()
                             val edgeCount = stmt.executeUpdate(edgePartitionSql)
+                            conn.commit()
                             logger.info("Inserted {} edges into src partitions.", srcCount)
                             logger.info("Inserted {} edges into dst partitions.", dstCount)
                             logger.info("Inserted {} edges into edge partitions.", edgeCount)
                             insertCount = srcCount + dstCount + edgeCount
                             insertCounter += insertCount
 
-                            conn.commit()
                         }
                         logger.info(
                                 "Migrated batch of {} edges into E table in {} ms. Total so far: {} in {} ms",
