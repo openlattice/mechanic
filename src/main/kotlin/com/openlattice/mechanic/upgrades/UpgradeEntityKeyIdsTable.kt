@@ -1,6 +1,7 @@
 package com.openlattice.mechanic.upgrades
 
 import com.google.common.base.Stopwatch
+import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.edm.type.PropertyType
 import com.openlattice.graph.IdType
 import com.openlattice.mechanic.Toolbox
@@ -290,7 +291,7 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
 
 
 
-        toolbox.entitySets.keys.filter { SOUTH_DAKOTA_ENTITY_SET_IDS.contains(it) }.parallelStream().forEach { entitySetId ->
+        toolbox.entitySets.filter { !it.value.flags.contains(EntitySetFlag.AUDIT) }.keys.parallelStream().forEach { entitySetId ->
             val insertSql = getInsertQuery(entitySetId)
             logger.info("Insert SQL for ids sql: {}", insertSql)
             try {

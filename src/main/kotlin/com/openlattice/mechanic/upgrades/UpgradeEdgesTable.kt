@@ -253,7 +253,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                 .toSet()
 
 //        toolbox.entitySets.values.map { it.id }.stream().parallel().forEach { // TODO use this one for all edges
-        toolbox.entitySets.keys.filter { SOUTH_DAKOTA_ENTITY_SET_IDS.contains(it) }.stream().parallel().forEach {
+        toolbox.entitySets.filter { !it.value.flags.contains(EntitySetFlag.AUDIT) }.keys.stream().parallel().forEach {
 
             try {
                 limiter.acquire()
@@ -265,9 +265,7 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                 val edgePartitionSql = "${migratedVersionSql(EDGE_ENTITY_SET_ID, it, nonAuditEdgeEntitySetIds)} INSERT INTO ${E.name} ( $insertCols ) " +
                         buildEdgeSelection(EDGE_ENTITY_SET_ID, it)
 
-                logger.info("Src sql: {}", srcPartitionSql)
-                logger.info("Dst sql: {}", dstPartitionSql)
-                logger.info("Edge sql: {}", edgePartitionSql)
+                logger.info("Starting to migrate entity set $it")
 
                 toolbox.hds.connection.use { conn ->
                     conn.autoCommit = false
@@ -300,6 +298,8 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                         )
                     }
                 }
+
+                logger.info("Finished migrating entity set $it")
 
             } catch (e: Exception) {
                 logger.error("Uh oh, entity set {} has failed and is no longer edgy.", it, e)
