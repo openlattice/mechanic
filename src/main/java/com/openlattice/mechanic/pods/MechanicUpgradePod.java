@@ -231,4 +231,9 @@ public class MechanicUpgradePod {
     UpgradeEntityKeyIdsTable upgradeEntityKeyIdsTable(){
         return new UpgradeEntityKeyIdsTable( toolbox() );
     }
+
+    @Bean
+    InsertEntityKeyIdsToDataTable insertEntityKeyIdsToDataTable() {
+        return new InsertEntityKeyIdsToDataTable( toolbox() );
+    }
 }

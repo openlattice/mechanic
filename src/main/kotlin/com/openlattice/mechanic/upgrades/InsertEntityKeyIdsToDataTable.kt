@@ -1,6 +1,7 @@
 package com.openlattice.mechanic.upgrades
 
 import com.google.common.base.Stopwatch
+import com.openlattice.IdConstants
 import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.edm.type.PropertyType
 import com.openlattice.graph.IdType
@@ -278,14 +279,12 @@ private val CHRONICLE_ENTITY_SET_IDS = listOf(
 ).map(UUID::fromString)
 
 @Component
-class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
+class InsertEntityKeyIdsToDataTable(val toolbox: Toolbox) : Upgrade {
     companion object {
         private val logger = LoggerFactory.getLogger(UpgradeEntityKeyIdsTable::class.java)
     }
 
     override fun upgrade(): Boolean {
-        toolbox.createTable(IDS)
-        addMigratedVersionColumn()
 
         val limiter = Semaphore(16)
 
@@ -300,13 +299,10 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
                 toolbox.hds.connection.use { conn ->
                     conn.createStatement().use { stmt ->
                         val sw = Stopwatch.createStarted()
-                        while (insertCount > 0) {
-                            insertCount = stmt.executeUpdate(insertSql)
-                            logger.info("Inserted {} entity key ids into ids table partitions.", insertCount)
-                            insertCounter += insertCount
-                        }
+                        insertCount = stmt.executeUpdate(insertSql)
+                        insertCounter += insertCount
                         logger.info(
-                                "Migrated batch of {} entity key ids for entity set id {} into ids table in {} ms. Total so far: {} in {} ms",
+                                "Inserted {} entity key ids into data table for entity set id {} in {} ms. Total so far: {} in {} ms",
                                 insertCount,
                                 entitySetId,
                                 sw.elapsed(TimeUnit.MILLISECONDS),
@@ -317,7 +313,6 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
                 }
             } catch (e: Exception) {
                 logger.info("Something bad happened :(", e)
-                limiter.release()
             } finally {
                 limiter.release()
             }
@@ -327,77 +322,32 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
     }
 
     private fun getInsertQuery(entitySetId:UUID): String {
-        val entitySetsClause = "entity_set_id = '$entitySetId'"
         val insertCols = listOf(
                 ENTITY_SET_ID.name,
                 ID_VALUE.name,
                 PARTITION.name,
-                ENTITY_ID.name,
-                LINKING_ID.name,
+                PROPERTY_TYPE_ID.name,
+                LAST_WRITE.name,
+                LAST_PROPAGATE.name,
                 VERSION.name,
                 VERSIONS.name,
-                LAST_WRITE.name,
-                LAST_INDEX.name,
-                LAST_LINK.name,
-                LAST_PROPAGATE.name,
-                LAST_LINK_INDEX.name,
                 PARTITIONS_VERSION.name
         ).joinToString(",")
         val selectCols = listOf(
                 ENTITY_SET_ID.name,
                 ID_VALUE.name,
                 "partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition",
-                ENTITY_ID.name,
-                LINKING_ID.name,
+                "'IdConstants.ID_ID.id.toString())' as property_type_id",
+                LAST_WRITE.name,
+                "now()",
                 VERSION.name,
                 VERSIONS.name,
-                LAST_WRITE.name,
-                LAST_INDEX.name,
-                LAST_LINK.name,
-                "COALESCE(${LAST_PROPAGATE.name},now())",
-                LAST_LINK_INDEX.name,
                 PARTITIONS_VERSION.name
         ).joinToString(",")
-        val conflictSql = buildConflictSql()
-        val withClause = "WITH for_migration as ( UPDATE entity_key_ids set migrated_version = abs(version) WHERE id in (SELECT id from entity_key_ids WHERE (migrated_version < abs(version)) AND $entitySetsClause limit $BATCH_SIZE) RETURNING * ) "
-        return "$withClause INSERT INTO ${IDS.name} ($insertCols) " +
-                "SELECT $selectCols " +
-                "FROM for_migration INNER JOIN (select id as entity_set_id, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
-                "ON CONFLICT (${IDS.primaryKey.joinToString(",") { it.name }} ) DO UPDATE SET $conflictSql"
-    }
-
-    private fun buildConflictSql(): String {
-        //This isn't usable for repartitioning.
-        return listOf(
-                ENTITY_SET_ID,
-                ENTITY_ID,
-                LINKING_ID,
-                VERSION,
-                VERSIONS,
-                LAST_WRITE,
-                LAST_INDEX,
-                LAST_LINK,
-                LAST_PROPAGATE,
-                LAST_LINK_INDEX,
-                PARTITIONS_VERSION
-        ).joinToString(",") { "${it.name} = EXCLUDED.${it.name}" }
-    }
-
-    fun addMigratedVersionColumn() {
-
-        logger.info("About to add migrated_version to entity_key_ids table")
-
-        toolbox.hds.connection.use { conn ->
-            conn.createStatement().use {
-                it.execute(
-                        "DO $$ BEGIN " +
-                                "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '${ENTITY_KEY_IDS.name}' AND column_name = 'migrated_version') " +
-                                "THEN ALTER TABLE ${ENTITY_KEY_IDS.name} ADD COLUMN if not exists migrated_version bigint NOT NULL DEFAULT 0 ; else raise NOTICE 'Column migrated_version already exists'; " +
-                                "END IF; END $$"
-                )
-            }
-        }
-        logger.info("Added migrated_version to entity_key_ids table")
+        return "INSERT INTO ${IDS.name} ($insertCols) " +
+                "SELECT $selectCols FROM for_migration INNER JOIN (select id as entity_set_id, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
+                "WHERE ${ENTITY_SET_ID.name} = '$entitySetId' " +
+                "ON CONFLICT DO NOTHING"
     }
 
     override fun getSupportedVersion(): Long {
