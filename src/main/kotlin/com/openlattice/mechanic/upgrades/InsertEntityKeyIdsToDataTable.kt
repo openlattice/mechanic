@@ -281,7 +281,7 @@ private val CHRONICLE_ENTITY_SET_IDS = listOf(
 @Component
 class InsertEntityKeyIdsToDataTable(val toolbox: Toolbox) : Upgrade {
     companion object {
-        private val logger = LoggerFactory.getLogger(UpgradeEntityKeyIdsTable::class.java)
+        private val logger = LoggerFactory.getLogger(InsertEntityKeyIdsToDataTable::class.java)
     }
 
     override fun upgrade(): Boolean {
