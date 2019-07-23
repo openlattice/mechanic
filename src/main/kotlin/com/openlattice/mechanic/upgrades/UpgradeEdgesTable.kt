@@ -260,10 +260,6 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
 
                 val srcPartitionSql = "${migratedVersionSql(SRC_ENTITY_SET_ID, it, nonAuditEdgeEntitySetIds)} INSERT INTO ${E.name} ( $insertCols ) " +
                         buildEdgeSelection(SRC_ENTITY_SET_ID, it)
-                val dstPartitionSql = "${migratedVersionSql(DST_ENTITY_SET_ID, it, nonAuditEdgeEntitySetIds)} INSERT INTO ${E.name} ( $insertCols ) " +
-                        buildEdgeSelection(DST_ENTITY_SET_ID, it)
-                val edgePartitionSql = "${migratedVersionSql(EDGE_ENTITY_SET_ID, it, nonAuditEdgeEntitySetIds)} INSERT INTO ${E.name} ( $insertCols ) " +
-                        buildEdgeSelection(EDGE_ENTITY_SET_ID, it)
 
                 logger.info("Starting to migrate entity set $it")
 
@@ -278,14 +274,8 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                         while (insertCount > 0) {
                             val srcCount = stmt.executeUpdate(srcPartitionSql)
                             conn.commit()
-                            val dstCount = stmt.executeUpdate(dstPartitionSql)
-                            conn.commit()
-                            val edgeCount = stmt.executeUpdate(edgePartitionSql)
-                            conn.commit()
                             logger.info("Inserted {} edges into src partitions.", srcCount)
-                            logger.info("Inserted {} edges into dst partitions.", dstCount)
-                            logger.info("Inserted {} edges into edge partitions.", edgeCount)
-                            insertCount = srcCount + dstCount + edgeCount
+                            insertCount = srcCount
                             insertCounter += insertCount
 
                         }
