@@ -288,40 +288,39 @@ class InsertEntityKeyIdsToDataTable(val toolbox: Toolbox) : Upgrade {
 
         val limiter = Semaphore(16)
 
-        toolbox.entitySets.filter { !it.value.flags.contains(EntitySetFlag.AUDIT) }.keys.parallelStream().forEach { entitySetId ->
-            val insertSql = getInsertQuery(entitySetId)
-            logger.info("Insert SQL for ids sql: {}", insertSql)
-            try {
-                limiter.acquire()
-                var insertCounter = 0
-                var insertCount = 1
-                val swTotal = Stopwatch.createStarted()
-                toolbox.hds.connection.use { conn ->
-                    conn.createStatement().use { stmt ->
-                        val sw = Stopwatch.createStarted()
-                        insertCount = stmt.executeUpdate(insertSql)
-                        insertCounter += insertCount
-                        logger.info(
-                                "Inserted {} entity key ids into data table for entity set id {} in {} ms. Total so far: {} in {} ms",
-                                insertCount,
-                                entitySetId,
-                                sw.elapsed(TimeUnit.MILLISECONDS),
-                                insertCounter,
-                                swTotal.elapsed(TimeUnit.MILLISECONDS)
-                        )
-                    }
+//        toolbox.entitySets.filter { !it.value.flags.contains(EntitySetFlag.AUDIT) }.keys.parallelStream().forEach { entitySetId ->
+        val insertSql = getInsertQuery()
+        logger.info("Insert SQL for ids sql: {}", insertSql)
+        try {
+            limiter.acquire()
+            var insertCounter = 0
+            var insertCount = 1
+            val swTotal = Stopwatch.createStarted()
+            toolbox.hds.connection.use { conn ->
+                conn.createStatement().use { stmt ->
+                    val sw = Stopwatch.createStarted()
+                    insertCount = stmt.executeUpdate(insertSql)
+                    insertCounter += insertCount
+                    logger.info(
+                            "Inserted {} entity key ids into data table in {} ms. Total so far: {} in {} ms",
+                            insertCount,
+                            sw.elapsed(TimeUnit.MILLISECONDS),
+                            insertCounter,
+                            swTotal.elapsed(TimeUnit.MILLISECONDS)
+                    )
                 }
-            } catch (e: Exception) {
-                logger.info("Something bad happened :(", e)
-            } finally {
-                limiter.release()
             }
+        } catch (e: Exception) {
+            logger.info("Something bad happened :(", e)
+        } finally {
+            limiter.release()
         }
+        //}
 
         return true
     }
 
-    private fun getInsertQuery(entitySetId:UUID): String {
+    private fun getInsertQuery(): String {
         val insertCols = listOf(
                 ENTITY_SET_ID.name,
                 ID_VALUE.name,
@@ -348,7 +347,6 @@ class InsertEntityKeyIdsToDataTable(val toolbox: Toolbox) : Upgrade {
         ).joinToString(",")
         return "INSERT INTO ${DATA.name} ($insertCols) " +
                 "SELECT $selectCols FROM ${IDS.name} " +
-                "WHERE ${ENTITY_SET_ID.name} = '$entitySetId' " +
                 "ON CONFLICT DO NOTHING"
     }
 
