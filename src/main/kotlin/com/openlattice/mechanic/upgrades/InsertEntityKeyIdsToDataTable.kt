@@ -344,7 +344,7 @@ class InsertEntityKeyIdsToDataTable(val toolbox: Toolbox) : Upgrade {
                 VERSIONS.name,
                 PARTITIONS_VERSION.name
         ).joinToString(",")
-        return "INSERT INTO ${IDS.name} ($insertCols) " +
+        return "INSERT INTO ${DATA.name} ($insertCols) " +
                 "SELECT $selectCols FROM ${ENTITY_KEY_IDS.name} INNER JOIN (select id as entity_set_id, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
                 "WHERE ${ENTITY_SET_ID.name} = '$entitySetId' " +
                 "ON CONFLICT DO NOTHING"
