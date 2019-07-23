@@ -337,7 +337,7 @@ class InsertEntityKeyIdsToDataTable(val toolbox: Toolbox) : Upgrade {
         val selectCols = listOf(
                 ENTITY_SET_ID.name,
                 ID_VALUE.name,
-                "partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition",
+                PARTITION.name,
                 "'${IdConstants.ID_ID.id}' as property_type_id",
                 "'\\xdeadbeefdeadbeef'::bytea as hash",
                 LAST_WRITE.name,
@@ -347,8 +347,7 @@ class InsertEntityKeyIdsToDataTable(val toolbox: Toolbox) : Upgrade {
                 PARTITIONS_VERSION.name
         ).joinToString(",")
         return "INSERT INTO ${DATA.name} ($insertCols) " +
-
-                "SELECT $selectCols FROM ${ENTITY_KEY_IDS.name} INNER JOIN (select id as entity_set_id, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
+                "SELECT $selectCols FROM ${IDS.name} " +
                 "WHERE ${ENTITY_SET_ID.name} = '$entitySetId' " +
                 "ON CONFLICT DO NOTHING"
     }
