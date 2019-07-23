@@ -22,11 +22,15 @@
 package com.openlattice.mechanic
 
 import com.google.common.util.concurrent.ListeningExecutorService
+import com.openlattice.postgres.CitusDistributedTableDefinition
+import com.openlattice.postgres.PostgresDataTables
+import com.openlattice.postgres.PostgresTableDefinition
 import com.openlattice.postgres.PostgresTableManager
 import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.postgres.mapstores.EntityTypeMapstore
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore
 import com.zaxxer.hikari.HikariDataSource
+import org.slf4j.LoggerFactory
 
 /**
  *
@@ -37,10 +41,44 @@ class Toolbox(
         val hds: HikariDataSource,
         private val ptms: PropertyTypeMapstore,
         private val etms: EntityTypeMapstore,
-        private val esms: EntitySetMapstore,
+        internal val esms: EntitySetMapstore,
         val executor: ListeningExecutorService
 ) {
-    val entitySets = esms.loadAllKeys().map { it to esms.load(it) }.toMap()
-    val entityTypes = etms.loadAllKeys().map { it to etms.load(it) }.toMap()
-    val propertyTypes = ptms.loadAllKeys().map { it to ptms.load(it) }.toMap()
+    companion object {
+        private val logger = LoggerFactory.getLogger(Toolbox::class.java)
+    }
+
+    init {
+        logger.info("Toolbox being initialized.")
+    }
+
+    val entitySets = esms.loadAll(esms.loadAllKeys().toSet()).toMap()
+    val entityTypes = etms.loadAll(etms.loadAllKeys().toSet()).toMap()
+    val propertyTypes = ptms.loadAll(ptms.loadAllKeys().toSet()).toMap()
+
+    fun createTable(tableDefinition: PostgresTableDefinition) {
+        hds.connection.use { conn ->
+            conn.createStatement().use { stmt ->
+                logger.info("Creating the table ${tableDefinition.name}.")
+                stmt.execute(tableDefinition.createTableQuery())
+            }
+//            tableDefinition.createIndexQueries.forEach { indexSql ->
+//                conn.createStatement().use { stmt ->
+//                    logger.info("Creating index with query {}", indexSql)
+//                    stmt.execute(indexSql)
+//                }
+//            }
+
+            if (tableDefinition is CitusDistributedTableDefinition) {
+                try {
+                    conn.createStatement().use { stmt ->
+                        logger.info("Distributing Table")
+                        stmt.execute(tableDefinition.createDistributedTableQuery())
+                    }
+                } catch (e: Exception) {
+                    logger.info("Could not distribute table: ", e)
+                }
+            }
+        }
+    }
 }

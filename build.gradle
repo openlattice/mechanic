@@ -109,18 +109,18 @@ dependencies {
         compile project(":courier")
     } else {
         logger.quiet(project.name + " using jar dependencies.")
-        compile "com.openlattice:scrunchie:${scrunchie_version}"
-        compile "com.openlattice:courier:${courier_version}"
+        compile "com.openlattice:scrunchie:$scrunchie_version"
+        compile "com.openlattice:courier:$courier_version"
 
-        compile "com.openlattice:conductor-client:${conductor_client_version}"
-        compile "com.openlattice:rhizome:${rhizome_version}"
+        compile "com.openlattice:conductor-client:$conductor_client_version"
+        compile "com.openlattice:rhizome:$rhizome_version"
     }
 
     /*
      * TESTING
      */
-    testCompile "junit:junit:${junit_version}"
-    testCompile "org.mockito:mockito-all:${mockito_version}"
+    testCompile "junit:junit:$junit_version"
+    testCompile "org.mockito:mockito-all:$mockito_version"
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 }
 

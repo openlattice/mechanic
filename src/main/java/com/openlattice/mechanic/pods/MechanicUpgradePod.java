@@ -30,6 +30,9 @@ import com.openlattice.ids.IdGenerationMapstore;
 import com.openlattice.mechanic.Toolbox;
 import com.openlattice.mechanic.integrity.EdmChecks;
 import com.openlattice.mechanic.integrity.IntegrityChecks;
+import com.openlattice.mechanic.retired.DropEdmVersions;
+import com.openlattice.mechanic.retired.DropPrincipalTree;
+import com.openlattice.mechanic.retired.EntitySetFlags;
 import com.openlattice.mechanic.upgrades.*;
 import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
@@ -37,14 +40,17 @@ import com.openlattice.postgres.mapstores.EntityTypeMapstore;
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore;
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
 import com.zaxxer.hikari.HikariDataSource;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Profile;
 
 import javax.inject.Inject;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
+@Configuration
 public class MechanicUpgradePod {
     public static final String INTEGRITY = "integrity";
     public static final String REGEN     = "regen";
@@ -113,7 +119,8 @@ public class MechanicUpgradePod {
                 executor );
     }
 
-    @Bean Toolbox toolbox() {
+    @Bean
+    public Toolbox toolbox() {
         return new Toolbox(
                 tableManager,
                 hikariDataSource,
@@ -156,6 +163,11 @@ public class MechanicUpgradePod {
     }
 
     @Bean
+    LastMigrateColumnUpgrade lastMigrateColumnUpgrade() {
+        return new LastMigrateColumnUpgrade( toolbox() );
+    }
+
+    @Bean
     EntitySetFlags entitySetFlags() {
         return new EntitySetFlags( toolbox() );
     }
@@ -188,7 +200,42 @@ public class MechanicUpgradePod {
     }
 
     @Bean
-    RemovePermissionsForNonexistentPrincipals removePermissionsForNonexistentPrincipals() {
-        return new RemovePermissionsForNonexistentPrincipals( toolbox() );
+    CreateDataTable upgradeCreateDataTable() {
+        return new CreateDataTable( toolbox() );
+    }
+
+    @Bean
+    UpgradeEntitySetPartitions upgradeEntitySetPartitions() {
+        return new UpgradeEntitySetPartitions( toolbox() );
+    }
+
+    @Bean
+    MigratePropertyValuesToDataTable migratePropertyValuesToDataTable() {
+        return new MigratePropertyValuesToDataTable( toolbox() );
+    }
+
+    @Bean
+    UpgradeEdgesTable upgradeEdgesTable() {
+        return new UpgradeEdgesTable( toolbox() );
+    }
+
+    @Bean
+    CreateDataTableIndexes createDataTableIndexes() {
+        return new CreateDataTableIndexes( toolbox() );
+    }
+
+    @Bean
+    ResetMigratedVersions resetMigratedVersions() {
+        return new ResetMigratedVersions( toolbox() );
+    }
+
+    @Bean
+    UpgradeEntityKeyIdsTable upgradeEntityKeyIdsTable() {
+        return new UpgradeEntityKeyIdsTable( toolbox() );
+    }
+
+    @Bean
+    InsertEntityKeyIdsToDataTable insertEntityKeyIdsToDataTable() {
+        return new InsertEntityKeyIdsToDataTable( toolbox() );
     }
 }

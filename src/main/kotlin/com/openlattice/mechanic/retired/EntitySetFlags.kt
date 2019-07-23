@@ -1,11 +1,12 @@
-package com.openlattice.mechanic.upgrades
+package com.openlattice.mechanic.retired
 
 import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.mechanic.upgrades.Upgrade
+import com.openlattice.mechanic.upgrades.Version
 import com.openlattice.postgres.PostgresColumn
 import com.openlattice.postgres.PostgresTable
 import org.slf4j.LoggerFactory
-import java.util.concurrent.Callable
 
 class EntitySetFlags(private val toolbox: Toolbox) : Upgrade {
     companion object {
