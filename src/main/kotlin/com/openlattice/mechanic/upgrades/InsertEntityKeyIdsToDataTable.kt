@@ -337,14 +337,14 @@ class InsertEntityKeyIdsToDataTable(val toolbox: Toolbox) : Upgrade {
                 ENTITY_SET_ID.name,
                 ID_VALUE.name,
                 "partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition",
-                "'IdConstants.ID_ID.id.toString())' as property_type_id",
+                "'${IdConstants.ID_ID.id}' as property_type_id",
                 LAST_WRITE.name,
-                "now()",
+                "now() as last_propagate",
                 VERSION.name,
                 VERSIONS.name,
                 PARTITIONS_VERSION.name
         ).joinToString(",")
-        return "INSERT INTO ${IDS.name} ($insertCols) " +
+        return "INSERT INTO ${DATA.name} ($insertCols) " +
                 "SELECT $selectCols FROM for_migration INNER JOIN (select id as entity_set_id, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
                 "WHERE ${ENTITY_SET_ID.name} = '$entitySetId' " +
                 "ON CONFLICT DO NOTHING"
