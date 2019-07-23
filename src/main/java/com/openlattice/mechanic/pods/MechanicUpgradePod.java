@@ -40,7 +40,9 @@ import com.openlattice.postgres.mapstores.EntityTypeMapstore;
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore;
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore;
 import com.zaxxer.hikari.HikariDataSource;
+
 import javax.inject.Inject;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -188,7 +190,7 @@ public class MechanicUpgradePod {
     @Bean
     MaterializationForeignServer materializationForeignServer() {
         return new MaterializationForeignServer(
-                ( OrganizationAssemblyMapstore ) mapstoresPod.organizationAssemblies(),
+                (OrganizationAssemblyMapstore) mapstoresPod.organizationAssemblies(),
                 assemblerConfiguration );
     }
 
@@ -218,7 +220,7 @@ public class MechanicUpgradePod {
     }
 
     @Bean
-    CreateDataTableIndexes createDataTableIndexes(){
+    CreateDataTableIndexes createDataTableIndexes() {
         return new CreateDataTableIndexes( toolbox() );
     }
 
@@ -228,7 +230,7 @@ public class MechanicUpgradePod {
     }
 
     @Bean
-    UpgradeEntityKeyIdsTable upgradeEntityKeyIdsTable(){
+    UpgradeEntityKeyIdsTable upgradeEntityKeyIdsTable() {
         return new UpgradeEntityKeyIdsTable( toolbox() );
     }
 
