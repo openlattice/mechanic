@@ -281,7 +281,7 @@ private val CHRONICLE_ENTITY_SET_IDS = listOf(
 @Component
 class InsertEntityKeyIdsToDataTable(val toolbox: Toolbox) : Upgrade {
     companion object {
-        private val logger = LoggerFactory.getLogger(UpgradeEntityKeyIdsTable::class.java)
+        private val logger = LoggerFactory.getLogger(InsertEntityKeyIdsToDataTable::class.java)
     }
 
     override fun upgrade(): Boolean {
@@ -345,7 +345,7 @@ class InsertEntityKeyIdsToDataTable(val toolbox: Toolbox) : Upgrade {
                 PARTITIONS_VERSION.name
         ).joinToString(",")
         return "INSERT INTO ${IDS.name} ($insertCols) " +
-                "SELECT $selectCols FROM for_migration INNER JOIN (select id as entity_set_id, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
+                "SELECT $selectCols FROM ${ENTITY_KEY_IDS.name} INNER JOIN (select id as entity_set_id, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
                 "WHERE ${ENTITY_SET_ID.name} = '$entitySetId' " +
                 "ON CONFLICT DO NOTHING"
     }
