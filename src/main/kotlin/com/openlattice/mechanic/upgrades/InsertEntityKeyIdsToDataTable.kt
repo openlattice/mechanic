@@ -337,7 +337,7 @@ class InsertEntityKeyIdsToDataTable(val toolbox: Toolbox) : Upgrade {
         val selectCols = listOf(
                 ENTITY_SET_ID.name,
                 ID_VALUE.name,
-                "partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition",
+                PARTITION.name,
                 "'${IdConstants.ID_ID.id}' as property_type_id",
                 "'\\xdeadbeefdeadbeef'::bytea as hash",
                 LAST_WRITE.name,
