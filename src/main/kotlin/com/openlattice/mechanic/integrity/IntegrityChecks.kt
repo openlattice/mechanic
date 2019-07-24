@@ -60,7 +60,7 @@ class IntegrityChecks(
         logger.info("Integrity checks aren't fully implemented.")
         return true
     }
-
+ 
     private val entitySets = esms.loadAllKeys().map { it to esms.load(it) }.toMap()
     private val entityTypes = etms.loadAllKeys().map { it to etms.load(it) }.toMap()
     private val propertyTypes = ptms.loadAllKeys().map { it to ptms.load(it) }.toMap()
@@ -79,8 +79,8 @@ class IntegrityChecks(
             val esTableName = quote(DataTables.entityTableName(entitySetId))
 
             //Ensure that any required entity set tables exist
-            pgEdmManager.createEntitySet(
-                    it.value, entityTypes[it.value.entityTypeId]?.properties?.map { propertyTypes[it] })
+//            pgEdmManager.createEntitySet(
+//                    it.value, entityTypes[it.value.entityTypeId]?.properties?.map { propertyTypes[it] })
 
             //Remove any entity key ids from entity_key_ids that aren't connected to an actual entity.
             val sql = "DELETE from entity_key_ids " +
@@ -123,7 +123,7 @@ class IntegrityChecks(
                             //"DELETE from $ptTableName " +
                             //"WHERE entity_set_id = '$entitySetId' AND id NOT IN (SELECT id from $esTableName)"
 
-                            pgEdmManager.createPropertyTypeTableIfNotExist(it.value)
+//                            pgEdmManager.createPropertyTypeTableIfNotExist(it.value)
                             logger.info(
                                     "Submitting delete for entity set{} and property type {}",
                                     entitySetName,
