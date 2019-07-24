@@ -412,7 +412,7 @@ class RegenerateIds(
 
             semaphore.acquire()
             executor.execute {
-                pgEdmManager.createEntitySet(entitySet, listOf())
+//                pgEdmManager.createEntitySet(entitySet, listOf())
                 hds.connection.use {
                     it.createStatement().use {
                         it.executeUpdate(
