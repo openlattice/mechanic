@@ -277,6 +277,36 @@ private val CHRONICLE_ENTITY_SET_IDS = listOf(
         "8ebf299f-52e8-43a0-b24e-977528e05b1f"
 ).map(UUID::fromString)
 
+private val OL_DEMO_ORG_BHR_IDS = listOf(
+        "26aec031-2b2c-4aff-afee-916435379cfa",
+        "84e0e356-c2d1-4248-b654-8d688794227d",
+        "c28046eb-5498-4e0e-82c1-c43122ca98e3",
+        "8711053b-eb3a-49b4-831e-16203b2c25ce",
+        "c2ef009f-c678-4418-a7f5-7d58c5583316",
+        "b8956737-aa40-4ccc-b6e4-2f1612a8b1e6",
+        "daacea52-20d3-4c3f-b95a-ea074b71aa6e",
+        "946c8774-1aa9-4070-89b0-96abaf7335f8",
+        "3cfb6d1c-32bb-49c9-97b2-a45bcfb7ee3a",
+        "85383231-5be8-4754-8710-40cc9d8040ed",
+        "06fa62ef-46fa-4807-b836-79b05f097111",
+        "9aa8c4ac-e8be-45f2-bd3f-43435dc336ed",
+        "7e14820e-0cf2-4e3b-aa93-6204b56ba415",
+        "4cecc9ac-f297-4d40-927e-42341eb885a2",
+        "192588c4-c8e0-4d3b-8e60-dbcde30fe4e0",
+        "f6aa7da5-176e-47b1-bed7-e8c8b0194173",
+        "710b6ed1-1d6d-43cf-b8ee-531473f4b713",
+        "ceb855ad-de16-46ab-b12e-2f63924c0941",
+        "124ae77c-fbaf-4325-8799-a67d08d92d26",
+        "b4a33df2-b8ee-4af5-ba6b-bc2dee4b3918",
+        "d284e3e0-8d51-41f1-9146-a577e1dc40fa",
+        "5ab3a916-d022-4784-b7cf-3a19231c959e",
+        "d925a453-7c12-4911-aff9-c4c55425f90d",
+        "86f271f3-02a2-4bd7-9fe1-4f294fd032e0",
+        "6c153d88-9b4a-4855-b370-a629d524a820",
+        "c5992e42-e71f-46ef-99ac-26873393f063",
+        "3d6f9608-2b47-4e1e-89d6-0fa67ffb0353"
+).map(UUID::fromString)
+
 @Component
 class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
     companion object {
@@ -289,7 +319,12 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
 
         val limiter = Semaphore(16)
 
-        toolbox.entitySets.filter { !it.value.flags.contains(EntitySetFlag.AUDIT) }.keys.parallelStream().forEach { entitySetId ->
+        toolbox.entitySets
+                .filter { !it.value.flags.contains(EntitySetFlag.AUDIT) }
+                .keys
+                .filter { OL_DEMO_ORG_BHR_IDS.contains(it) }
+                .parallelStream()
+                .forEach { entitySetId ->
             val insertSql = getInsertQuery(entitySetId)
             logger.info("Insert SQL for ids sql: {}", insertSql)
             try {
