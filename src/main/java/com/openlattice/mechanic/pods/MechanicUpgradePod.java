@@ -24,7 +24,6 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.hazelcast.core.HazelcastInstance;
 import com.openlattice.assembler.AssemblerConfiguration;
-import com.openlattice.data.storage.partitions.PartitionManager;
 import com.openlattice.edm.PostgresEdmManager;
 import com.openlattice.hazelcast.pods.MapstoresPod;
 import com.openlattice.ids.IdGenerationMapstore;
@@ -78,13 +77,8 @@ public class MechanicUpgradePod {
     private AssemblerConfiguration assemblerConfiguration;
 
     @Bean
-    public PartitionManager partitionManager() {
-        return new PartitionManager( hazelcastInstance, hikariDataSource );
-    }
-
-    @Bean
     public PostgresEdmManager pgEdmManager() {
-        return new PostgresEdmManager( hikariDataSource, partitionManager(), hazelcastInstance );
+        return new PostgresEdmManager( hikariDataSource, hazelcastInstance );
     }
 
     @Bean
