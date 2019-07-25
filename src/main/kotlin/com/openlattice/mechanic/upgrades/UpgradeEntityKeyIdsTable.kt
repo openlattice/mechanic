@@ -343,7 +343,6 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
                 ENTITY_SET_ID.name,
                 ID_VALUE.name,
                 "partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition",
-                ENTITY_ID.name,
                 LINKING_ID.name,
                 VERSION.name,
                 VERSIONS.name,
@@ -366,7 +365,6 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
         //This isn't usable for repartitioning.
         return listOf(
                 ENTITY_SET_ID,
-                ENTITY_ID,
                 LINKING_ID,
                 VERSION,
                 VERSIONS,
