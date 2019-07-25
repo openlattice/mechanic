@@ -5,6 +5,7 @@ import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresTable.ENTITY_KEY_IDS
+import com.openlattice.postgres.PostgresTable.ENTITY_SETS
 import com.openlattice.postgres.ResultSetAdapters
 import com.openlattice.postgres.streams.BasePostgresIterable
 import com.openlattice.postgres.streams.StatementHolderSupplier
@@ -332,5 +333,8 @@ class UpgradeEntitySetPartitions(private val toolbox: Toolbox) : Upgrade {
 
 private data class EntitySetInfo(val count: Long, val flags: Set<EntitySetFlag>)
 
-private val GET_ENTITY_SET_COUNT = "SELECT * FROM (SELECT ${ENTITY_SET_ID.name}, count(*) FROM ${ENTITY_KEY_IDS.name} GROUP BY ${ENTITY_SET_ID.name}) as entity_set_counts " +
-        "INNER JOIN (select id as entity_set_id, ${FLAGS.name} from entity_sets WHERE ${PARTITIONS.name} = '{}') as entity_set_flags USING (entity_set_id) "
+private val SELECT_ENTITY_SET_COUNTS = "(SELECT ${ENTITY_SET_ID.name}, count(*) FROM ${ENTITY_KEY_IDS.name} GROUP BY ${ENTITY_SET_ID.name}) as entity_set_counts"
+private val SELECT_ENTITY_SET_FLAGS = "(select id as ${ENTITY_SET_ID.name}, ${FLAGS.name} from ${ENTITY_SETS.name} WHERE ${PARTITIONS.name} = '{}') as entity_set_flags"
+
+private val GET_ENTITY_SET_COUNT = "SELECT ${ENTITY_SET_ID.name}, ${FLAGS.name}, CASE WHEN count IS NULL THEN 0 ELSE count END " +
+        "FROM $SELECT_ENTITY_SET_FLAGS LEFT JOIN $SELECT_ENTITY_SET_COUNTS USING (entity_set_id) "
