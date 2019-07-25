@@ -336,5 +336,5 @@ private data class EntitySetInfo(val count: Long, val flags: Set<EntitySetFlag>)
 private val SELECT_ENTITY_SET_COUNTS = "(SELECT ${ENTITY_SET_ID.name}, count(*) FROM ${ENTITY_KEY_IDS.name} GROUP BY ${ENTITY_SET_ID.name}) as entity_set_counts"
 private val SELECT_ENTITY_SET_FLAGS = "(select id as ${ENTITY_SET_ID.name}, ${FLAGS.name} from ${ENTITY_SETS.name} WHERE ${PARTITIONS.name} = '{}') as entity_set_flags"
 
-private val GET_ENTITY_SET_COUNT = "SELECT ${ENTITY_SET_ID.name}, ${FLAGS.name}, CASE WHEN count IS NULL THEN 0 ELSE count END " +
+private val GET_ENTITY_SET_COUNT = "SELECT ${ENTITY_SET_ID.name}, ${FLAGS.name}, CASE WHEN count IS NULL THEN 1 ELSE count END " +
         "FROM $SELECT_ENTITY_SET_FLAGS LEFT JOIN $SELECT_ENTITY_SET_COUNTS USING (entity_set_id) "
