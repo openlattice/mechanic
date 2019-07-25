@@ -38,25 +38,26 @@ private val MIGRATION_PROGRESS = PostgresTableDefinition("linking_migration")
         .primaryKey(ENTITY_SET_ID)
 
 private fun buildIndexDefinitions(propertyType: PropertyType): List<PostgresIndexDefinition> {
-    val propertyTypeTable = DataTables.buildPropertyTableDefinition(propertyType)
-    return listOf(
-            PostgresColumnsIndexDefinition(
-                    propertyTypeTable,
-                    LAST_PROPAGATE
-            ).ifNotExists(),
-            PostgresExpressionIndexDefinition(
-                    propertyTypeTable,
-                    "(${LAST_PROPAGATE.name} < ${LAST_WRITE.name})"
-            )
-                    .name(quote("${propertyTypeTable.name}_needs_propagation_idx"))
-                    .ifNotExists(),
-            PostgresExpressionIndexDefinition(
-                    propertyTypeTable,
-                    "(${LAST_PROPAGATE.name} >= ${LAST_WRITE.name})"
-            )
-                    .name(quote("${propertyTypeTable.name}_active_idx"))
-                    .ifNotExists()
-    )
+    return listOf()
+//    val propertyTypeTable = DataTables.buildPropertyTableDefinition(propertyType)
+//    return listOf(
+//            PostgresColumnsIndexDefinition(
+//                    propertyTypeTable,
+//                    LAST_PROPAGATE
+//            ).ifNotExists(),
+//            PostgresExpressionIndexDefinition(
+//                    propertyTypeTable,
+//                    "(${LAST_PROPAGATE.name} < ${LAST_WRITE.name})"
+//            )
+//                    .name(quote("${propertyTypeTable.name}_needs_propagation_idx"))
+//                    .ifNotExists(),
+//            PostgresExpressionIndexDefinition(
+//                    propertyTypeTable,
+//                    "(${LAST_PROPAGATE.name} >= ${LAST_WRITE.name})"
+//            )
+//                    .name(quote("${propertyTypeTable.name}_active_idx"))
+//                    .ifNotExists()
+//    )
 }
 
 /**
