@@ -37,7 +37,8 @@ private val MIGRATION_PROGRESS = PostgresTableDefinition("linking_migration")
         .addColumns(ENTITY_SET_ID, VERSION)
         .primaryKey(ENTITY_SET_ID)
 
-//private fun buildIndexDefinitions(propertyType: PropertyType): List<PostgresIndexDefinition> {
+private fun buildIndexDefinitions(propertyType: PropertyType): List<PostgresIndexDefinition> {
+    return listOf()
 //    val propertyTypeTable = DataTables.buildPropertyTableDefinition(propertyType)
 //    return listOf(
 //            PostgresColumnsIndexDefinition(
@@ -57,7 +58,7 @@ private val MIGRATION_PROGRESS = PostgresTableDefinition("linking_migration")
 //                    .name(quote("${propertyTypeTable.name}_active_idx"))
 //                    .ifNotExists()
 //    )
-//}
+}
 
 /**
  * Migrations for linking.
@@ -114,7 +115,7 @@ class GraphProcessing(private val toolbox: Toolbox) : Upgrade {
                             it.use {
                                 val sql = alterPropertyTypeTableSql(pt.key)
                                 it.createStatement().use { it.execute(sql) }
-                                //val indexSql = buildIndexDefinitions(pt.value)
+                                val indexSql = buildIndexDefinitions(pt.value)
                                 it.createStatement().use { it.execute(sql) }
                                 logger.info("Added column to property type:{}", pt.value.type)
                             }
