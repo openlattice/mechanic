@@ -2,15 +2,11 @@ package com.openlattice.mechanic.upgrades
 
 import com.google.common.base.Stopwatch
 import com.openlattice.IdConstants
-import com.openlattice.edm.set.EntitySetFlag
-import com.openlattice.edm.type.PropertyType
-import com.openlattice.graph.IdType
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.DataTables.*
+import com.openlattice.postgres.DataTables.LAST_WRITE
 import com.openlattice.postgres.PostgresColumn.*
-import com.openlattice.postgres.PostgresColumnDefinition
-import com.openlattice.postgres.PostgresDataTables
-import com.openlattice.postgres.PostgresTable.*
+import com.openlattice.postgres.PostgresTable.DATA
+import com.openlattice.postgres.PostgresTable.IDS
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.util.*

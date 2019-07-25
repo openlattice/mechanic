@@ -2,18 +2,15 @@ package com.openlattice.mechanic.upgrades
 
 import com.google.common.base.Stopwatch
 import com.openlattice.edm.set.EntitySetFlag
-import com.openlattice.graph.IdType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresColumnDefinition
 import com.openlattice.postgres.PostgresTable.*
-import com.openlattice.postgres.streams.BasePostgresIterable
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.util.*
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
-import kotlin.IllegalStateException
 
 /**
  *
@@ -337,7 +334,6 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
     private fun buildEdgeSelection(joinColumn: PostgresColumnDefinition, entitySetId: UUID): String {
         val selectCols = listOf(
                 "partitions[ 1 + (('x'||right(id::text,8))::bit(32)::int % array_length(partitions,1))] as partition",
-                getType(joinColumn).ordinal,
                 SRC_ENTITY_SET_ID.name,
                 "${ID_VALUE.name} as ${SRC_ENTITY_KEY_ID.name}",
                 DST_ENTITY_SET_ID.name,
@@ -349,17 +345,14 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
                 PARTITIONS_VERSION.name
         ).joinToString(",")
 
-//        val selectEdgesSql = " (SELECT * FROM ${EDGES.name} WHERE ${SRC_ENTITY_SET_ID.name} = '$entitySetId' AND ${COMPONENT_TYPES.name} = ${IdType.SRC.ordinal} LIMIT $BATCH_SIZE) AS ${EDGES.name} "
         return "SELECT $selectCols FROM for_migration INNER JOIN (select id as ${joinColumn.name}, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(${joinColumn.name}) ON CONFLICT DO NOTHING "
     }
 
-    private fun getType(colDef: PostgresColumnDefinition): IdType {
-        return when (colDef) {
-            SRC_ENTITY_SET_ID -> IdType.SRC
-            DST_ENTITY_SET_ID -> IdType.DST
-            EDGE_ENTITY_SET_ID -> IdType.EDGE
-            else -> throw IllegalStateException("apocalypse realized")
-        }
+
+    enum class IdType {
+        SRC,
+        DST,
+        EDGE
     }
 
 }
