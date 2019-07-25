@@ -328,7 +328,6 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
                 ENTITY_SET_ID.name,
                 ID_VALUE.name,
                 PARTITION.name,
-                ENTITY_ID.name,
                 LINKING_ID.name,
                 VERSION.name,
                 VERSIONS.name,
