@@ -386,7 +386,7 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
             conn.createStatement().use {
                 it.execute(
                         "DO $$ BEGIN " +
-                                "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '${ENTITY_KEY_IDS.name}' AND column_name = 'migrated_version') " +
+                                "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '${ENTITY_KEY_IDS.name}' AND column_name = '$MIGRATED_VERSION') " +
                                 "THEN ALTER TABLE ${ENTITY_KEY_IDS.name} ADD COLUMN if not exists $MIGRATED_VERSION bigint NOT NULL DEFAULT 0 ; else raise NOTICE 'Column $MIGRATED_VERSION already exists'; " +
                                 "END IF; END $$"
                 )
