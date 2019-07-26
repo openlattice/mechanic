@@ -273,6 +273,8 @@ private val CHRONICLE_ENTITY_SET_IDS = listOf(
         "8ebf299f-52e8-43a0-b24e-977528e05b1f"
 ).map(UUID::fromString)
 
+private val MIGRATED_VERSION = "migrated_version_2"
+
 @Component
 class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
     companion object {
@@ -353,7 +355,7 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
                 PARTITIONS_VERSION.name
         ).joinToString(",")
         val conflictSql = buildConflictSql()
-        val withClause = "WITH for_migration as ( UPDATE entity_key_ids set migrated_version = abs(version) WHERE id in (SELECT id from entity_key_ids WHERE (migrated_version < abs(version)) AND $entitySetsClause limit $BATCH_SIZE) RETURNING * ) "
+        val withClause = "WITH for_migration as ( UPDATE entity_key_ids set $MIGRATED_VERSION = abs(version) WHERE id in (SELECT id from entity_key_ids WHERE ($MIGRATED_VERSION < abs(version)) AND $entitySetsClause limit $BATCH_SIZE) RETURNING * ) "
         return "$withClause INSERT INTO ${IDS.name} ($insertCols) " +
                 "SELECT $selectCols " +
                 "FROM for_migration INNER JOIN (select id as entity_set_id, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
@@ -378,19 +380,19 @@ class UpgradeEntityKeyIdsTable(val toolbox: Toolbox) : Upgrade {
 
     fun addMigratedVersionColumn() {
 
-        logger.info("About to add migrated_version to entity_key_ids table")
+        logger.info("About to add $MIGRATED_VERSION to entity_key_ids table")
 
         toolbox.hds.connection.use { conn ->
             conn.createStatement().use {
                 it.execute(
                         "DO $$ BEGIN " +
-                                "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '${ENTITY_KEY_IDS.name}' AND column_name = 'migrated_version') " +
-                                "THEN ALTER TABLE ${ENTITY_KEY_IDS.name} ADD COLUMN if not exists migrated_version bigint NOT NULL DEFAULT 0 ; else raise NOTICE 'Column migrated_version already exists'; " +
+                                "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '${ENTITY_KEY_IDS.name}' AND column_name = '$MIGRATED_VERSION') " +
+                                "THEN ALTER TABLE ${ENTITY_KEY_IDS.name} ADD COLUMN if not exists $MIGRATED_VERSION bigint NOT NULL DEFAULT 0 ; else raise NOTICE 'Column $MIGRATED_VERSION already exists'; " +
                                 "END IF; END $$"
                 )
             }
         }
-        logger.info("Added migrated_version to entity_key_ids table")
+        logger.info("Added $MIGRATED_VERSION to entity_key_ids table")
     }
 
     override fun getSupportedVersion(): Long {
