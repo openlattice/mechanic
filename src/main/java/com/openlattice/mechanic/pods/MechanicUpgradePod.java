@@ -78,7 +78,7 @@ public class MechanicUpgradePod {
 
     @Bean
     public PostgresEdmManager pgEdmManager() {
-        return new PostgresEdmManager( hikariDataSource, tableManager, hazelcastInstance );
+        return new PostgresEdmManager( hikariDataSource, hazelcastInstance );
     }
 
     @Bean
