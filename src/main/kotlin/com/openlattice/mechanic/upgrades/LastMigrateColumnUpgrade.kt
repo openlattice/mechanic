@@ -8,6 +8,8 @@ import com.openlattice.postgres.PostgresColumn.VERSION
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 
+private val MIGRATED_VERSION = "migrated_version_2"
+
 class LastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade {
 
     companion object {
@@ -22,16 +24,16 @@ class LastMigrateColumnUpgrade(private val toolbox: Toolbox) : Upgrade {
 
                     val rawTableName = propertyTableName(propertyTypeId)
                     val table = quote(rawTableName)
+//                    statement.execute(
+//                            "ALTER TABLE $table DROP COLUMN if exists last_migrate"
+//                    )
                     statement.execute(
-                            "ALTER TABLE $table DROP COLUMN if exists last_migrate"
+                            "ALTER TABLE $table ADD COLUMN if not exists $MIGRATED_VERSION bigint NOT NULL DEFAULT 0"
                     )
-                    statement.execute(
-                            "ALTER TABLE $table ADD COLUMN if not exists migrated_version bigint NOT NULL DEFAULT 0"
-                    )
-                    logger.info("Ensured that table pt_$propertyTypeId has migrated_version column")
+                    logger.info("Ensured that table pt_$propertyTypeId has $MIGRATED_VERSION column")
 
                     val indexName = quote("${rawTableName}_needs_migration_idx")
-                    val indexSql = "CREATE INDEX IF NOT EXISTS $indexName ON $table ((migrated_version < abs(${VERSION.name})))"
+                    val indexSql = "CREATE INDEX IF NOT EXISTS $indexName ON $table (($MIGRATED_VERSION < abs(${VERSION.name})))"
                     logger.info("Executing sql: $indexSql")
                     val sw = Stopwatch.createStarted()
                     statement.execute( indexSql )

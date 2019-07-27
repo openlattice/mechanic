@@ -271,6 +271,8 @@ private val CHRONICLE_ENTITY_SET_IDS = listOf(
         "8ebf299f-52e8-43a0-b24e-977528e05b1f"
 )
 
+private val MIGRATED_VERSION = "migrated_version_2"
+
 class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
     private val limiter = Semaphore(16)
 
@@ -351,7 +353,7 @@ class MigratePropertyValuesToDataTable(private val toolbox: Toolbox) : Upgrade {
         val conflictSql = buildConflictSql()
         val propertyTable = quote(propertyTableName(propertyType.id))
         val propertyColumn = quote(propertyType.type.fullQualifiedNameAsString)
-        val withClause = "WITH for_migration as ( UPDATE $propertyTable set migrated_version = abs(version) WHERE id in (SELECT id from $propertyTable WHERE (migrated_version < abs(version)) ${filterWhitelistedEntitySetsClause(whitelistedEntitySetIds)} limit $BATCH_SIZE) RETURNING * ) "
+        val withClause = "WITH for_migration as ( UPDATE $propertyTable set $MIGRATED_VERSION = abs(version) WHERE id in (SELECT id from $propertyTable WHERE ($MIGRATED_VERSION < abs(version)) ${filterWhitelistedEntitySetsClause(whitelistedEntitySetIds)} limit $BATCH_SIZE) RETURNING * ) "
         return "$withClause INSERT INTO ${DATA.name} ($insertCols,${col.name}) " +
                 "SELECT $selectCols,$propertyColumn as ${col.name} " +
                 "FROM for_migration INNER JOIN (select id as entity_set_id, partitions, partitions_version from ${ENTITY_SETS.name}) as entity_set_partitions USING(entity_set_id) " +
