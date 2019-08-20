@@ -1,6 +1,10 @@
 package com.openlattice.mechanic.upgrades
 
+import com.openlattice.IdConstants
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.postgres.PostgresColumn.ORIGIN_ID
+import com.openlattice.postgres.PostgresTable.DATA
+import org.slf4j.LoggerFactory
 
 class SetOriginIdToNonNullUpgrade(private val toolbox: Toolbox) : Upgrade {
 
@@ -15,7 +19,7 @@ class SetOriginIdToNonNullUpgrade(private val toolbox: Toolbox) : Upgrade {
     override fun upgrade(): Boolean {
         val updateQuery = "UPDATE ${DATA.name} SET ${ORIGIN_ID.name} = ${IdConstants.EMPTY_UUID}"
 
-        toolbox.rateLimitedQuery( 1, updateQuery, logger)
+        return toolbox.rateLimitedQuery( 1, updateQuery, logger)
     }
 
 }

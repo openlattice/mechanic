@@ -86,7 +86,7 @@ class Toolbox(
         }
     }
 
-    fun rateLimitedQuery( rate: Int, query: String, upgradeLogger: Logger ) {
+    fun rateLimitedQuery( rate: Int, query: String, upgradeLogger: Logger ): Boolean{
         val limiter = Semaphore( rate )
 
         try {
@@ -113,6 +113,7 @@ class Toolbox(
         } finally {
             limiter.release()
         }
+        return true;
     }
 
 }
