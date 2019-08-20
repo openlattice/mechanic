@@ -23,7 +23,6 @@ package com.openlattice.mechanic
 
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.openlattice.postgres.CitusDistributedTableDefinition
-import com.openlattice.postgres.PostgresDataTables
 import com.openlattice.postgres.PostgresTableDefinition
 import com.openlattice.postgres.PostgresTableManager
 import com.openlattice.postgres.mapstores.EntitySetMapstore

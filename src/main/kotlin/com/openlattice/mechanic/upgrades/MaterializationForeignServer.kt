@@ -64,18 +64,9 @@ class MaterializationForeignServer(
         logger.info("Organization $organizationId finished")
     }
 
-    private fun connect(organizationDbName: String, config: Optional<Properties> = Optional.empty()): HikariDataSource {
-        val connectionConfig = config.orElse(assemblerConfiguration.server.clone() as Properties)
-        connectionConfig.computeIfPresent("jdbcUrl") { _, jdbcUrl ->
-            "${(jdbcUrl as String).removeSuffix(
-                    "/"
-            )}/$organizationDbName" + if (assemblerConfiguration.ssl) {
-                "?ssl=true"
-            } else {
-                ""
-            }
-        }
-        return HikariDataSource(HikariConfig(connectionConfig))
+    private fun connect(organizationDbName: String): HikariDataSource {
+        val connectionConfig = assemblerConfiguration.server.clone() as Properties
+        return AssemblerConnectionManager.connect(organizationDbName, connectionConfig, assemblerConfiguration.ssl)
     }
 
     private val ALTER_FOREIGN_SERVER_PORT_SQL = "ALTER SERVER ${AssemblerConnectionManager.PRODUCTION_SERVER} " +
