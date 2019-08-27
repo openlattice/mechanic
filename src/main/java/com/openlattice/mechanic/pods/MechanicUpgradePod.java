@@ -220,6 +220,11 @@ public class MechanicUpgradePod {
     }
 
     @Bean
+    SetOriginIdToNonNullUpgrade setOriginIdToNonNullUpgrade() {
+        return new SetOriginIdToNonNullUpgrade( toolbox() );
+    }
+
+    @Bean
     CreateDataTableIndexes createDataTableIndexes() {
         return new CreateDataTableIndexes( toolbox() );
     }

@@ -19,7 +19,7 @@ class SetOriginIdToNonNullUpgrade(private val toolbox: Toolbox) : Upgrade {
     override fun upgrade(): Boolean {
         val updateQuery = "UPDATE ${DATA.name} SET ${ORIGIN_ID.name} = ${IdConstants.EMPTY_UUID} WHERE ${ORIGIN_ID.name} = NULL"
 
-        return toolbox.rateLimitedQuery( 1, updateQuery, logger)
+        return toolbox.rateLimitedQuery( 16, updateQuery, logger)
     }
 
 }
