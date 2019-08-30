@@ -66,12 +66,6 @@ class Toolbox(
                 logger.info("Creating the table ${tableDefinition.name}.")
                 stmt.execute(tableDefinition.createTableQuery())
             }
-//            tableDefinition.createIndexQueries.forEach { indexSql ->
-//                conn.createStatement().use { stmt ->
-//                    logger.info("Creating index with query {}", indexSql)
-//                    stmt.execute(indexSql)
-//                }
-//            }
 
             if (tableDefinition is CitusDistributedTableDefinition) {
                 try {
@@ -86,7 +80,7 @@ class Toolbox(
         }
     }
 
-    fun rateLimitedQuery( rate: Int, query: String, upgradeLogger: Logger ): Boolean{
+    fun rateLimitedQuery( rate: Int, query: String, upgradeLogger: Logger ): Boolean {
         val limiter = Semaphore( rate )
 
         try {
