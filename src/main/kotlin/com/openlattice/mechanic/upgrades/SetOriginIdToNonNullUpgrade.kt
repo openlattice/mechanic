@@ -27,10 +27,12 @@ class SetOriginIdToNonNullUpgrade(private val toolbox: Toolbox) : Upgrade {
         val pkey = PostgresDataTables.buildDataTableDefinition().primaryKey.joinToString(",") { it.name }
         val dropPkey = "ALTER TABLE ${DATA.name} DROP CONSTRAINT ${DATA.name}_pkey"
         val updatePkey = "ALTER TABLE ${DATA.name} ADD PRIMARY KEY ($pkey)"
+        val updateDefaultValue = "ALTER TABLE ${DATA.name} ALTER COLUMN ${ORIGIN_ID.name} SET DEFAULT '${IdConstants.EMPTY_ORIGIN_ID.id}'"
         toolbox.hds.connection.use { conn ->
             conn.autoCommit = false
             conn.createStatement().executeUpdate( dropPkey )
             conn.createStatement().executeUpdate( updatePkey )
+            conn.createStatement().executeUpdate( updateDefaultValue )
             conn.commit()
             return true
         }
