@@ -16,7 +16,7 @@ class SetOriginIdToNonNullUpgrade(private val toolbox: Toolbox) : Upgrade {
     }
 
     override fun getSupportedVersion(): Long {
-        return Version.V2019_08_26.value
+        return Version.V2019_09_15.value
     }
 
     override fun upgrade(): Boolean {
