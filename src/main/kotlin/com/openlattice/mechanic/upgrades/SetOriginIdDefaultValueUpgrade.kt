@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory
 class SetOriginIdDefaultValueUpgrade(private val toolbox: Toolbox) : Upgrade {
 
     companion object {
-        private val logger = LoggerFactory.getLogger(Toolbox::class.java)
+        private val logger = LoggerFactory.getLogger(SetOriginIdDefaultValueUpgrade::class.java)
     }
 
     override fun getSupportedVersion(): Long {
@@ -21,9 +21,7 @@ class SetOriginIdDefaultValueUpgrade(private val toolbox: Toolbox) : Upgrade {
 
         val updateDefaultValue = "ALTER TABLE ${DATA.name} ALTER COLUMN ${ORIGIN_ID.name} SET DEFAULT '${IdConstants.EMPTY_ORIGIN_ID.id}'"
         toolbox.hds.connection.use { conn ->
-            conn.autoCommit = false
             conn.createStatement().executeUpdate( updateDefaultValue )
-            conn.commit()
             return true
         }
     }
