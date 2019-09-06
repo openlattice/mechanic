@@ -235,6 +235,9 @@ public class MechanicUpgradePod {
     }
 
     @Bean
+    SetOriginIdDefaultValueUpgrade SetOriginIdDefaultValueUpgrade() { return new SetOriginIdDefaultValueUpgrade( toolbox() ); }
+
+    @Bean
     InsertEntityKeyIdsToDataTable insertEntityKeyIdsToDataTable() {
         return new InsertEntityKeyIdsToDataTable( toolbox() );
     }
