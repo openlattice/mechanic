@@ -1,6 +1,10 @@
 package com.openlattice.mechanic.upgrades
 
+
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.postgres.PostgresColumn
+import com.openlattice.postgres.PostgresTable
+import java.sql.Types
 
 class DataExpirationUpgrade(private val toolbox: Toolbox) : Upgrade {
     override fun upgrade(): Boolean {
@@ -15,9 +19,9 @@ class DataExpirationUpgrade(private val toolbox: Toolbox) : Upgrade {
     }
 
     private fun addExpirationColumnsQuery(): String {
-        return "ALTER TABLE entity_sets " +
-                "ADD COLUMN time_to_expiration bigint, " +
-                "ADD COLUMN expiration_flag text, " +
-                "ADD COLUMN expiration_start_id uuid"
+        return "ALTER TABLE ${PostgresTable.ENTITY_SETS.name} " +
+                "ADD COLUMN ${PostgresColumn.TIME_TO_EXPIRATION.name} bigint, " +
+                "ADD COLUMN ${PostgresColumn.EXPIRATION_FLAG.name} text, " +
+                "ADD COLUMN ${PostgresColumn.EXPIRATION_START_ID.name} uuid"
     }
 }
