@@ -20,8 +20,9 @@ class DataExpirationUpgrade(private val toolbox: Toolbox) : Upgrade {
 
     private fun addExpirationColumnsQuery(): String {
         return "ALTER TABLE ${PostgresTable.ENTITY_SETS.name} " +
-                "ADD COLUMN ${PostgresColumn.TIME_TO_EXPIRATION.name} bigint, " +
-                "ADD COLUMN ${PostgresColumn.EXPIRATION_FLAG.name} text, " +
-                "ADD COLUMN ${PostgresColumn.EXPIRATION_START_ID.name} uuid"
+                "ADD COLUMN ${PostgresColumn.TIME_TO_EXPIRATION.name} ${PostgresColumn.TIME_TO_EXPIRATION.datatype}, " +
+                "ADD COLUMN ${PostgresColumn.EXPIRATION_BASE_FLAG.name} ${PostgresColumn.EXPIRATION_BASE_FLAG.datatype}, " +
+                "ADD COLUMN ${PostgresColumn.EXPIRATION_DELETE_FLAG.name} ${PostgresColumn.EXPIRATION_DELETE_FLAG.datatype}, "
+                "ADD COLUMN ${PostgresColumn.EXPIRATION_START_ID.name} ${PostgresColumn.EXPIRATION_START_ID.datatype}"
     }
 }
