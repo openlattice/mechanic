@@ -235,6 +235,11 @@ public class MechanicUpgradePod {
     }
 
     @Bean
+    DataExpirationUpgrade dataExpirationUpgrade() {
+        return new DataExpirationUpgrade( toolbox() );
+    }
+
+    @Bean
     InsertEntityKeyIdsToDataTable insertEntityKeyIdsToDataTable() {
         return new InsertEntityKeyIdsToDataTable( toolbox() );
     }
