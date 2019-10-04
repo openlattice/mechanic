@@ -248,4 +248,9 @@ class MechanicUpgradePod {
     fun insertEntityKeyIdsToDataTable(): InsertEntityKeyIdsToDataTable {
         return InsertEntityKeyIdsToDataTable(toolbox())
     }
+
+    @Bean
+    fun dataExpirationUpgrade(): DataExpirationUpgrade {
+        return DataExpirationUpgrade(toolbox())
+    }
 }
