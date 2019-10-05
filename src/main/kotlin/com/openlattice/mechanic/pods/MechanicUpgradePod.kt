@@ -253,4 +253,9 @@ class MechanicUpgradePod {
     fun dataExpirationUpgrade(): DataExpirationUpgrade {
         return DataExpirationUpgrade(toolbox())
     }
+
+    @Bean
+    fun setOriginIdDefaultValueUpgrade(): SetOriginIdDefaultValueUpgrade {
+        return SetOriginIdDefaultValueUpgrade(toolbox())
+    }
 }
