@@ -235,6 +235,11 @@ public class MechanicUpgradePod {
     }
 
     @Bean
+    SetOriginIdDefaultValueUpgrade setOriginIdDefaultValueUpgrade() {
+        return new SetOriginIdDefaultValueUpgrade( toolbox() );
+    }
+
+    @Bean
     DataExpirationUpgrade dataExpirationUpgrade() {
         return new DataExpirationUpgrade( toolbox() );
     }
