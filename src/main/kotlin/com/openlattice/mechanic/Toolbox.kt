@@ -21,6 +21,7 @@
 
 package com.openlattice.mechanic
 
+import com.google.common.base.Stopwatch
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.openlattice.postgres.CitusDistributedTableDefinition
 import com.openlattice.postgres.PostgresTableDefinition
@@ -29,7 +30,10 @@ import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.postgres.mapstores.EntityTypeMapstore
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore
 import com.zaxxer.hikari.HikariDataSource
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
 
 /**
  *
@@ -61,12 +65,6 @@ class Toolbox(
                 logger.info("Creating the table ${tableDefinition.name}.")
                 stmt.execute(tableDefinition.createTableQuery())
             }
-//            tableDefinition.createIndexQueries.forEach { indexSql ->
-//                conn.createStatement().use { stmt ->
-//                    logger.info("Creating index with query {}", indexSql)
-//                    stmt.execute(indexSql)
-//                }
-//            }
 
             if (tableDefinition is CitusDistributedTableDefinition) {
                 try {
@@ -80,4 +78,35 @@ class Toolbox(
             }
         }
     }
+
+    fun rateLimitedQuery( rate: Int, query: String, upgradeLogger: Logger ): Boolean {
+        val limiter = Semaphore( rate )
+
+        try {
+            limiter.acquire()
+            var insertCounter = 0
+            var insertCount = 1
+            val swTotal = Stopwatch.createStarted()
+            hds.connection.use { conn ->
+                conn.prepareStatement( query ).use { ps ->
+                    val sw = Stopwatch.createStarted()
+                    insertCount = ps.executeUpdate(query)
+                    insertCounter += insertCount
+                    upgradeLogger.info(
+                            "{} rows upgraded in {} ms. Total rows upgraded so far: {} in {} ms",
+                            insertCount,
+                            sw.elapsed(TimeUnit.MILLISECONDS),
+                            insertCounter,
+                            swTotal.elapsed(TimeUnit.MILLISECONDS)
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            upgradeLogger.info("Something bad happened :(", e)
+        } finally {
+            limiter.release()
+        }
+        return true;
+    }
+
 }

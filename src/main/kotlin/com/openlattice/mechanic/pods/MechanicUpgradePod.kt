@@ -258,4 +258,9 @@ class MechanicUpgradePod {
     fun setOriginIdDefaultValueUpgrade(): SetOriginIdDefaultValueUpgrade {
         return SetOriginIdDefaultValueUpgrade(toolbox())
     }
+
+    @Bean
+    fun setOriginIdToNonNullUpgrade(): SetOriginIdToNonNullUpgrade {
+        return SetOriginIdToNonNullUpgrade(toolbox())
+    }
 }

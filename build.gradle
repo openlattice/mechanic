@@ -70,8 +70,8 @@ println "Using java args for running ${projectName}: " + Arrays.toString(applica
 
 mainClassName = "com.openlattice.mechanic.MechanicKt"
 applicationDefaultJvmArgs = [MECHANIC_XMS, MECHANIC_XMX, "-server", GC, PARALLEL]
-sourceCompatibility = JavaVersion.VERSION_1_10
-targetCompatibility = JavaVersion.VERSION_1_10
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
 
 
 run {
@@ -128,8 +128,8 @@ eclipse {
     ext.downloadSources = true
     ext.downloadJavadoc = true
 
-    ext.sourceCompatibility = JavaVersion.VERSION_1_8
-    ext.targetCompatibility = JavaVersion.VERSION_1_8
+    ext.sourceCompatibility = JavaVersion.VERSION_11
+    ext.targetCompatibility = JavaVersion.VERSION_11
 }
 
 eclipse.classpath.plusConfigurations += [configurations.provided]
