@@ -20,8 +20,18 @@ class AddOriginIdToDataPrimaryKey(private val toolbox: Toolbox) : Upgrade {
 
         val pkey = (PostgresDataTables.buildDataTableDefinition().primaryKey + ORIGIN_ID).joinToString(",") { it.name }
 
-        val dropPkey = "ALTER TABLE ${DATA.name} DROP CONSTRAINT ${DATA.name}_pkey"
-        val updatePkey = "ALTER TABLE ${DATA.name} ADD PRIMARY KEY ($pkey)"
+        logger.info("Adding new index to data to be used for primary key.")
+
+        val createNewPkeyIndex = "CREATE UNIQUE INDEX CONCURRENTLY ${DATA.name}_pkey_idx ON ${DATA.name} ($pkey)"
+
+        toolbox.hds.connection.use { conn ->
+            conn.createStatement().execute( createNewPkeyIndex )
+        }
+
+        logger.info("Finished creating index. About to drop pkey constraint and create new constraint using new index.")
+
+        val dropPkey = "ALTER TABLE ${DATA.name} DROP CONSTRAINT ${DATA.name}_pkey1"
+        val updatePkey = "ALTER TABLE ${DATA.name} ADD CONSTRAINT ${DATA.name}_pkey PRIMARY KEY USING INDEX ${DATA.name}_pkey_idx"
 
         logger.info("About to drop and recreate primary key of data.")
 
