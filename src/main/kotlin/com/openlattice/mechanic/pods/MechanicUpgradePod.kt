@@ -263,4 +263,9 @@ class MechanicUpgradePod {
     fun setOriginIdToNonNullUpgrade(): SetOriginIdToNonNullUpgrade {
         return SetOriginIdToNonNullUpgrade(toolbox())
     }
+
+    @Bean
+    fun insertDeletedChronicleEdgeIds(): InsertDeletedChronicleEdgeIds {
+        return InsertDeletedChronicleEdgeIds(toolbox())
+    }
 }
