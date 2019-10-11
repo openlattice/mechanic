@@ -267,6 +267,7 @@ class MechanicUpgradePod {
     @Bean
     fun addOriginIdToDataPrimaryKey(): AddOriginIdToDataPrimaryKey {
         return AddOriginIdToDataPrimaryKey(toolbox())
+    }
 
     @Bean
     fun insertDeletedChronicleEdgeIds(): InsertDeletedChronicleEdgeIds {
