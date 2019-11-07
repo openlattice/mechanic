@@ -20,10 +20,14 @@
 
 package com.openlattice.mechanic.pods;
 
+import com.google.common.collect.SetMultimap;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.query.Predicate;
 import com.openlattice.assembler.AssemblerConfiguration;
+import com.openlattice.authorization.*;
+import com.openlattice.directory.pojo.Auth0UserBasic;
 import com.openlattice.edm.PostgresEdmManager;
 import com.openlattice.hazelcast.pods.MapstoresPod;
 import com.openlattice.ids.IdGenerationMapstore;
@@ -34,6 +38,9 @@ import com.openlattice.mechanic.retired.DropEdmVersions;
 import com.openlattice.mechanic.retired.DropPrincipalTree;
 import com.openlattice.mechanic.retired.EntitySetFlags;
 import com.openlattice.mechanic.upgrades.*;
+import com.openlattice.organization.roles.Role;
+import com.openlattice.organizations.roles.HazelcastPrincipalService;
+import com.openlattice.organizations.roles.SecurePrincipalsManager;
 import com.openlattice.postgres.PostgresTableManager;
 import com.openlattice.postgres.mapstores.EntitySetMapstore;
 import com.openlattice.postgres.mapstores.EntityTypeMapstore;
@@ -46,6 +53,8 @@ import javax.inject.Inject;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+
+import java.util.*;
 
 /**
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
@@ -242,5 +251,32 @@ public class MechanicUpgradePod {
     @Bean
     InsertEntityKeyIdsToDataTable insertEntityKeyIdsToDataTable() {
         return new InsertEntityKeyIdsToDataTable( toolbox() );
+    }
+
+    @Bean
+    public AuthorizationQueryService authorizationQueryService() {
+        return new AuthorizationQueryService( hikariDataSource, hazelcastInstance );
+    }
+
+    @Bean
+    public HazelcastAclKeyReservationService aclKeyReservationService() {
+        return new HazelcastAclKeyReservationService( hazelcastInstance );
+    }
+
+    @Bean
+    public AuthorizationManager authorizationManager() {
+        return new HazelcastAuthorizationService( hazelcastInstance, authorizationQueryService(), eventBus );
+    }
+
+    @Bean
+    SecurePrincipalsManager securePrincipalsManager() {
+        return new HazelcastPrincipalService( hazelcastInstance,
+                aclKeyReservationService(),
+                authorizationManager(),
+                eventBus );
+    }
+
+    @Bean GrantPublicSchemaAccessToOrgs grantPublicSchemaAccessToOrgs() {
+        return new GrantPublicSchemaAccessToOrgs( toolbox(), securePrincipalsManager() );
     }
 }

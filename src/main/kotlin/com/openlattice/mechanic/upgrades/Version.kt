@@ -36,4 +36,5 @@ enum class Version(val value: Long) {
     V2019_06_27(8L),
     V2019_07_01(9L),
     V2019_10_03(10L),
+    V2019_11_07(11L)
 }
