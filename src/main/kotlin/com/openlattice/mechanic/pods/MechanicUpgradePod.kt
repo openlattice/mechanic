@@ -273,4 +273,9 @@ class MechanicUpgradePod {
     fun insertDeletedChronicleEdgeIds(): InsertDeletedChronicleEdgeIds {
         return InsertDeletedChronicleEdgeIds(toolbox())
     }
+
+    @Bean
+    fun resetEntitySetCountsMaterializedView(): ResetEntitySetCountsMaterializedView {
+        return ResetEntitySetCountsMaterializedView(toolbox())
+    }
 }
