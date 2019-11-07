@@ -296,7 +296,7 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    internal fun securePrincipalsManager(): SecurePrincipalsManager {
+    fun securePrincipalsManager(): SecurePrincipalsManager {
         return HazelcastPrincipalService(hazelcastInstance,
                 aclKeyReservationService(),
                 authorizationManager(),
@@ -304,7 +304,7 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    internal fun grantPublicSchemaAccessToOrgs(): GrantPublicSchemaAccessToOrgs {
+    fun grantPublicSchemaAccessToOrgs(): GrantPublicSchemaAccessToOrgs {
         return GrantPublicSchemaAccessToOrgs(toolbox(), securePrincipalsManager())
     }
 }
