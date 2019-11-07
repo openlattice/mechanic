@@ -5,6 +5,7 @@ import com.openlattice.IdConstants
 import com.openlattice.ResourceConfigurationLoader
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.assembler.AssemblerConnectionManager
+import com.openlattice.assembler.PostgresDatabases
 import com.openlattice.assembler.PostgresRoles
 import com.openlattice.authorization.AclKey
 import com.openlattice.authorization.PrincipalType
@@ -40,10 +41,9 @@ class GrantPublicSchemaAccessToOrgs(
         ) { rs ->
             ResultSetAdapters.id(rs) to ResultSetAdapters.members(rs)
         }
-                .filter { it.first != IdConstants.OPENLATTICE_ORGANIZATION_ID.id }
-                .filter { it.first != IdConstants.GLOBAL_ORGANIZATION_ID.id }
+                .filter { it.first != IdConstants.OPENLATTICE_ORGANIZATION_ID.id && it.first != IdConstants.GLOBAL_ORGANIZATION_ID.id }
                 .forEach {
-                    val dbName = "org_${it.first.toString().replace("-", "").toLowerCase()}"
+                    val dbName = PostgresDatabases.buildOrganizationDatabaseName(it.first)
                     val userNames = getUserNames(it.second)
                     userNamesByDBName[dbName] = userNames
                 }
