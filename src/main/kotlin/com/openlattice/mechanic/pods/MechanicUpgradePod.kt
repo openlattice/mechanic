@@ -41,10 +41,7 @@ import com.openlattice.mechanic.upgrades.*
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.PostgresTableManager
-import com.openlattice.postgres.mapstores.EntitySetMapstore
-import com.openlattice.postgres.mapstores.EntityTypeMapstore
-import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
-import com.openlattice.postgres.mapstores.PropertyTypeMapstore
+import com.openlattice.postgres.mapstores.*
 import com.zaxxer.hikari.HikariDataSource
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Profile
@@ -305,6 +302,9 @@ class MechanicUpgradePod {
 
     @Bean
     fun grantPublicSchemaAccessToOrgs(): GrantPublicSchemaAccessToOrgs {
-        return GrantPublicSchemaAccessToOrgs(toolbox(), securePrincipalsManager())
+        return GrantPublicSchemaAccessToOrgs(
+                mapstoresPod.membersMapstore() as OrganizationMembersMapstore,
+                securePrincipalsManager(),
+                assemblerConfiguration)
     }
 }
