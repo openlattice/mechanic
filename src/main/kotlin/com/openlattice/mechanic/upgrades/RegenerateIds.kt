@@ -31,7 +31,7 @@ import com.openlattice.authorization.mapstores.PrincipalTreesMapstore
 import com.openlattice.data.EntityDataKey
 import com.openlattice.edm.PostgresEdmManager
 import com.openlattice.ids.HazelcastIdGenerationService.NUM_PARTITIONS
-import com.openlattice.ids.IdGeneratingEntryProcessor
+import com.openlattice.ids.IdsGeneratingEntryProcessor
 import com.openlattice.ids.IdGenerationMapstore
 import com.openlattice.ids.Range
 import com.openlattice.postgres.DataTables
@@ -489,14 +489,14 @@ class RegenerateIds(
         val countPerPartition = count / NUM_PARTITIONS //0 if count < NUM_PARTITIONS
         val randomRanges = (1..remainderToBeDistributed).map { r.nextInt(NUM_PARTITIONS).toLong() }.toSet()
 
-        val processor = IdGeneratingEntryProcessor(countPerPartition.toInt())
+        val processor = IdsGeneratingEntryProcessor(countPerPartition.toInt())
 
         val ids = if (countPerPartition > 0) {
             ranges.asSequence().flatMap { processor.getIds(it.value).asSequence() }
         } else {
             sequenceOf()
         }
-        val remainingProcessor = IdGeneratingEntryProcessor(1)
+        val remainingProcessor = IdsGeneratingEntryProcessor(1)
         val remainingIds = randomRanges
                 .asSequence()
                 .map { ranges[it] }
