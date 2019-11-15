@@ -30,7 +30,7 @@ import com.openlattice.authorization.AclKeySet
 import com.openlattice.authorization.mapstores.PrincipalTreesMapstore
 import com.openlattice.data.EntityDataKey
 import com.openlattice.edm.PostgresEdmManager
-import com.openlattice.ids.HazelcastIdGenerationService.NUM_PARTITIONS
+import com.openlattice.ids.HazelcastIdGenerationService.Companion.NUM_PARTITIONS
 import com.openlattice.ids.IdsGeneratingEntryProcessor
 import com.openlattice.ids.IdGenerationMapstore
 import com.openlattice.ids.Range
