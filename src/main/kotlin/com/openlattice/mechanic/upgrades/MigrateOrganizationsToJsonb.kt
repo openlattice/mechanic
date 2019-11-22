@@ -73,7 +73,12 @@ class MigrateOrganizationsToJsonb(private val toolbox: Toolbox) : Upgrade {
             val id = id(rs)
             val title = title(rs)
             val description = description(rs)
-            val allowedEmailDomains = (rs.getArray(ALLOWED_EMAIL_DOMAINS.name).array as Array<String>).toMutableSet()
+            val maybeEmails = rs.getArray(ALLOWED_EMAIL_DOMAINS.name)
+
+            val allowedEmailDomains = if (maybeEmails != null && maybeEmails.array != null)
+                (rs.getArray(ALLOWED_EMAIL_DOMAINS.name).array as Array<String>).toMutableSet()
+            else
+                mutableSetOf()
             val memberPrincipals = members(rs).map { Principal(PrincipalType.USER, it) }.toMutableSet()
             val appIds = (rs.getArray(APP_IDS.name).array as Array<UUID>).toMutableSet()
             val partitions = partitions(rs).toMutableList()
@@ -129,7 +134,7 @@ class MigrateOrganizationsToJsonb(private val toolbox: Toolbox) : Upgrade {
         return Version.V2019_11_21.value
     }
 
-    private val ADD_COLUMN_SQL = "ALTER TABLE ${ORGANIZATIONS.name} ADD COLUMN ${ORGANIZATION.sql()} default '{}'"
+    private val ADD_COLUMN_SQL = "ALTER TABLE ${ORGANIZATIONS.name} ADD COLUMN IF NOT EXISTS ${ORGANIZATION.sql()} default '{}'"
 
     private val POPULATE_COLUMN_SQL = "UPDATE ${ORGANIZATIONS.name} SET ${ORGANIZATION.name} = ?::jsonb WHERE ${ID.name} = ? "
 }
