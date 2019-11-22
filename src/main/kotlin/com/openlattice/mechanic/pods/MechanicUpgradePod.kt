@@ -126,7 +126,8 @@ class MechanicUpgradePod {
                 mapstoresPod.propertyTypeMapstore() as PropertyTypeMapstore,
                 mapstoresPod.entityTypeMapstore() as EntityTypeMapstore,
                 mapstoresPod.entitySetMapstore() as EntitySetMapstore,
-                executor
+                executor,
+                hazelcastInstance
         )
     }
 
@@ -272,5 +273,10 @@ class MechanicUpgradePod {
     @Bean
     fun insertDeletedChronicleEdgeIds(): InsertDeletedChronicleEdgeIds {
         return InsertDeletedChronicleEdgeIds(toolbox())
+    }
+
+    @Bean
+    fun migrateOrganizationsToJsonb(): MigrateOrganizationsToJsonb {
+        return MigrateOrganizationsToJsonb(toolbox())
     }
 }
