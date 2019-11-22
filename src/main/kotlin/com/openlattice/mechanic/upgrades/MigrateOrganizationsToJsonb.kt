@@ -58,7 +58,7 @@ class MigrateOrganizationsToJsonb(private val toolbox: Toolbox) : Upgrade {
         val principals = toolbox.hazelcast.getMap<AclKey, SecurablePrincipal>(HazelcastMap.PRINCIPALS.name)
 
         val orgPrincipalsById = principals
-                .entrySet(Predicates.equal(PrincipalMapstore.PRINCIPAL_TYPE_INDEX, PrincipalType.ORGANIZATION))
+                .entrySet(Predicates.equal("principalType", PrincipalType.ORGANIZATION))
                 .map { it.key[0] to it.value.principal }
                 .toMap()
 
