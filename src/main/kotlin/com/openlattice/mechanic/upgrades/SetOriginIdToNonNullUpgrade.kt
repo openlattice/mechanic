@@ -1,9 +1,7 @@
 package com.openlattice.mechanic.upgrades
 
-import com.openlattice.IdConstants
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn.ORIGIN_ID
-import com.openlattice.postgres.PostgresDataTables
 import com.openlattice.postgres.PostgresTable.DATA
 import org.slf4j.LoggerFactory
 

@@ -106,7 +106,7 @@ class Toolbox(
         } finally {
             limiter.release()
         }
-        return true;
+        return true
     }
 
 }

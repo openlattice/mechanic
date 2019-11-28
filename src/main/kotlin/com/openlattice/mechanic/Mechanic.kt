@@ -47,8 +47,6 @@ import com.openlattice.mechanic.MechanicCli.Companion.REINDEX
 import com.openlattice.mechanic.MechanicCli.Companion.SQL
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.checks.Check
-import com.openlattice.mechanic.integrity.EdmChecks
-import com.openlattice.mechanic.integrity.IntegrityChecks
 import com.openlattice.mechanic.pods.MechanicUpgradePod
 import com.openlattice.mechanic.reindex.Reindexer
 import com.openlattice.mechanic.upgrades.Upgrade
