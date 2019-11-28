@@ -22,9 +22,7 @@
 package com.openlattice.mechanic
 
 import com.google.common.base.Preconditions.checkArgument
-import com.google.common.base.Stopwatch
 import com.google.common.collect.Maps
-import com.kryptnostic.rhizome.configuration.ConfigurationConstants
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.AWS_CONFIGURATION_PROFILE
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.LOCAL_CONFIGURATION_PROFILE
 import com.kryptnostic.rhizome.core.Rhizome
@@ -44,7 +42,6 @@ import com.openlattice.mechanic.MechanicCli.Companion.HELP
 import com.openlattice.mechanic.MechanicCli.Companion.LOCAL
 import com.openlattice.mechanic.MechanicCli.Companion.POSTGRES
 import com.openlattice.mechanic.MechanicCli.Companion.REINDEX
-import com.openlattice.mechanic.MechanicCli.Companion.SQL
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.checks.Check
 import com.openlattice.mechanic.pods.MechanicUpgradePod
@@ -54,6 +51,7 @@ import com.openlattice.postgres.PostgresPod
 import org.apache.commons.lang3.StringUtils
 import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
+import kotlin.system.exitProcess
 
 
 private val logger = LoggerFactory.getLogger(Mechanic::class.java)
@@ -78,19 +76,19 @@ fun main(args: Array<String>) {
             "Local or AWS configuration profile must be specified"
     )
 
-    val args = mutableListOf<String>()
+    val ars = mutableListOf<String>()
 
     if (cl.hasOption(AWS)) {
-        args.add(AWS_CONFIGURATION_PROFILE)
+        ars.add(AWS_CONFIGURATION_PROFILE)
     } else if (cl.hasOption(LOCAL_CONFIGURATION_PROFILE)) {
-        args.add(LOCAL_CONFIGURATION_PROFILE)
+        ars.add(LOCAL_CONFIGURATION_PROFILE)
     }
 
     if (cl.hasOption(POSTGRES)) {
-        args.add(PostgresPod.PROFILE)
+        ars.add(PostgresPod.PROFILE)
     }
 
-    mechanic.sprout(*args.toTypedArray())
+    mechanic.sprout(*ars.toTypedArray())
 
     if (cl.hasOption(CHECK)) {
         val checks = cl.getOptionValues(CHECK).toSet()
@@ -106,14 +104,14 @@ fun main(args: Array<String>) {
         mechanic.reIndex()
     }
 
-    if (cl.hasOption(SQL)) {
+//    if (cl.hasOption(SQL)) {
+//
+//    }
 
-    }
-
-    val w = Stopwatch.createStarted()
+//    val w = Stopwatch.createStarted()
 
     mechanic.close()
-    System.exit(0)
+    exitProcess(0)
 
 }
 
@@ -139,11 +137,11 @@ class Mechanic {
         var awsProfile = false
         var localProfile = false
         for (profile in activeProfiles) {
-            if (StringUtils.equals(ConfigurationConstants.Profiles.AWS_CONFIGURATION_PROFILE, profile)) {
+            if (StringUtils.equals(AWS_CONFIGURATION_PROFILE, profile)) {
                 awsProfile = true
             }
 
-            if (StringUtils.equals(ConfigurationConstants.Profiles.LOCAL_CONFIGURATION_PROFILE, profile)) {
+            if (StringUtils.equals(LOCAL_CONFIGURATION_PROFILE, profile)) {
                 localProfile = true
             }
 
@@ -151,7 +149,7 @@ class Mechanic {
         }
 
         if (!awsProfile && !localProfile) {
-            context.environment.addActiveProfile(ConfigurationConstants.Profiles.LOCAL_CONFIGURATION_PROFILE)
+            context.environment.addActiveProfile(LOCAL_CONFIGURATION_PROFILE)
         }
 
         /*if ( additionalPods.size() > 0 ) {
