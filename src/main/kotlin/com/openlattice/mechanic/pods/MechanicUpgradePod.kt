@@ -24,6 +24,10 @@ import com.google.common.eventbus.EventBus
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
 import com.openlattice.assembler.AssemblerConfiguration
+import com.openlattice.authorization.AuthorizationManager
+import com.openlattice.authorization.AuthorizationQueryService
+import com.openlattice.authorization.HazelcastAclKeyReservationService
+import com.openlattice.authorization.HazelcastAuthorizationService
 import com.openlattice.edm.PostgresEdmManager
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.ids.IdGenerationMapstore
@@ -34,11 +38,10 @@ import com.openlattice.mechanic.retired.DropEdmVersions
 import com.openlattice.mechanic.retired.DropPrincipalTree
 import com.openlattice.mechanic.retired.EntitySetFlags
 import com.openlattice.mechanic.upgrades.*
+import com.openlattice.organizations.roles.HazelcastPrincipalService
+import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.PostgresTableManager
-import com.openlattice.postgres.mapstores.EntitySetMapstore
-import com.openlattice.postgres.mapstores.EntityTypeMapstore
-import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
-import com.openlattice.postgres.mapstores.PropertyTypeMapstore
+import com.openlattice.postgres.mapstores.*
 import com.zaxxer.hikari.HikariDataSource
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Profile
@@ -276,6 +279,37 @@ class MechanicUpgradePod {
     }
 
     @Bean
+    fun authorizationQueryService(): AuthorizationQueryService {
+        return AuthorizationQueryService(hikariDataSource, hazelcastInstance)
+    }
+
+    @Bean
+    fun aclKeyReservationService(): HazelcastAclKeyReservationService {
+        return HazelcastAclKeyReservationService(hazelcastInstance)
+    }
+
+    @Bean
+    fun authorizationManager(): AuthorizationManager {
+        return HazelcastAuthorizationService(hazelcastInstance, authorizationQueryService(), eventBus)
+    }
+
+    @Bean
+    fun securePrincipalsManager(): SecurePrincipalsManager {
+        return HazelcastPrincipalService(hazelcastInstance,
+                aclKeyReservationService(),
+                authorizationManager(),
+                eventBus)
+    }
+
+    @Bean
+    fun grantPublicSchemaAccessToOrgs(): GrantPublicSchemaAccessToOrgs {
+        return GrantPublicSchemaAccessToOrgs(
+                mapstoresPod.membersMapstore() as OrganizationMembersMapstore,
+                securePrincipalsManager(),
+                assemblerConfiguration)
+    }
+
+    @Bean  
     fun dropPartitionsVersionColumn(): DropPartitionsVersionColumn {
         return DropPartitionsVersionColumn(toolbox())
     }
