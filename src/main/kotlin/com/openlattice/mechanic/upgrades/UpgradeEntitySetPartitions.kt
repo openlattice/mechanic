@@ -37,14 +37,13 @@ class UpgradeEntitySetPartitions(private val toolbox: Toolbox) : Upgrade {
             if (entitySet.partitions.size > 0) {
                 logger.error("SOMETHING BAD -- we came across entity set {} which has partitions assigned", entitySet.id)
             } else {
-                entitySet.setPartitions(partitions)
+//                entitySet.setPartitions(partitions)
                 toolbox.esms.store(entitySetId, entitySet)
                 logger.info(
-                        "Partitions for entity set {} ({}) => ({},{})",
+                        "Partitions for entity set {} ({}) => ({})",
                         entitySet.name,
                         entitySet.id,
-                        entitySet.partitions,
-                        entitySet.partitionsVersion
+                        entitySet.partitions
                 )
             }
         }
