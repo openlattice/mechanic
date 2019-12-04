@@ -24,7 +24,6 @@ import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.assembler.AssemblerConnectionManager
 import com.openlattice.assembler.PostgresDatabases
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
-import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 import java.util.*

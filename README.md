@@ -1,2 +1,2 @@
 # mechanic
-Responsibl for upgrades, tuning, and integrity checks.
+Responsible for upgrades, tuning, and integrity checks.
