@@ -1,26 +1,14 @@
 package com.openlattice.mechanic.upgrades
 
-import com.google.common.base.Preconditions
 import com.openlattice.IdConstants
-import com.openlattice.ResourceConfigurationLoader
 import com.openlattice.assembler.AssemblerConfiguration
-import com.openlattice.assembler.AssemblerConnectionManager
 import com.openlattice.assembler.PostgresDatabases
 import com.openlattice.assembler.PostgresRoles
-import com.openlattice.authorization.AclKey
 import com.openlattice.authorization.PrincipalType
-import com.openlattice.authorization.SecurablePrincipal
-import com.openlattice.datastore.util.Util
-import com.openlattice.mechanic.Toolbox
 import com.openlattice.organizations.PrincipalSet
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.DataTables
-import com.openlattice.postgres.PostgresColumn
-import com.openlattice.postgres.PostgresTable
-import com.openlattice.postgres.ResultSetAdapters
 import com.openlattice.postgres.mapstores.OrganizationMembersMapstore
-import com.openlattice.postgres.streams.BasePostgresIterable
-import com.openlattice.postgres.streams.StatementHolderSupplier
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import java.util.*
@@ -49,7 +37,7 @@ class GrantPublicSchemaAccessToOrgs(
     }
 
     override fun getSupportedVersion(): Long {
-        return Version.V2019_11_07.value
+        return Version.V2019_11_21.value
     }
 
     private fun grantUsageOnPublicSchema(orgId: UUID, principals: PrincipalSet) {
