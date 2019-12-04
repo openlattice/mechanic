@@ -276,6 +276,11 @@ class MechanicUpgradePod {
     }
 
     @Bean
+    fun resetEntitySetCountsMaterializedView(): ResetEntitySetCountsMaterializedView {
+        return ResetEntitySetCountsMaterializedView(toolbox())
+    }
+  
+    @Bean
     fun migrateOrganizationsToJsonb(): MigrateOrganizationsToJsonb {
         return MigrateOrganizationsToJsonb(toolbox())
     }
