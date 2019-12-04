@@ -1,10 +1,7 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.*
 import org.slf4j.LoggerFactory
-import java.lang.Exception
-import java.util.concurrent.Callable
 
 class PropertyValueIndexing(private val toolbox: Toolbox) : Upgrade {
 

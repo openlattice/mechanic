@@ -24,9 +24,11 @@ package com.openlattice.mechanic.upgrades
 import com.google.common.base.Stopwatch
 import com.openlattice.edm.type.PropertyType
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.*
 import com.openlattice.postgres.DataTables.*
 import com.openlattice.postgres.PostgresColumn.*
+import com.openlattice.postgres.PostgresDatatype
+import com.openlattice.postgres.PostgresIndexDefinition
+import com.openlattice.postgres.PostgresTableDefinition
 import org.slf4j.LoggerFactory
 import java.util.*
 import java.util.concurrent.Callable
@@ -132,18 +134,18 @@ class GraphProcessing(private val toolbox: Toolbox) : Upgrade {
 }
 
 private fun alterPropertyTypeTableWithDefaults(propertyTypeId: UUID): String {
-    val propertyTableName = quote(DataTables.propertyTableName(propertyTypeId))
+    val propertyTableName = quote(propertyTableName(propertyTypeId))
     return "ALTER TABLE $propertyTableName ALTER COLUMN ${LAST_PROPAGATE.name} SET DEFAULT now();" +
             "ALTER TABLE $propertyTableName ALTER COLUMN ${LAST_PROPAGATE.name} SET NOT NULL;"
 }
 
 private fun updatePropertyTypeTableSql(propertyTypeId: UUID): String {
-    val propertyTableName = quote(DataTables.propertyTableName(propertyTypeId))
+    val propertyTableName = quote(propertyTableName(propertyTypeId))
     return "UPDATE $propertyTableName SET ${LAST_PROPAGATE.name} = now() WHERE LAST_PROPAGATE IS NULL"
 }
 
 private fun alterPropertyTypeTableSql(propertyTypeId: UUID): String {
-    val propertyTableName = quote(DataTables.propertyTableName(propertyTypeId))
+    val propertyTableName = quote(propertyTableName(propertyTypeId))
     return "ALTER TABLE $propertyTableName DROP COLUMN IF EXISTS ${LAST_PROPAGATE.name}; " +
             "ALTER TABLE $propertyTableName ADD COLUMN IF NOT EXISTS ${LAST_PROPAGATE.name} ${PostgresDatatype.TIMESTAMPTZ.sql()}; "
 }

@@ -4,7 +4,6 @@ package com.openlattice.mechanic.upgrades
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn
 import com.openlattice.postgres.PostgresTable
-import java.sql.Types
 
 class DataExpirationUpgrade(private val toolbox: Toolbox) : Upgrade {
     override fun upgrade(): Boolean {
@@ -12,7 +11,7 @@ class DataExpirationUpgrade(private val toolbox: Toolbox) : Upgrade {
             val stmt = it.prepareStatement(addExpirationColumnsQuery())
             stmt.execute()
         }
-        return true;
+        return true
     }
 
     override fun getSupportedVersion(): Long {
