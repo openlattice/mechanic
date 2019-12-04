@@ -301,13 +301,13 @@ class MechanicUpgradePod {
                 eventBus)
     }
 
-    @Bean
-    fun grantPublicSchemaAccessToOrgs(): GrantPublicSchemaAccessToOrgs {
-        return GrantPublicSchemaAccessToOrgs(
-                mapstoresPod.membersMapstore() as OrganizationMembersMapstore,
-                securePrincipalsManager(),
-                assemblerConfiguration)
-    }
+//    @Bean
+//    fun grantPublicSchemaAccessToOrgs(): GrantPublicSchemaAccessToOrgs {
+//        return GrantPublicSchemaAccessToOrgs(
+//                mapstoresPod.membersMapstore() as OrganizationMembersMapstore,
+//                securePrincipalsManager(),
+//                assemblerConfiguration)
+//    }
 
     @Bean  
     fun dropPartitionsVersionColumn(): DropPartitionsVersionColumn {
