@@ -25,7 +25,7 @@ class GrantPublicSchemaAccessToOrgs(
 
     override fun upgrade(): Boolean {
         membersMapstore.loadAllKeys()
-                .filter { it != IdConstants.GLOBAL_ORGANIZATION_ID.id }
+                .filter { it != IdConstants.OPENLATTICE_ORGANIZATION_ID.id && it != IdConstants.GLOBAL_ORGANIZATION_ID.id }
                 .asSequence()
                 .chunked(BATCH_SIZE)
                 .forEach {
