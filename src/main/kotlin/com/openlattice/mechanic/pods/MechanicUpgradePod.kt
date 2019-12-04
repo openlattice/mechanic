@@ -276,6 +276,11 @@ class MechanicUpgradePod {
     }
 
     @Bean
+    fun dropPartitionsVersionColumn(): DropPartitionsVersionColumn {
+        return DropPartitionsVersionColumn(toolbox())
+    }
+  
+    @Bean
     fun resetEntitySetCountsMaterializedView(): ResetEntitySetCountsMaterializedView {
         return ResetEntitySetCountsMaterializedView(toolbox())
     }
