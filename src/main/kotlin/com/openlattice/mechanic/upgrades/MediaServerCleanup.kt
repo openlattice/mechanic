@@ -28,8 +28,8 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.kryptnostic.rhizome.configuration.amazon.AmazonLaunchConfiguration
 import com.kryptnostic.rhizome.configuration.amazon.AwsLaunchConfiguration
 import com.openlattice.ResourceConfigurationLoader
-import com.openlattice.data.storage.aws.AwsBlobDataService
 import com.openlattice.data.storage.ByteBlobDataManager
+import com.openlattice.data.storage.aws.AwsBlobDataService
 import com.openlattice.datastore.configuration.DatastoreConfiguration
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables
@@ -128,7 +128,7 @@ class MediaServerCleanup(private val toolbox: Toolbox) : Upgrade {
 
     private fun newS3Client(awsConfig: AmazonLaunchConfiguration): AmazonS3 {
         val builder = AmazonS3ClientBuilder.standard()
-        builder.region = Region.getRegion(awsConfig.region.or(Regions.DEFAULT_REGION)).name
+        builder.region = Region.getRegion(awsConfig.region.orElse(Regions.DEFAULT_REGION)).name
         return builder.build()
     }
 
