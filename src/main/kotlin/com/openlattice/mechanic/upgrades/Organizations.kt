@@ -169,7 +169,7 @@ class Organizations(
                     w.elapsed(TimeUnit.MILLISECONDS), counterIndex.get()
             )
             //Let vacuum catch up
-            Thread.sleep(60000);
+            Thread.sleep(60000)
         }
 
 //        executor.shutdown()
