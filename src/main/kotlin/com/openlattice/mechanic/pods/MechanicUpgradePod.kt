@@ -304,7 +304,7 @@ class MechanicUpgradePod {
     @Bean
     fun grantPublicSchemaAccessToOrgs(): GrantPublicSchemaAccessToOrgs {
         return GrantPublicSchemaAccessToOrgs(
-                mapstoresPod.membersMapstore() as OrganizationMembersMapstore,
+                mapstoresPod.organizationsMapstore() as OrganizationMembersMapstore,
                 securePrincipalsManager(),
                 assemblerConfiguration)
     }

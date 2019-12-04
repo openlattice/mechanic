@@ -4,17 +4,18 @@ import com.openlattice.IdConstants
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.assembler.PostgresDatabases
 import com.openlattice.assembler.PostgresRoles
+import com.openlattice.authorization.Principal
 import com.openlattice.authorization.PrincipalType
 import com.openlattice.organizations.PrincipalSet
+import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.DataTables
-import com.openlattice.postgres.mapstores.OrganizationMembersMapstore
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import java.util.*
 
 class GrantPublicSchemaAccessToOrgs(
-        private val membersMapstore: OrganizationMembersMapstore,
+        private val organizationsMapstore: OrganizationsMapstore,
         private val securePrincipalsManager: SecurePrincipalsManager,
         private val acmConfig: AssemblerConfiguration) : Upgrade {
 
@@ -24,13 +25,13 @@ class GrantPublicSchemaAccessToOrgs(
     }
 
     override fun upgrade(): Boolean {
-        membersMapstore.loadAllKeys()
-                .filter { it != IdConstants.OPENLATTICE_ORGANIZATION_ID.id && it != IdConstants.GLOBAL_ORGANIZATION_ID.id }
+        organizationsMapstore.loadAllKeys()
+                .filter { it != IdConstants.GLOBAL_ORGANIZATION_ID.id }
                 .asSequence()
                 .chunked(BATCH_SIZE)
                 .forEach {
-                    membersMapstore.loadAll(it).forEach { (orgId, principals) ->
-                        grantUsageOnPublicSchema(orgId, principals)
+                    organizationsMapstore.loadAll(it).forEach { (orgId, organization) ->
+                        grantUsageOnPublicSchema(orgId, organization.members)
                     }
                 }
         return true
@@ -40,7 +41,7 @@ class GrantPublicSchemaAccessToOrgs(
         return Version.V2019_11_21.value
     }
 
-    private fun grantUsageOnPublicSchema(orgId: UUID, principals: PrincipalSet) {
+    private fun grantUsageOnPublicSchema(orgId: UUID, principals: Set<Principal>) {
         val dbName = PostgresDatabases.buildOrganizationDatabaseName(orgId)
         val userNames = getUserNames(principals)
         connect(dbName, acmConfig.server.clone() as Properties, acmConfig.ssl).use { dataSource ->
@@ -50,7 +51,7 @@ class GrantPublicSchemaAccessToOrgs(
         }
     }
 
-    private fun getUserNames(principals: PrincipalSet): Set<String> {
+    private fun getUserNames(principals: Set<Principal>): Set<String> {
         return principals.map {
             securePrincipalsManager.getPrincipal(it.id)
         }.filter {
