@@ -38,6 +38,7 @@ import com.openlattice.mechanic.retired.DropEdmVersions
 import com.openlattice.mechanic.retired.DropPrincipalTree
 import com.openlattice.mechanic.retired.EntitySetFlags
 import com.openlattice.mechanic.upgrades.*
+import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.PostgresTableManager
@@ -304,7 +305,7 @@ class MechanicUpgradePod {
     @Bean
     fun grantPublicSchemaAccessToOrgs(): GrantPublicSchemaAccessToOrgs {
         return GrantPublicSchemaAccessToOrgs(
-                mapstoresPod.organizationsMapstore() as OrganizationMembersMapstore,
+                mapstoresPod.organizationsMapstore() as OrganizationsMapstore,
                 securePrincipalsManager(),
                 assemblerConfiguration)
     }
