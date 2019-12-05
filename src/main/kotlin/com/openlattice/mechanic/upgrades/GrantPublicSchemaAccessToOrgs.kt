@@ -12,7 +12,10 @@ import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.DataTables
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import org.slf4j.LoggerFactory
 import java.util.*
+
+private val logger = LoggerFactory.getLogger(GrantPublicSchemaAccessToOrgs::class.java)
 
 class GrantPublicSchemaAccessToOrgs(
         private val organizationsMapstore: OrganizationsMapstore,
@@ -53,7 +56,10 @@ class GrantPublicSchemaAccessToOrgs(
 
     private fun getUserNames(principals: Set<Principal>): Set<String> {
         return principals.map {
-            securePrincipalsManager.getPrincipal(it.id)
+            logger.info("Principal id is ${it.id}")
+            val securablePrincipal = securePrincipalsManager.getPrincipal(it.id)
+            logger.info("Securable principal is $securablePrincipal")
+            return@map securablePrincipal
         }.filter {
             it.principalType == PrincipalType.USER
         }.map { DataTables.quote(PostgresRoles.buildPostgresUsername(it)) }.toSet()
