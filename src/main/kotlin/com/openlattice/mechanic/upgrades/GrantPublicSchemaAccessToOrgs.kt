@@ -50,7 +50,7 @@ class GrantPublicSchemaAccessToOrgs(
         logger.info("granting access to public schema")
         connect(dbName, acmConfig.server.clone() as Properties, acmConfig.ssl).use { dataSource ->
             dataSource.connection.createStatement().use { stmt ->
-                stmt.executeQuery(getGrantOnPublicSchemaQuery(userNames))
+                stmt.execute(getGrantOnPublicSchemaQuery(userNames))
             }
         }
     }
