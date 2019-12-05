@@ -61,7 +61,9 @@ class GrantPublicSchemaAccessToOrgs(
             logger.info("Securable principal is $securablePrincipal")
             return@map securablePrincipal
         }.filter {
-            it.principalType == PrincipalType.USER
+            val principalType = it.principalType == PrincipalType.USER
+            logger.info("$it is of principal type $principalType")
+            return@filter principalType
         }.map { DataTables.quote(PostgresRoles.buildPostgresUsername(it)) }.toSet()
     }
 
