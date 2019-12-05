@@ -64,8 +64,13 @@ class GrantPublicSchemaAccessToOrgs(
         return principals.asSequence().filter {
             it.id != "openlatticeRole"
         }.map {
-            securePrincipalsManager.getPrincipal(it.id)
-        }.filter {
+            try {
+                securePrincipalsManager.getPrincipal(it.id)
+            } catch ( ex: Exception ) {
+                logger.info("Principal $it does not map to a Securable Principal")
+                return@map null
+            }
+        }.filterNotNull().filter {
             it.principalType == PrincipalType.USER
         }.map { DataTables.quote(PostgresRoles.buildPostgresUsername(it)) }.toSet()
     }
