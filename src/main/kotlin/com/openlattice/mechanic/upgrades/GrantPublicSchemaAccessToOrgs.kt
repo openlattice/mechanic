@@ -56,7 +56,7 @@ class GrantPublicSchemaAccessToOrgs(
 
     private fun getUserNames(principals: Set<Principal>): Set<String> {
         return principals.map {
-            logger.info("Principal id is ${it.id}")
+            logger.info("Principal $it has id is ${it.id}")
             val securablePrincipal = securePrincipalsManager.getPrincipal(it.id)
             logger.info("Securable principal is $securablePrincipal")
             return@map securablePrincipal
