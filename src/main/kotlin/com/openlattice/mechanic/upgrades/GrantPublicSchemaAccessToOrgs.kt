@@ -47,10 +47,14 @@ class GrantPublicSchemaAccessToOrgs(
     private fun grantUsageOnPublicSchema(orgId: UUID, principals: Set<Principal>) {
         val dbName = PostgresDatabases.buildOrganizationDatabaseName(orgId)
         val userNames = getUserNames(principals)
-        logger.info("granting access to public schema")
-        connect(dbName, acmConfig.server.clone() as Properties, acmConfig.ssl).use { dataSource ->
-            dataSource.connection.createStatement().use { stmt ->
-                stmt.execute(getGrantOnPublicSchemaQuery(userNames))
+        if (userNames.isEmpty()) {
+            logger.info("no members in org with id $orgId")
+        } else {
+            logger.info("granting access to public schema")
+            connect(dbName, acmConfig.server.clone() as Properties, acmConfig.ssl).use { dataSource ->
+                dataSource.connection.createStatement().use { stmt ->
+                    stmt.execute(getGrantOnPublicSchemaQuery(userNames))
+                }
             }
         }
     }
@@ -68,6 +72,7 @@ class GrantPublicSchemaAccessToOrgs(
 
     private fun getGrantOnPublicSchemaQuery(userIds: Collection<String>): String {
         val userIdsSql = userIds.joinToString(", ")
+        logger.info("granting usage to users $userIdsSql")
         return "GRANT USAGE ON SCHEMA $PUBLIC_SCHEMA TO $userIdsSql"
     }
 
