@@ -324,4 +324,9 @@ class MechanicUpgradePod {
     fun migrateOrganizationsToJsonb(): MigrateOrganizationsToJsonb {
         return MigrateOrganizationsToJsonb(toolbox())
     }
+
+    @Bean
+    fun setDataTableIdsFieldLastWriteToCreation(): SetDataTableIdsFieldLastWriteToCreation {
+        return SetDataTableIdsFieldLastWriteToCreation(toolbox())
+    }
 }
