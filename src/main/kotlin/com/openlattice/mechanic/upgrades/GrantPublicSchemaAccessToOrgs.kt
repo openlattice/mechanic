@@ -47,6 +47,7 @@ class GrantPublicSchemaAccessToOrgs(
     private fun grantUsageOnPublicSchema(orgId: UUID, principals: Set<Principal>) {
         val dbName = PostgresDatabases.buildOrganizationDatabaseName(orgId)
         val userNames = getUserNames(principals)
+        logger.info("granting access to public schema")
         connect(dbName, acmConfig.server.clone() as Properties, acmConfig.ssl).use { dataSource ->
             dataSource.connection.createStatement().use { stmt ->
                 stmt.executeQuery(getGrantOnPublicSchemaQuery(userNames))
@@ -55,15 +56,13 @@ class GrantPublicSchemaAccessToOrgs(
     }
 
     private fun getUserNames(principals: Set<Principal>): Set<String> {
-        return principals.map {
-            logger.info("Principal $it has id is ${it.id}")
-            val securablePrincipal = securePrincipalsManager.getPrincipal(it.id)
-            logger.info("Securable principal is $securablePrincipal")
-            return@map securablePrincipal
+        logger.info("getting user names")
+        return principals.asSequence().filter {
+            it.id != "openlatticeRole"
+        }.map {
+            securePrincipalsManager.getPrincipal(it.id)
         }.filter {
-            val principalTypeIsUser = it.principalType == PrincipalType.USER
-            logger.info("$it is of principal type User: $principalTypeIsUser")
-            return@filter principalTypeIsUser
+            it.principalType == PrincipalType.USER
         }.map { DataTables.quote(PostgresRoles.buildPostgresUsername(it)) }.toSet()
     }
 
