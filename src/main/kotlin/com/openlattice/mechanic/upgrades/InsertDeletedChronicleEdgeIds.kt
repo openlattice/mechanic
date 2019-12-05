@@ -5,6 +5,8 @@ import com.openlattice.IdConstants
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.PostgresColumn
+import com.openlattice.postgres.PostgresColumnDefinition
+import com.openlattice.postgres.PostgresDatatype
 import com.openlattice.postgres.PostgresTable.*
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -17,6 +19,10 @@ class InsertDeletedChronicleEdgeIds(val toolbox: Toolbox) : Upgrade {
     companion object {
         private val logger = LoggerFactory.getLogger(InsertDeletedChronicleEdgeIds::class.java)
     }
+
+    private val PARTITIONS_VERSION = PostgresColumnDefinition(
+            "partitions_version",
+            PostgresDatatype.INTEGER).notNull()
 
     override fun upgrade(): Boolean {
 
@@ -80,18 +86,18 @@ class InsertDeletedChronicleEdgeIds(val toolbox: Toolbox) : Upgrade {
                 PostgresColumn.VERSION,
                 PostgresColumn.VERSIONS,
                 DataTables.LAST_WRITE,
-                PostgresColumn.PARTITIONS_VERSION
+                PARTITIONS_VERSION
         ).joinToString(",") { it.name }
 
         return "$withQuery INSERT INTO ${IDS.name} ($insertCols) " +
                 "SELECT " +
-                    "($partitions)[ 1 + (('x'||right(${PostgresColumn.EDGE_ENTITY_KEY_ID.name}::text,8))::bit(32)::int % array_length($partitions,1))] as ${PostgresColumn.PARTITION.name}, " +
-                    "'$CHRONICLE_EDGES_ENTITY_SET_ID'::uuid as ${PostgresColumn.ENTITY_SET_ID.name}, " +
-                    "${PostgresColumn.EDGE_ENTITY_KEY_ID.name} as ${PostgresColumn.ID_VALUE.name}, " +
-                    "$version AS ${PostgresColumn.VERSION.name}, " +
-                    "ARRAY[$version] AS ${PostgresColumn.VERSIONS.name}, " +
-                    "now() AS ${DataTables.LAST_WRITE.name}, " +
-                    "$partitionsVersion AS ${PostgresColumn.PARTITIONS_VERSION.name} " +
+                "($partitions)[ 1 + (('x'||right(${PostgresColumn.EDGE_ENTITY_KEY_ID.name}::text,8))::bit(32)::int % array_length($partitions,1))] as ${PostgresColumn.PARTITION.name}, " +
+                "'$CHRONICLE_EDGES_ENTITY_SET_ID'::uuid as ${PostgresColumn.ENTITY_SET_ID.name}, " +
+                "${PostgresColumn.EDGE_ENTITY_KEY_ID.name} as ${PostgresColumn.ID_VALUE.name}, " +
+                "$version AS ${PostgresColumn.VERSION.name}, " +
+                "ARRAY[$version] AS ${PostgresColumn.VERSIONS.name}, " +
+                "now() AS ${DataTables.LAST_WRITE.name}, " +
+                "$partitionsVersion AS ${PARTITIONS_VERSION.name} " +
                 " FROM chronicle_edge_ids ON CONFLICT DO NOTHING"
     }
 
@@ -106,20 +112,20 @@ class InsertDeletedChronicleEdgeIds(val toolbox: Toolbox) : Upgrade {
                 PostgresColumn.VERSION,
                 PostgresColumn.VERSIONS,
                 DataTables.LAST_WRITE,
-                PostgresColumn.PARTITIONS_VERSION
+                PARTITIONS_VERSION
         ).joinToString(",") { it.name }
 
         return "$withQuery INSERT INTO ${DATA.name} ($insertCols) " +
                 "SELECT " +
-                    "($partitions)[ 1 + (('x'||right(${PostgresColumn.EDGE_ENTITY_KEY_ID.name}::text,8))::bit(32)::int % array_length($partitions,1))] as ${PostgresColumn.PARTITION.name}, " +
-                    "'$CHRONICLE_EDGES_ENTITY_SET_ID'::uuid as ${PostgresColumn.ENTITY_SET_ID.name}, " +
-                    "${PostgresColumn.EDGE_ENTITY_KEY_ID.name} as ${PostgresColumn.ID_VALUE.name}, " +
-                    "'${IdConstants.ID_ID.id}'::uuid as ${PostgresColumn.PROPERTY_TYPE_ID.name}, " +
-                    "'\\xdeadbeefdeadbeef'::bytea as ${PostgresColumn.HASH.name}, " +
-                    "$version AS ${PostgresColumn.VERSION.name}, " +
-                    "ARRAY[$version] AS ${PostgresColumn.VERSIONS.name}, " +
-                    "now() AS ${DataTables.LAST_WRITE.name}, " +
-                    "$partitionsVersion AS ${PostgresColumn.PARTITIONS_VERSION.name} " +
+                "($partitions)[ 1 + (('x'||right(${PostgresColumn.EDGE_ENTITY_KEY_ID.name}::text,8))::bit(32)::int % array_length($partitions,1))] as ${PostgresColumn.PARTITION.name}, " +
+                "'$CHRONICLE_EDGES_ENTITY_SET_ID'::uuid as ${PostgresColumn.ENTITY_SET_ID.name}, " +
+                "${PostgresColumn.EDGE_ENTITY_KEY_ID.name} as ${PostgresColumn.ID_VALUE.name}, " +
+                "'${IdConstants.ID_ID.id}'::uuid as ${PostgresColumn.PROPERTY_TYPE_ID.name}, " +
+                "'\\xdeadbeefdeadbeef'::bytea as ${PostgresColumn.HASH.name}, " +
+                "$version AS ${PostgresColumn.VERSION.name}, " +
+                "ARRAY[$version] AS ${PostgresColumn.VERSIONS.name}, " +
+                "now() AS ${DataTables.LAST_WRITE.name}, " +
+                "$partitionsVersion AS ${PARTITIONS_VERSION.name} " +
                 " FROM chronicle_edge_ids ON CONFLICT DO NOTHING"
     }
 

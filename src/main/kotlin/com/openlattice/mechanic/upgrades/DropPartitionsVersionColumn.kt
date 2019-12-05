@@ -1,8 +1,9 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.PostgresColumn.PARTITIONS_VERSION
+import com.openlattice.postgres.PostgresColumnDefinition
 import com.openlattice.postgres.PostgresDataTables
+import com.openlattice.postgres.PostgresDatatype
 import com.openlattice.postgres.PostgresTable.*
 import com.openlattice.postgres.PostgresTableDefinition
 import org.slf4j.LoggerFactory
@@ -12,6 +13,10 @@ class DropPartitionsVersionColumn(private val toolbox: Toolbox) : Upgrade {
     companion object {
         private val logger = LoggerFactory.getLogger(AddOriginIdToDataPrimaryKey::class.java)
     }
+
+    private val PARTITIONS_VERSION = PostgresColumnDefinition(
+            "partitions_version",
+            PostgresDatatype.INTEGER).notNull()
 
     override fun getSupportedVersion(): Long {
         return Version.V2019_10_03.value
@@ -37,7 +42,7 @@ class DropPartitionsVersionColumn(private val toolbox: Toolbox) : Upgrade {
         val createNewPkeyIndex = "CREATE UNIQUE INDEX CONCURRENTLY ${DATA.name}_pkey_idx ON ${DATA.name} ($pkey)"
 
         toolbox.hds.connection.use { conn ->
-            conn.createStatement().execute( createNewPkeyIndex )
+            conn.createStatement().execute(createNewPkeyIndex)
         }
 
         logger.info("Finished creating index. About to drop pkey constraint and create new constraint using new index.")
@@ -49,8 +54,8 @@ class DropPartitionsVersionColumn(private val toolbox: Toolbox) : Upgrade {
 
         toolbox.hds.connection.use { conn ->
             conn.autoCommit = false
-            conn.createStatement().executeUpdate( dropPkey )
-            conn.createStatement().executeUpdate( updatePkey )
+            conn.createStatement().executeUpdate(dropPkey)
+            conn.createStatement().executeUpdate(updatePkey)
             conn.commit()
         }
         logger.info("Finished updating primary key.")
@@ -63,7 +68,7 @@ class DropPartitionsVersionColumn(private val toolbox: Toolbox) : Upgrade {
         logger.info("About to drop partitions_version from table ${table.name} with SQL: $sql")
 
         toolbox.hds.connection.use { conn ->
-            conn.createStatement().executeUpdate( sql )
+            conn.createStatement().executeUpdate(sql)
         }
 
         logger.info("Finished dropping partitions_version from ${table.name}")

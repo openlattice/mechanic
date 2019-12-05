@@ -5,6 +5,7 @@ import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresColumnDefinition
+import com.openlattice.postgres.PostgresDatatype
 import com.openlattice.postgres.PostgresTable.*
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -215,6 +216,10 @@ private val CHRONICLE_ENTITY_SET_IDS = listOf(
         "ed316b25-e6de-4532-9043-e3f1c96982e3",
         "fda9b1c1-6cea-4130-8d86-057e659bb9ea"
 ).map(UUID::fromString)
+
+private val PARTITIONS_VERSION = PostgresColumnDefinition(
+        "partitions_version",
+        PostgresDatatype.INTEGER).notNull()
 
 @Component
 class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
