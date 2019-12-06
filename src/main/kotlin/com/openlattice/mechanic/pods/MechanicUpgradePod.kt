@@ -329,4 +329,9 @@ class MechanicUpgradePod {
     fun setDataTableIdsFieldLastWriteToCreation(): SetDataTableIdsFieldLastWriteToCreation {
         return SetDataTableIdsFieldLastWriteToCreation(toolbox())
     }
+
+    @Bean
+    fun convertAppsToEntityTypeCollections(): ConvertAppsToEntityTypeCollections {
+        return ConvertAppsToEntityTypeCollections(toolbox(), eventBus)
+    }
 }
