@@ -38,6 +38,8 @@ class MechanicCli {
         const val POSTGRES = "postgres"
         const val LOCAL = "local"
         const val SQL = "sql"
+        const val REGEN = "regen"
+
 
         private val options = Options()
         private val clp = DefaultParser()
@@ -98,6 +100,14 @@ class MechanicCli {
                 .hasArg(false)
                 .build()
 
+        private val regenOption = Option.builder()
+                .longOpt(REGEN)
+                .hasArgs()
+                .argName("name")
+                .desc("Run regeneration on the system. ")
+                .valueSeparator(',')
+                .build()
+
         init {
             options.addOption(helpOption)
             options.addOption(postgresOption)
@@ -107,6 +117,7 @@ class MechanicCli {
             options.addOption(reindexOption)
             options.addOption(sqlOption)
             options.addOption(upgradeOption)
+            options.addOption(regenOption)
 
             options.addOptionGroup(
                     OptionGroup()

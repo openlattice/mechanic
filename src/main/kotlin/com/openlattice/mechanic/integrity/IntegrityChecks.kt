@@ -25,7 +25,6 @@ import com.google.common.base.Stopwatch
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.openlattice.data.EntityDataKey
 import com.openlattice.edm.PostgresEdmManager
-import com.openlattice.mechanic.checks.Check
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.ResultSetAdapters

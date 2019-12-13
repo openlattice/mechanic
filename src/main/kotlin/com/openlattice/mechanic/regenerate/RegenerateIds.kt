@@ -19,7 +19,7 @@
  *
  */
 
-package com.openlattice.mechanic.upgrades
+package com.openlattice.mechanic.regenerate
 
 import com.google.common.base.Preconditions.checkState
 import com.google.common.base.Stopwatch
@@ -68,13 +68,17 @@ class RegenerateIds(
         private val idGen: IdGenerationMapstore,
         private val principalTrees: PrincipalTreesMapstore,
         private val executor: ListeningExecutorService
-) {
+) : Regeneration {
     private val entitySets = esms.loadAllKeys()?.map { it to esms.load(it) }?.toMap() ?: mapOf()
     private val entityTypes = etms.loadAllKeys()?.map { it to etms.load(it) }?.toMap() ?: mapOf()
     private val propertyTypes = ptms.loadAllKeys()?.map { it to ptms.load(it) }?.toMap() ?: mapOf()
     private val ranges = idGen.loadAllKeys()?.map { it to idGen.load(it) }?.toMap()?.toMutableMap() ?: mutableMapOf()
     private val rangeIndex = AtomicLong()
     private val r = Random()
+
+    override fun regenerate(): Boolean {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
 
 
     fun testPrincipalTrees() {
@@ -84,7 +88,7 @@ class RegenerateIds(
         logger.info("Value map: {}", vm)
         principalTrees.storeAll(vm)
         val vm2 = principalTrees.loadAll(keySet)
-        checkState(vm==vm2)
+        checkState(vm == vm2)
 
         var aclKey = AclKey(listOf(UUID.randomUUID(), UUID.randomUUID()))
         while (keySet.contains(aclKey)) {
@@ -107,7 +111,7 @@ class RegenerateIds(
         checkState(aclKeySet == actualKS1[aclKey])
         principalTrees.storeAll(mapOf(aclKey to aclKeySet2))
         val actualKS2 = principalTrees.loadAll(setOf(aclKey))
-        checkState(aclKeySet2==actualKS2[aclKey])
+        checkState(aclKeySet2 == actualKS2[aclKey])
         checkState(!aclKeySet2.contains(deletedItem))
     }
 
@@ -412,7 +416,7 @@ class RegenerateIds(
 
             semaphore.acquire()
             executor.execute {
-//                pgEdmManager.createEntitySet(entitySet, listOf())
+                //                pgEdmManager.createEntitySet(entitySet, listOf())
                 hds.connection.use {
                     it.createStatement().use {
                         it.executeUpdate(

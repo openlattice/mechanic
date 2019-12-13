@@ -23,7 +23,6 @@ package com.openlattice.mechanic.integrity
 
 import com.google.common.base.Preconditions.checkState
 import com.google.common.util.concurrent.ListeningExecutorService
-import com.openlattice.mechanic.checks.Check
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.mapstores.EntitySetMapstore

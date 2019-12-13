@@ -1,7 +1,6 @@
 package com.openlattice.mechanic.integrity
 
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.mechanic.checks.Check
 import com.openlattice.postgres.DataTables.propertyTableName
 import com.openlattice.postgres.DataTables.quote
 import org.slf4j.LoggerFactory

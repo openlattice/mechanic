@@ -21,19 +21,15 @@
 package com.openlattice.mechanic.pods
 
 import com.google.common.eventbus.EventBus
-import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.authorization.AuthorizationManager
 import com.openlattice.authorization.AuthorizationQueryService
 import com.openlattice.authorization.HazelcastAclKeyReservationService
 import com.openlattice.authorization.HazelcastAuthorizationService
-import com.openlattice.edm.PostgresEdmManager
 import com.openlattice.hazelcast.pods.MapstoresPod
-import com.openlattice.ids.IdGenerationMapstore
+import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.mechanic.integrity.EdmChecks
-import com.openlattice.mechanic.integrity.IntegrityChecks
 import com.openlattice.mechanic.retired.DropEdmVersions
 import com.openlattice.mechanic.retired.DropPrincipalTree
 import com.openlattice.mechanic.retired.EntitySetFlags
@@ -41,28 +37,20 @@ import com.openlattice.mechanic.upgrades.*
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
-import com.openlattice.postgres.PostgresTableManager
-import com.openlattice.postgres.mapstores.*
+import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
 import com.zaxxer.hikari.HikariDataSource
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Profile
 import javax.inject.Inject
 
+@Configuration
+@Import(MechanicToolboxPod::class)
 class MechanicUpgradePod {
-
-    companion object {
-        const val INTEGRITY = "integrity"
-        const val REGEN = "regen"
-    }
 
     @Inject
     private lateinit var hikariDataSource: HikariDataSource
-
-    @Inject
-    private lateinit var tableManager: PostgresTableManager
-
-    @Inject
-    private lateinit var executor: ListeningExecutorService
 
     @Inject
     private lateinit var eventBus: EventBus
@@ -76,122 +64,67 @@ class MechanicUpgradePod {
     @Inject
     private lateinit var assemblerConfiguration: AssemblerConfiguration
 
+    @Inject
+    private lateinit var toolbox: Toolbox
 
-    @Bean
-    fun pgEdmManager(): PostgresEdmManager {
-        return PostgresEdmManager(hikariDataSource, hazelcastInstance)
-    }
-
-    @Bean
-    @Profile(REGEN)
-    fun regen(): RegenerateIds {
-        return RegenerateIds(
-                pgEdmManager(),
-                hikariDataSource,
-                mapstoresPod.propertyTypeMapstore() as PropertyTypeMapstore,
-                mapstoresPod.entityTypeMapstore() as EntityTypeMapstore,
-                mapstoresPod.entitySetMapstore() as EntitySetMapstore,
-                mapstoresPod.idGenerationMapstore() as IdGenerationMapstore,
-                mapstoresPod.principalTreesMapstore(),
-                executor
-        )
-    }
-
-    @Bean
-    @Profile(INTEGRITY)
-    fun integrityChecks(): IntegrityChecks {
-        return IntegrityChecks(
-                pgEdmManager(),
-                hikariDataSource,
-                mapstoresPod.propertyTypeMapstore() as PropertyTypeMapstore,
-                mapstoresPod.entityTypeMapstore() as EntityTypeMapstore,
-                mapstoresPod.entitySetMapstore() as EntitySetMapstore,
-                executor
-        )
-    }
-
-    @Bean
-    @Profile(INTEGRITY)
-    fun edmChecks(): EdmChecks {
-        return EdmChecks(
-                hikariDataSource,
-                mapstoresPod.propertyTypeMapstore() as PropertyTypeMapstore,
-                mapstoresPod.entityTypeMapstore() as EntityTypeMapstore,
-                mapstoresPod.entitySetMapstore() as EntitySetMapstore,
-                executor
-        )
-    }
-
-    @Bean
-    fun toolbox(): Toolbox {
-        return Toolbox(
-                tableManager,
-                hikariDataSource,
-                mapstoresPod.propertyTypeMapstore() as PropertyTypeMapstore,
-                mapstoresPod.entityTypeMapstore() as EntityTypeMapstore,
-                mapstoresPod.entitySetMapstore() as EntitySetMapstore,
-                executor,
-                hazelcastInstance
-        )
-    }
 
     @Bean
     fun linking(): Linking {
-        return Linking(toolbox())
+        return Linking(toolbox)
     }
 
     @Bean
     fun graph(): GraphProcessing {
-        return GraphProcessing(toolbox())
+        return GraphProcessing(toolbox)
     }
 
     @Bean
     fun mediaServerUpgrade(): MediaServerUpgrade {
-        return MediaServerUpgrade(toolbox())
+        return MediaServerUpgrade(toolbox)
     }
 
     fun mediaServerCleanup(): MediaServerCleanup {
-        return MediaServerCleanup(toolbox())
+        return MediaServerCleanup(toolbox)
     }
 
     @Bean
     fun readLinking(): ReadLinking {
-        return ReadLinking(toolbox())
+        return ReadLinking(toolbox)
     }
 
     @Bean
     fun removeEntitySetTables(): RemoveEntitySetTables {
-        return RemoveEntitySetTables(toolbox())
+        return RemoveEntitySetTables(toolbox)
     }
 
     @Bean
     fun propertyValueIndexing(): PropertyValueIndexing {
-        return PropertyValueIndexing(toolbox())
+        return PropertyValueIndexing(toolbox)
     }
 
     @Bean
     fun lastMigrateColumnUpgrade(): LastMigrateColumnUpgrade {
-        return LastMigrateColumnUpgrade(toolbox())
+        return LastMigrateColumnUpgrade(toolbox)
     }
 
     @Bean
     fun entitySetFlags(): EntitySetFlags {
-        return EntitySetFlags(toolbox())
+        return EntitySetFlags(toolbox)
     }
 
     @Bean
     fun materializedEntitySets(): MaterializedEntitySets {
-        return MaterializedEntitySets(toolbox())
+        return MaterializedEntitySets(toolbox)
     }
 
     @Bean
     fun dropEdmVersions(): DropEdmVersions {
-        return DropEdmVersions(toolbox())
+        return DropEdmVersions(toolbox)
     }
 
     @Bean
     fun dropPrincipalTree(): DropPrincipalTree {
-        return DropPrincipalTree(toolbox())
+        return DropPrincipalTree(toolbox)
     }
 
     @Bean
@@ -203,7 +136,7 @@ class MechanicUpgradePod {
 
     @Bean
     fun materializedEntitySetRefresh(): MaterializedEntitySetRefresh {
-        return MaterializedEntitySetRefresh(toolbox())
+        return MaterializedEntitySetRefresh(toolbox)
     }
 
     @Bean
@@ -216,67 +149,67 @@ class MechanicUpgradePod {
 
     @Bean
     fun upgradeCreateDataTable(): CreateDataTable {
-        return CreateDataTable(toolbox())
+        return CreateDataTable(toolbox)
     }
 
     @Bean
     fun upgradeEntitySetPartitions(): UpgradeEntitySetPartitions {
-        return UpgradeEntitySetPartitions(toolbox())
+        return UpgradeEntitySetPartitions(toolbox)
     }
 
     @Bean
     fun migratePropertyValuesToDataTable(): MigratePropertyValuesToDataTable {
-        return MigratePropertyValuesToDataTable(toolbox())
+        return MigratePropertyValuesToDataTable(toolbox)
     }
 
     @Bean
     fun upgradeEdgesTable(): UpgradeEdgesTable {
-        return UpgradeEdgesTable(toolbox())
+        return UpgradeEdgesTable(toolbox)
     }
 
     @Bean
     fun createDataTableIndexes(): CreateDataTableIndexes {
-        return CreateDataTableIndexes(toolbox())
+        return CreateDataTableIndexes(toolbox)
     }
 
     @Bean
     fun resetMigratedVersions(): ResetMigratedVersions {
-        return ResetMigratedVersions(toolbox())
+        return ResetMigratedVersions(toolbox)
     }
 
     @Bean
     fun upgradeEntityKeyIdsTable(): UpgradeEntityKeyIdsTable {
-        return UpgradeEntityKeyIdsTable(toolbox())
+        return UpgradeEntityKeyIdsTable(toolbox)
     }
 
     @Bean
     fun insertEntityKeyIdsToDataTable(): InsertEntityKeyIdsToDataTable {
-        return InsertEntityKeyIdsToDataTable(toolbox())
+        return InsertEntityKeyIdsToDataTable(toolbox)
     }
 
     @Bean
     fun dataExpirationUpgrade(): DataExpirationUpgrade {
-        return DataExpirationUpgrade(toolbox())
+        return DataExpirationUpgrade(toolbox)
     }
 
     @Bean
     fun setOriginIdDefaultValueUpgrade(): SetOriginIdDefaultValueUpgrade {
-        return SetOriginIdDefaultValueUpgrade(toolbox())
+        return SetOriginIdDefaultValueUpgrade(toolbox)
     }
 
     @Bean
     fun setOriginIdToNonNullUpgrade(): SetOriginIdToNonNullUpgrade {
-        return SetOriginIdToNonNullUpgrade(toolbox())
+        return SetOriginIdToNonNullUpgrade(toolbox)
     }
 
     @Bean
     fun addOriginIdToDataPrimaryKey(): AddOriginIdToDataPrimaryKey {
-        return AddOriginIdToDataPrimaryKey(toolbox())
+        return AddOriginIdToDataPrimaryKey(toolbox)
     }
 
     @Bean
     fun insertDeletedChronicleEdgeIds(): InsertDeletedChronicleEdgeIds {
-        return InsertDeletedChronicleEdgeIds(toolbox())
+        return InsertDeletedChronicleEdgeIds(toolbox)
     }
 
     @Bean
@@ -310,23 +243,23 @@ class MechanicUpgradePod {
                 assemblerConfiguration)
     }
 
-    @Bean  
+    @Bean
     fun dropPartitionsVersionColumn(): DropPartitionsVersionColumn {
-        return DropPartitionsVersionColumn(toolbox())
+        return DropPartitionsVersionColumn(toolbox)
     }
-  
+
     @Bean
     fun resetEntitySetCountsMaterializedView(): ResetEntitySetCountsMaterializedView {
-        return ResetEntitySetCountsMaterializedView(toolbox())
+        return ResetEntitySetCountsMaterializedView(toolbox)
     }
-  
+
     @Bean
     fun migrateOrganizationsToJsonb(): MigrateOrganizationsToJsonb {
-        return MigrateOrganizationsToJsonb(toolbox())
+        return MigrateOrganizationsToJsonb(toolbox)
     }
 
     @Bean
     fun setDataTableIdsFieldLastWriteToCreation(): SetDataTableIdsFieldLastWriteToCreation {
-        return SetDataTableIdsFieldLastWriteToCreation(toolbox())
+        return SetDataTableIdsFieldLastWriteToCreation(toolbox)
     }
 }
