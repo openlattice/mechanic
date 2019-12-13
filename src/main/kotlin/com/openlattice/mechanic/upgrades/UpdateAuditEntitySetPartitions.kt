@@ -27,7 +27,7 @@ class UpdateAuditEntitySetPartitions(private val toolbox: Toolbox) : Upgrade {
 
         val auditRecordEntitySets = toolbox.hazelcast.getMap<AclKey, AuditRecordEntitySetConfiguration>(HazelcastMap.AUDIT_RECORD_ENTITY_SETS.name)
 
-        val sql = "UPDATE ${ENTITY_SETS.name} SET ${PARTITIONS.name} = ? WHERE ${ID.name} = ?"
+        val sql = "UPDATE ${ENTITY_SETS.name} SET ${PARTITIONS.name} = ? WHERE ${ID.name} = ANY(?)"
 
         logger.info("About to upgrade audit entity set partitions using sql: $sql")
 
@@ -39,12 +39,11 @@ class UpdateAuditEntitySetPartitions(private val toolbox: Toolbox) : Upgrade {
 
                     if (entitySetPartitions.containsKey(entitySetId)) {
                         val partitionsArr = PostgresArrays.createIntArray(conn, entitySetPartitions.getValue(entitySetId))
+                        val auditEntitySetIds = PostgresArrays.createUuidArray(conn, it.value.auditRecordEntitySetIds + it.value.auditEdgeEntitySetIds)
 
-                        (it.value.auditRecordEntitySetIds + it.value.auditEdgeEntitySetIds).forEach { auditEntitySetId ->
-                            ps.setArray(1, partitionsArr)
-                            ps.setObject(2, auditEntitySetId)
-                            ps.addBatch()
-                        }
+                        ps.setArray(1, partitionsArr)
+                        ps.setArray(2, auditEntitySetIds)
+                        ps.addBatch()
                     }
                 }
 
