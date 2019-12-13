@@ -92,6 +92,18 @@ fun main(args: Array<String>) {
         ars.add(PostgresPod.PROFILE)
     }
 
+    if (cl.hasOption(CHECK)) {
+        ars.add(CHECK)
+    }
+
+    if (cl.hasOption(UPGRADE)) {
+        ars.add(UPGRADE)
+    }
+
+    if (cl.hasOption(REGEN)) {
+        ars.add(REGEN)
+    }
+
     mechanic.sprout(*ars.toTypedArray())
 
     if (cl.hasOption(CHECK)) {
@@ -113,12 +125,6 @@ fun main(args: Array<String>) {
         mechanic.regenerate(upgrades)
     }
 
-//    if (cl.hasOption(SQL)) {
-//
-//    }
-
-//    val w = Stopwatch.createStarted()
-
     mechanic.close()
     exitProcess(0)
 
@@ -139,10 +145,6 @@ class Mechanic {
 
     private val context = AnnotationConfigApplicationContext()
 
-    init {
-        this.context.register(*mechanicPods)
-    }
-
     fun sprout(vararg activeProfiles: String) {
         var awsProfile = false
         var localProfile = false
@@ -162,9 +164,7 @@ class Mechanic {
             context.environment.addActiveProfile(LOCAL_CONFIGURATION_PROFILE)
         }
 
-        /*if ( additionalPods.size() > 0 ) {
-            context.register( additionalPods.toArray( new Class<?>[] {} ) );
-        }*/
+        context.register(*mechanicPods)
         context.refresh()
 
         if (context.isRunning && startupRequirementsSatisfied(context)) {
@@ -185,8 +185,7 @@ class Mechanic {
     }
 
     fun reIndex() {
-        val reindexer = context.getBean(Reindexer::class.java)
-        reindexer.runReindex()
+        context.getBean(Reindexer::class.java).runReindex()
     }
 
     fun doUpgrade(upgradeNames: Set<String>) {

@@ -24,8 +24,8 @@ import com.google.common.util.concurrent.ListeningExecutorService
 import com.openlattice.edm.PostgresEdmManager
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.ids.IdGenerationMapstore
+import com.openlattice.mechanic.MechanicCli.Companion.REGEN
 import com.openlattice.mechanic.regenerate.RegenerateIds
-import com.openlattice.mechanic.regenerate.TestRegen
 import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.postgres.mapstores.EntityTypeMapstore
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore
@@ -33,10 +33,12 @@ import com.zaxxer.hikari.HikariDataSource
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
+import org.springframework.context.annotation.Profile
 import javax.inject.Inject
 
 @Configuration
 @Import(MechanicToolboxPod::class)
+@Profile(REGEN)
 class MechanicRegeneratePod {
 
     @Inject

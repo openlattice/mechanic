@@ -37,7 +37,6 @@ class MechanicCli {
         const val AWS = "aws"
         const val POSTGRES = "postgres"
         const val LOCAL = "local"
-        const val SQL = "sql"
         const val REGEN = "regen"
 
 
@@ -72,12 +71,6 @@ class MechanicCli {
                 .argName("es1,es2")
                 .optionalArg(true)
                 .valueSeparator(',')
-                .build()
-
-        private val sqlOption = Option.builder()
-                .longOpt(SQL)
-                .desc("Print out SQL query for given entity set.")
-                .hasArg(false)
                 .build()
 
         private val upgradeOption = Option.builder()
@@ -115,7 +108,6 @@ class MechanicCli {
             options.addOption(localOption)
             options.addOption(checkOption)
             options.addOption(reindexOption)
-            options.addOption(sqlOption)
             options.addOption(upgradeOption)
             options.addOption(regenOption)
 

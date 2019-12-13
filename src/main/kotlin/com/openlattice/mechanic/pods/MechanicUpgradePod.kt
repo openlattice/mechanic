@@ -47,6 +47,7 @@ import javax.inject.Inject
 
 @Configuration
 @Import(MechanicToolboxPod::class)
+@Profile(UPGRADE)
 class MechanicUpgradePod {
 
     @Inject
