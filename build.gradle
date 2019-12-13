@@ -97,6 +97,17 @@ sourceSets {
     test.runtimeClasspath += configurations.provided
 }
 
+spotbugs {
+    reportLevel = 'high'
+    toolVersion = "${spotbugs_annotations_version}"
+}
+tasks.withType(com.github.spotbugs.SpotBugsTask) {
+    reports {
+        xml.enabled = false
+        html.enabled = true
+    }
+}
+
 dependencies {
     compile "org.ow2.asm:asm:$asm_version"
     compile "commons-cli:commons-cli:$commons_cli_version"
