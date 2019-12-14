@@ -2,7 +2,6 @@ package com.openlattice.mechanic.pods
 
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
-import com.openlattice.edm.PostgresEdmManager
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresTableManager
@@ -36,11 +35,6 @@ class MechanicToolboxPod {
     @Inject
     private lateinit var hazelcastInstance: HazelcastInstance
 
-
-    @Bean
-    fun pgEdmManager(): PostgresEdmManager {
-        return PostgresEdmManager(hikariDataSource, hazelcastInstance)
-    }
 
     @Bean
     fun toolbox(): Toolbox {

@@ -20,18 +20,12 @@
  */
 package com.openlattice.mechanic.pods
 
-import com.google.common.util.concurrent.ListeningExecutorService
-import com.openlattice.edm.PostgresEdmManager
-import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.mechanic.MechanicCli.Companion.CHECK
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.integrity.CheckOrphanedEntities
 import com.openlattice.mechanic.integrity.EdmChecks
 import com.openlattice.mechanic.integrity.IntegrityChecks
-import com.openlattice.postgres.mapstores.EntitySetMapstore
-import com.openlattice.postgres.mapstores.EntityTypeMapstore
-import com.openlattice.postgres.mapstores.PropertyTypeMapstore
-import com.zaxxer.hikari.HikariDataSource
+import com.openlattice.mechanic.integrity.OrphanedLinkingPropertyData
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
@@ -45,46 +39,26 @@ import javax.inject.Inject
 class MechanicIntegrityPod {
 
     @Inject
-    private lateinit var mapstoresPod: MapstoresPod
-
-    @Inject
-    private lateinit var hikariDataSource: HikariDataSource
-
-    @Inject
-    private lateinit var executor: ListeningExecutorService
-
-    @Inject
-    private lateinit var pgEdmManager: PostgresEdmManager
-
-    @Inject
     private lateinit var toolbox: Toolbox
 
 
     @Bean
     fun integrityChecks(): IntegrityChecks {
-        return IntegrityChecks(
-                pgEdmManager,
-                hikariDataSource,
-                mapstoresPod.propertyTypeMapstore() as PropertyTypeMapstore,
-                mapstoresPod.entityTypeMapstore() as EntityTypeMapstore,
-                mapstoresPod.entitySetMapstore() as EntitySetMapstore,
-                executor
-        )
+        return IntegrityChecks(toolbox)
     }
 
     @Bean
     fun edmChecks(): EdmChecks {
-        return EdmChecks(
-                hikariDataSource,
-                mapstoresPod.propertyTypeMapstore() as PropertyTypeMapstore,
-                mapstoresPod.entityTypeMapstore() as EntityTypeMapstore,
-                mapstoresPod.entitySetMapstore() as EntitySetMapstore,
-                executor
-        )
+        return EdmChecks(toolbox)
     }
 
     @Bean
     fun checkOrphanedEntities(): CheckOrphanedEntities {
         return CheckOrphanedEntities(toolbox)
+    }
+
+    @Bean
+    fun orphanedLinkingPropertyData(): OrphanedLinkingPropertyData {
+        return OrphanedLinkingPropertyData()
     }
 }

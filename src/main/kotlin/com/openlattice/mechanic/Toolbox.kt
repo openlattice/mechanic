@@ -43,8 +43,8 @@ import java.util.concurrent.TimeUnit
 class Toolbox(
         val tableManager: PostgresTableManager,
         val hds: HikariDataSource,
-        private val ptms: PropertyTypeMapstore,
-        private val etms: EntityTypeMapstore,
+        ptms: PropertyTypeMapstore,
+        etms: EntityTypeMapstore,
         internal val esms: EntitySetMapstore,
         val executor: ListeningExecutorService,
         val hazelcast: HazelcastInstance
@@ -87,7 +87,7 @@ class Toolbox(
         try {
             limiter.acquire()
             var insertCounter = 0
-            var insertCount = 1
+            var insertCount : Int
             val swTotal = Stopwatch.createStarted()
             hds.connection.use { conn ->
                 conn.prepareStatement( query ).use { ps ->

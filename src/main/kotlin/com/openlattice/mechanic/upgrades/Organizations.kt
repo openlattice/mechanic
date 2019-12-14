@@ -26,7 +26,6 @@ import com.google.common.base.Stopwatch
 import com.google.common.collect.Lists
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.openlattice.data.EntityDataKey
-import com.openlattice.edm.PostgresEdmManager
 import com.openlattice.ids.HazelcastIdGenerationService.Companion.NUM_PARTITIONS
 import com.openlattice.ids.IdsGeneratingEntryProcessor
 import com.openlattice.ids.IdGenerationMapstore
@@ -53,10 +52,8 @@ import java.util.function.Supplier
 /**
  *
  */
-private val logger = LoggerFactory.getLogger(Organizations::class.java)
 
 class Organizations(
-        private val pgEdmManager: PostgresEdmManager,
         private val hds: HikariDataSource,
         private val ptms: PropertyTypeMapstore,
         private val etms: EntityTypeMapstore,
@@ -70,6 +67,10 @@ class Organizations(
     private val ranges = idGen.loadAllKeys().map { it to idGen.load(it) }.toMap().toMutableMap()
     private val rangeIndex = AtomicLong()
     private val r = Random()
+
+    companion object {
+        private val logger = LoggerFactory.getLogger(Organizations::class.java)
+    }
 
     fun initRanges() {
         for (i in 0L until NUM_PARTITIONS.toLong()) {

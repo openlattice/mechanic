@@ -24,25 +24,20 @@ package com.openlattice.mechanic.regenerate
 import com.google.common.base.Preconditions.checkState
 import com.google.common.base.Stopwatch
 import com.google.common.collect.Lists
-import com.google.common.util.concurrent.ListeningExecutorService
 import com.openlattice.authorization.AclKey
 import com.openlattice.authorization.AclKeySet
 import com.openlattice.authorization.mapstores.PrincipalTreesMapstore
 import com.openlattice.data.EntityDataKey
-import com.openlattice.edm.PostgresEdmManager
 import com.openlattice.ids.HazelcastIdGenerationService.Companion.NUM_PARTITIONS
 import com.openlattice.ids.IdsGeneratingEntryProcessor
 import com.openlattice.ids.IdGenerationMapstore
 import com.openlattice.ids.Range
+import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.ResultSetAdapters
-import com.openlattice.postgres.mapstores.EntitySetMapstore
-import com.openlattice.postgres.mapstores.EntityTypeMapstore
-import com.openlattice.postgres.mapstores.PropertyTypeMapstore
 import com.openlattice.postgres.streams.PostgresIterable
 import com.openlattice.postgres.streams.StatementHolder
-import com.zaxxer.hikari.HikariDataSource
 import org.postgresql.util.PSQLException
 import org.slf4j.LoggerFactory
 import java.sql.ResultSet
@@ -60,18 +55,10 @@ import java.util.function.Supplier
 private val logger = LoggerFactory.getLogger(RegenerateIds::class.java)
 
 class RegenerateIds(
-        private val pgEdmManager: PostgresEdmManager,
-        private val hds: HikariDataSource,
-        private val ptms: PropertyTypeMapstore,
-        private val etms: EntityTypeMapstore,
-        private val esms: EntitySetMapstore,
+        private val toolbox: Toolbox,
         private val idGen: IdGenerationMapstore,
-        private val principalTrees: PrincipalTreesMapstore,
-        private val executor: ListeningExecutorService
+        private val principalTrees: PrincipalTreesMapstore
 ) : Regeneration {
-    private val entitySets = esms.loadAllKeys()?.map { it to esms.load(it) }?.toMap() ?: mapOf()
-    private val entityTypes = etms.loadAllKeys()?.map { it to etms.load(it) }?.toMap() ?: mapOf()
-    private val propertyTypes = ptms.loadAllKeys()?.map { it to ptms.load(it) }?.toMap() ?: mapOf()
     private val ranges = idGen.loadAllKeys()?.map { it to idGen.load(it) }?.toMap()?.toMutableMap() ?: mutableMapOf()
     private val rangeIndex = AtomicLong()
     private val r = Random()
@@ -131,7 +118,7 @@ class RegenerateIds(
     }
 
     fun assignNewEntityKeysIds() {
-        hds.connection.use {
+        toolbox.hds.connection.use {
             val w = Stopwatch.createStarted()
             //The reason we allow a primary key to exist is to speed updates that mark a data key as processed.
             it
@@ -185,8 +172,8 @@ class RegenerateIds(
             batches.forEach {
                 val batch = it
                 semaphore.acquireUninterruptibly()
-                executor.execute {
-                    hds.connection.use {
+                toolbox.executor.execute {
+                    toolbox.hds.connection.use {
                         val ps = it.prepareStatement(insertNewId)
                         batch.forEach {
                             val entityKeyId = it.entityKeyId
@@ -240,13 +227,13 @@ class RegenerateIds(
             val entityKeyId = it.entityKeyId
             val newEntityKeyId = getNextId()
 
-            executor.execute {
-                hds.connection.use {
+            toolbox.executor.execute {
+                toolbox.hds.connection.use {
                     val stmt = it.createStatement()
                     stmt.use {
                         val esTableName = quote(DataTables.entityTableName(entitySetId))
                         stmt.addBatch("UPDATE $esTableName SET id = '$newEntityKeyId' WHERE id = '$entityKeyId'")
-                        val entityType = entityTypes[entitySets[entitySetId]?.entityTypeId]
+                        val entityType = toolbox.entityTypes[toolbox.entitySets[entitySetId]?.entityTypeId]
                         entityType?.properties?.forEach {
                             val propertyTypeTable = quote(DataTables.propertyTableName(it))
                             stmt.addBatch(
@@ -267,7 +254,7 @@ class RegenerateIds(
     private fun getUnassignedEntries(fetchSize: Int): PostgresIterable<EntityDataKey> {
         return PostgresIterable(
                 Supplier<StatementHolder> {
-                    val connection = hds.connection
+                    val connection = toolbox.hds.connection
                     val stmt = connection.createStatement()
                     val rs = stmt.executeQuery(
                             "SELECT id, entity_set_id FROM id_migration WHERE new_id IS NULL LIMIT $fetchSize"
@@ -283,7 +270,7 @@ class RegenerateIds(
     private fun getEntityKeyIdStream(): PostgresIterable<EntityDataKey> {
         return PostgresIterable(
                 Supplier<StatementHolder> {
-                    val connection = hds.connection
+                    val connection = toolbox.hds.connection
                     val stmt = connection.createStatement()
                     val rs = stmt.executeQuery("SELECT id, entity_set_id FROM id_migration")
                     StatementHolder(connection, stmt, rs)
@@ -304,15 +291,15 @@ class RegenerateIds(
 
     fun reviveSouthDakotaPeople() {
         val semaphore = Semaphore(Runtime.getRuntime().availableProcessors())
-        val entitySet = entitySets[UUID.fromString("ed5716db-830b-41b7-9905-24fa82761ace")]!!
-        val entityType = entityTypes[entitySet.entityTypeId]!!
+        val entitySet = toolbox.entitySets[UUID.fromString("ed5716db-830b-41b7-9905-24fa82761ace")]!!
+        val entityType = toolbox.entityTypes[entitySet.entityTypeId]!!
 
         entityType.properties.forEach {
             val ptt = quote(DataTables.propertyTableName(it))
             val version = System.currentTimeMillis()
             semaphore.acquire()
-            executor.execute {
-                hds.connection.use {
+            toolbox.executor.execute {
+                toolbox.hds.connection.use {
                     it.createStatement().use {
                         it.executeUpdate(
                                 "UPDATE $ptt SET version = $version, versions = versions||$version " +
@@ -328,10 +315,10 @@ class RegenerateIds(
 
     fun alterEntitySets() {
         val semaphore = Semaphore(Runtime.getRuntime().availableProcessors())
-        entitySets.keys.forEach {
+        toolbox.entitySets.keys.forEach {
             val esTableName = quote(DataTables.entityTableName(it))
-            val entitySet = entitySets[it]!!
-            val entityType = entityTypes[entitySet.entityTypeId]!!
+            val entitySet = toolbox.entitySets[it]!!
+            val entityType = toolbox.entityTypes[entitySet.entityTypeId]!!
 //            entityType.properties.map {
 //                logger.info(
 //                        "Entity set = {}, Entity Type id = {}, Property type id = {}", entitySet.id, entityType.id, it
@@ -340,8 +327,8 @@ class RegenerateIds(
 //            }
 
             semaphore.acquire()
-            executor.execute {
-                hds.connection.use {
+            toolbox.executor.execute {
+                toolbox.hds.connection.use {
                     var modified = false
                     try {
                         it.createStatement().use {
@@ -380,10 +367,10 @@ class RegenerateIds(
     }
 
     fun updatePropertyTables() {
-        hds.connection.use {
+        toolbox.hds.connection.use {
             it.createStatement().use {
                 val stmt = it
-                propertyTypes.keys.forEach {
+                toolbox.propertyTypes.keys.forEach {
                     val propertyTableName = quote(DataTables.propertyTableName(it))
                     stmt.addBatch(
                             "UPDATE $propertyTableName " +
@@ -398,15 +385,15 @@ class RegenerateIds(
     }
 
     fun printPropertyTypeOder() {
-        propertyTypes.forEach { k, v -> logger.info("$k - ${v.type.fullQualifiedNameAsString}") }
+        toolbox.propertyTypes.forEach { k, v -> logger.info("$k - ${v.type.fullQualifiedNameAsString}") }
     }
 
     fun updateEntityTables() {
         val semaphore = Semaphore(Runtime.getRuntime().availableProcessors())
-        entitySets.keys.forEach {
+        toolbox.entitySets.keys.forEach {
             val esTableName = quote(DataTables.entityTableName(it))
-            val entitySet = entitySets[it]!!
-            val entityType = entityTypes[entitySet.entityTypeId]!!
+            val entitySet = toolbox.entitySets[it]!!
+            val entityType = toolbox.entityTypes[entitySet.entityTypeId]!!
 //            entityType.properties.map {
 //                logger.info(
 //                        "Entity set = {}, Entity Type id = {}, Property type id = {}", entitySet.id, entityType.id, it
@@ -415,9 +402,9 @@ class RegenerateIds(
 //            }
 
             semaphore.acquire()
-            executor.execute {
+            toolbox.executor.execute {
                 //                pgEdmManager.createEntitySet(entitySet, listOf())
-                hds.connection.use {
+                toolbox.hds.connection.use {
                     it.createStatement().use {
                         it.executeUpdate(
                                 "UPDATE $esTableName " +
@@ -434,7 +421,7 @@ class RegenerateIds(
     }
 
     fun updateEntityKeyIds() {
-        hds.connection.use {
+        toolbox.hds.connection.use {
             it.createStatement().use {
                 it.executeUpdate(
                         "UPDATE entity_key_ids " +
@@ -447,8 +434,8 @@ class RegenerateIds(
     }
 
     fun updateEdgesTables() {
-        executor.execute {
-            hds.connection.use {
+        toolbox.executor.execute {
+            toolbox.hds.connection.use {
                 it.createStatement().use {
                     it.executeUpdate(
                             "UPDATE edges " +
@@ -460,8 +447,8 @@ class RegenerateIds(
             }
         }
 
-        executor.execute {
-            hds.connection.use {
+        toolbox.executor.execute {
+            toolbox.hds.connection.use {
                 it.createStatement().use {
                     it.executeUpdate(
                             "UPDATE edges " +
@@ -472,8 +459,8 @@ class RegenerateIds(
                 }
             }
         }
-        executor.execute {
-            hds.connection.use {
+        toolbox.executor.execute {
+            toolbox.hds.connection.use {
                 it.createStatement().use {
                     it.executeUpdate(
                             "UPDATE edges " +

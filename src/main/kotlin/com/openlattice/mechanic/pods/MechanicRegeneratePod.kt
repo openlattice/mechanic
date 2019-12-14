@@ -20,16 +20,11 @@
  */
 package com.openlattice.mechanic.pods
 
-import com.google.common.util.concurrent.ListeningExecutorService
-import com.openlattice.edm.PostgresEdmManager
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.ids.IdGenerationMapstore
 import com.openlattice.mechanic.MechanicCli.Companion.REGEN
+import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.regenerate.RegenerateIds
-import com.openlattice.postgres.mapstores.EntitySetMapstore
-import com.openlattice.postgres.mapstores.EntityTypeMapstore
-import com.openlattice.postgres.mapstores.PropertyTypeMapstore
-import com.zaxxer.hikari.HikariDataSource
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
@@ -45,25 +40,14 @@ class MechanicRegeneratePod {
     private lateinit var mapstoresPod: MapstoresPod
 
     @Inject
-    private lateinit var hikariDataSource: HikariDataSource
-
-    @Inject
-    private lateinit var executor: ListeningExecutorService
-
-    @Inject
-    private lateinit var pgEdmManager: PostgresEdmManager
+    private lateinit var toolbox: Toolbox
 
     @Bean
     fun regenerateIds(): RegenerateIds {
         return RegenerateIds(
-                pgEdmManager,
-                hikariDataSource,
-                mapstoresPod.propertyTypeMapstore() as PropertyTypeMapstore,
-                mapstoresPod.entityTypeMapstore() as EntityTypeMapstore,
-                mapstoresPod.entitySetMapstore() as EntitySetMapstore,
+                toolbox,
                 mapstoresPod.idGenerationMapstore() as IdGenerationMapstore,
-                mapstoresPod.principalTreesMapstore(),
-                executor
+                mapstoresPod.principalTreesMapstore()
         )
     }
 }
