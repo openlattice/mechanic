@@ -1,6 +1,8 @@
-package com.openlattice.mechanic.upgrades
+package com.openlattice.mechanic.retired
 
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.mechanic.upgrades.Upgrade
+import com.openlattice.mechanic.upgrades.Version
 import com.openlattice.postgres.streams.PostgresIterable
 import com.openlattice.postgres.streams.StatementHolder
 import java.lang.Exception

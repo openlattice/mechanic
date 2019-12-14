@@ -47,6 +47,7 @@ import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.integrity.Check
 import com.openlattice.mechanic.pods.MechanicIntegrityPod
 import com.openlattice.mechanic.pods.MechanicRegeneratePod
+import com.openlattice.mechanic.pods.MechanicRetireePod
 import com.openlattice.mechanic.pods.MechanicUpgradePod
 import com.openlattice.mechanic.regenerate.Regeneration
 import com.openlattice.mechanic.reindex.Reindexer
@@ -138,9 +139,9 @@ class Mechanic {
     private val mechanicPods = arrayOf(
             AssemblerConfigurationPod::class.java, AsyncPod::class.java, Auth0Pod::class.java,
             ConfigurationPod::class.java, HazelcastPod::class.java, JdbcPod::class.java, MapstoresPod::class.java,
-            MechanicIntegrityPod::class.java, MechanicRegeneratePod::class.java, MechanicUpgradePod::class.java,
-            PostgresPod::class.java, RegistryBasedHazelcastInstanceConfigurationPod::class.java,
-            SharedStreamSerializersPod::class.java
+            MechanicIntegrityPod::class.java, MechanicRegeneratePod::class.java, MechanicRetireePod::class.java,
+            MechanicUpgradePod::class.java, PostgresPod::class.java,
+            RegistryBasedHazelcastInstanceConfigurationPod::class.java, SharedStreamSerializersPod::class.java
     )
 
     private val context = AnnotationConfigApplicationContext()

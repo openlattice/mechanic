@@ -30,9 +30,6 @@ import com.openlattice.authorization.HazelcastAuthorizationService
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.mechanic.retired.DropEdmVersions
-import com.openlattice.mechanic.retired.DropPrincipalTree
-import com.openlattice.mechanic.retired.EntitySetFlags
 import com.openlattice.mechanic.upgrades.*
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.HazelcastPrincipalService
@@ -94,11 +91,6 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun removeEntitySetTables(): RemoveEntitySetTables {
-        return RemoveEntitySetTables(toolbox)
-    }
-
-    @Bean
     fun propertyValueIndexing(): PropertyValueIndexing {
         return PropertyValueIndexing(toolbox)
     }
@@ -109,23 +101,8 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun entitySetFlags(): EntitySetFlags {
-        return EntitySetFlags(toolbox)
-    }
-
-    @Bean
     fun materializedEntitySets(): MaterializedEntitySets {
         return MaterializedEntitySets(toolbox)
-    }
-
-    @Bean
-    fun dropEdmVersions(): DropEdmVersions {
-        return DropEdmVersions(toolbox)
-    }
-
-    @Bean
-    fun dropPrincipalTree(): DropPrincipalTree {
-        return DropPrincipalTree(toolbox)
     }
 
     @Bean

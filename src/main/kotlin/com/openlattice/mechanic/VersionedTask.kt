@@ -1,5 +1,7 @@
+package com.openlattice.mechanic
+
 /*
- * Copyright (C) 2018. OpenLattice, Inc.
+ * Copyright (C) 2019. OpenLattice, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,14 +21,6 @@
  *
  */
 
-package com.openlattice.mechanic.upgrades
-
-import com.openlattice.mechanic.VersionedTask
-
-/**
- *
- * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
- */
-interface Upgrade : VersionedTask {
-    fun upgrade(): Boolean
+interface VersionedTask {
+    fun getSupportedVersion() : Long
 }

@@ -38,6 +38,7 @@ class MechanicCli {
         const val POSTGRES = "postgres"
         const val LOCAL = "local"
         const val REGEN = "regen"
+        const val RETIRE = "retire"
 
 
         private val options = Options()
@@ -77,7 +78,7 @@ class MechanicCli {
                 .longOpt(UPGRADE)
                 .desc("Run upgrade tasks.")
                 .hasArgs()
-                .argName("version")
+                .argName("name")
                 .valueSeparator(',')
                 .build()
 
@@ -101,6 +102,14 @@ class MechanicCli {
                 .valueSeparator(',')
                 .build()
 
+        private val retireOption = Option.builder()
+                .longOpt(RETIRE)
+                .hasArgs()
+                .argName("name")
+                .desc("Run regeneration on the system. ")
+                .valueSeparator(',')
+                .build()
+
         init {
             options.addOption(helpOption)
             options.addOption(postgresOption)
@@ -110,6 +119,7 @@ class MechanicCli {
             options.addOption(reindexOption)
             options.addOption(upgradeOption)
             options.addOption(regenOption)
+            options.addOption(retireOption)
 
             options.addOptionGroup(
                     OptionGroup()
@@ -123,7 +133,7 @@ class MechanicCli {
             try {
                 return clp.parse(options, args)
             } catch (ex: AlreadySelectedException) {
-                System.out.println(ex.message)
+                println(ex.message)
                 printHelp()
                 exitProcess(1)
             }
