@@ -44,7 +44,7 @@ class OrganizationDbUserSetup(
         val dbOrgUser = DataTables.quote(PostgresRoles.buildOrganizationUserId(organizationId))
         val connectionConfig = assemblerConfiguration.server.clone() as Properties
 
-        AssemblerConnectionManager.connect(organizationDbName, connectionConfig, assemblerConfiguration.ssl).use { dataSource ->
+        AssemblerConnectionManager.createDataSource(organizationDbName, connectionConfig, assemblerConfiguration.ssl).use { dataSource ->
             dataSource.connection.use { connection ->
                 connection.createStatement()
                         .use { statement ->

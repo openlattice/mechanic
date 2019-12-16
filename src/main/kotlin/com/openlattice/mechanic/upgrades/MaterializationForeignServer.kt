@@ -65,7 +65,7 @@ class MaterializationForeignServer(
 
     private fun connect(organizationDbName: String): HikariDataSource {
         val connectionConfig = assemblerConfiguration.server.clone() as Properties
-        return AssemblerConnectionManager.connect(organizationDbName, connectionConfig, assemblerConfiguration.ssl)
+        return AssemblerConnectionManager.createDataSource(organizationDbName, connectionConfig, assemblerConfiguration.ssl)
     }
 
     private val ALTER_FOREIGN_SERVER_PORT_SQL = "ALTER SERVER ${AssemblerConnectionManager.PRODUCTION_SERVER} " +
