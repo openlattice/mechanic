@@ -53,7 +53,7 @@ class AdjustNCRICDataDateTimes(private val toolbox: Toolbox) : Upgrade {
         return true
     }
 
-    val UPDATE_SQL = "UPDATE ${DATA.name} SET $DATETIME_COL = $DATETIME_COL + '7 hours' " + // TODO -- does daylight savings affect this?
+    val UPDATE_SQL = "UPDATE ${DATA.name} SET $DATETIME_COL = $DATETIME_COL + '8 hours' " + // TODO -- does daylight savings affect this?
             "WHERE ${ENTITY_SET_ID.name} = ? " +
             "AND ${PROPERTY_TYPE_ID.name} = ? " +
             "AND ${PARTITION.name} = ANY(?)"
