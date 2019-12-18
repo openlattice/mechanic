@@ -61,4 +61,3 @@ class AdjustNCRICDataDateTimes(private val toolbox: Toolbox) : Upgrade {
             "AND $DATETIME_COL > '2018-12-17 10:00:00.000000-00'" // we don't care about fixing data over a year old
 }
 
-}
