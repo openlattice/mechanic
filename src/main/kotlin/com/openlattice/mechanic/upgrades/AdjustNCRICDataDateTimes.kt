@@ -28,6 +28,12 @@ class AdjustNCRICDataDateTimes(private val toolbox: Toolbox) : Upgrade {
                 "NCRICIncludes" to "date.completeddatetime"
         )
 
+        val rangeClausesToOffsets = mapOf(
+                " AND $DATETIME_COL >= '2019-11-03 10:00:00.000000-00' " to 8, // PST
+                " AND $DATETIME_COL >= '2019-03-11 10:00:00.000000-00' AND $DATETIME_COL < '2019-11-03 10:00:00.000000-00' " to 7, // PDT
+                " AND $DATETIME_COL >= '2018-12-17 10:00:00.000000-00' AND $DATETIME_COL < '2019-03-11 10:00:00.000000-00' " to 8 // PST (and earlier data should be expired)
+        )
+
         val entitySetsByName = toolbox.entitySets.values.associate { it.name to it }
         val propertyTypesByFqn = toolbox.propertyTypes.values.associate { it.type.fullQualifiedNameAsString to it.id }
 
@@ -37,14 +43,22 @@ class AdjustNCRICDataDateTimes(private val toolbox: Toolbox) : Upgrade {
 
             logger.info("About to update values for entity set ${it.key}")
 
-            toolbox.hds.connection.use { conn ->
-                conn.prepareStatement(UPDATE_SQL).use { ps ->
-                    ps.setObject(1, entitySet.id)
-                    ps.setObject(2, propertyTypeId)
-                    ps.setArray(3, PostgresArrays.createIntArray(conn, entitySet.partitions))
+            rangeClausesToOffsets.entries.stream().parallel().forEach { rangeEntry ->
 
-                    ps.execute()
+                val rangeSql = getUpdateSql(rangeEntry.key, rangeEntry.value)
+                logger.info("Range SQL for entity set ${entitySet.name}: $rangeSql")
+
+                toolbox.hds.connection.use { conn ->
+                    conn.prepareStatement(rangeSql).use { ps ->
+                        ps.setObject(1, entitySet.id)
+                        ps.setObject(2, propertyTypeId)
+                        ps.setArray(3, PostgresArrays.createIntArray(conn, entitySet.partitions))
+
+                        ps.execute()
+                    }
                 }
+
+                logger.info("Updated range ${rangeEntry.key} for entity set ${entitySet.name}")
             }
 
             logger.info("Finished updating values for entity set ${it.key}")
@@ -53,9 +67,12 @@ class AdjustNCRICDataDateTimes(private val toolbox: Toolbox) : Upgrade {
         return true
     }
 
-    val UPDATE_SQL = "UPDATE ${DATA.name} SET $DATETIME_COL = $DATETIME_COL + '8 hours' " + // TODO -- does daylight savings affect this?
-            "WHERE ${ENTITY_SET_ID.name} = ? " +
-            "AND ${PROPERTY_TYPE_ID.name} = ? " +
-            "AND ${PARTITION.name} = ANY(?)"
+    private fun getUpdateSql(rangeClause: String, offset: Int): String {
+        return "UPDATE ${DATA.name} SET $DATETIME_COL = $DATETIME_COL + '$offset hours' " +
+                "WHERE ${ENTITY_SET_ID.name} = ? " +
+                "AND ${PROPERTY_TYPE_ID.name} = ? " +
+                "AND ${PARTITION.name} = ANY(?)" +
+                rangeClause
+    }
 
 }
