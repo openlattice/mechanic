@@ -68,7 +68,7 @@ class AdjustNCRICDataDateTimes(private val toolbox: Toolbox) : Upgrade {
     }
 
     private fun getUpdateSql(rangeClause: String, offset: Int): String {
-        return "UPDATE ${DATA.name} SET $DATETIME_COL = $DATETIME_COL + '$offset hours' " +
+        return "UPDATE ${DATA.name} SET $DATETIME_COL = ($DATETIME_COL at time zone 'UTC' + interval '$offset hours') at time zone 'UTC' " +
                 "WHERE ${ENTITY_SET_ID.name} = ? " +
                 "AND ${PROPERTY_TYPE_ID.name} = ? " +
                 "AND ${PARTITION.name} = ANY(?)" +
