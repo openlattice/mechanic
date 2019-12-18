@@ -34,7 +34,7 @@ class AdjustNCRICDataDateTimes(private val toolbox: Toolbox) : Upgrade {
                 " AND $DATETIME_COL >= '2018-12-17 10:00:00.000000-00' AND $DATETIME_COL < '2019-03-11 10:00:00.000000-00' " to 8 // PST (and earlier data should be expired)
         )
 
-        val entitySetsByName = toolbox.entitySets.values.associate { it.name to it }
+        val entitySetsByName = toolbox.entitySets.values.associateBy { it.name }
         val propertyTypesByFqn = toolbox.propertyTypes.values.associate { it.type.fullQualifiedNameAsString to it.id }
 
         entitySetsToPropertyTypes.entries.stream().parallel().forEach {
