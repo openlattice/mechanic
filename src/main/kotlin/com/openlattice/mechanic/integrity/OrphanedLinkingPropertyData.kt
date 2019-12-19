@@ -22,6 +22,7 @@ package com.openlattice.mechanic.integrity
 
 import com.google.common.base.Stopwatch
 import com.openlattice.IdConstants
+import com.openlattice.data.DeleteType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresTable.DATA
@@ -40,25 +41,28 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
     }
 
     private fun tombstoneOrphanedLinkingProperties() {
-        val sw = Stopwatch.createStarted()
-        logger.info("Starting task to clear orphaned linking property types values.")
-        val count = toolbox.hds.connection.use { conn ->
-            conn.createStatement().use {
-                it.executeUpdate(tombStoneSql)
-            }
-        }
-        logger.info("Cleared $count orphaned linking entries in ${DATA.name} table in ${sw.elapsed(TimeUnit.MILLISECONDS)} ms.")
+        executeUpdate(tombStoneSql, DeleteType.Soft)
     }
 
     private fun deleteOrphanedLinkingProperties() {
+        executeUpdate(deleteSql, DeleteType.Hard)
+    }
+
+    private fun executeUpdate(sql: String, deleteType: DeleteType) {
+        val deleteTypeStr1 = if (deleteType == DeleteType.Hard) "delete" else "clear"
+        val deleteTypeStr2 = if (deleteType == DeleteType.Hard) "Deleted" else "Cleared"
+
         val sw = Stopwatch.createStarted()
-        logger.info("Starting task to delete orphaned linking property types values.")
+        logger.info("Starting task to $deleteTypeStr1 orphaned linking property types values.")
         val count = toolbox.hds.connection.use { conn ->
             conn.createStatement().use {
-                it.executeUpdate(deleteSql)
+                it.executeUpdate(sql)
             }
         }
-        logger.info("Deleted $count orphaned linking property types in ${DATA.name} table in ${sw.elapsed(TimeUnit.MILLISECONDS)} ms.")
+        logger.info(
+                "$deleteTypeStr2 $count orphaned linking property types in ${DATA.name} table in " +
+                        "${sw.elapsed(TimeUnit.MILLISECONDS)} ms.")
+
     }
 
     // @formatter:off

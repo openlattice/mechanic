@@ -59,6 +59,10 @@ class RegenerateIds(
         private val idGen: IdGenerationMapstore,
         private val principalTrees: PrincipalTreesMapstore
 ) : Regeneration {
+    override fun getSupportedVersion(): Long {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
     private val ranges = idGen.loadAllKeys()?.map { it to idGen.load(it) }?.toMap()?.toMutableMap() ?: mutableMapOf()
     private val rangeIndex = AtomicLong()
     private val r = Random()

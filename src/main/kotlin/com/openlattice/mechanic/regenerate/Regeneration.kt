@@ -20,6 +20,8 @@
  */
 package com.openlattice.mechanic.regenerate
 
-interface Regeneration {
+import com.openlattice.mechanic.VersionedTask
+
+interface Regeneration : VersionedTask {
     fun regenerate() : Boolean
 }

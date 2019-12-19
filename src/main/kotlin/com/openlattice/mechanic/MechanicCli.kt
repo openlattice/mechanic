@@ -106,7 +106,7 @@ class MechanicCli {
                 .longOpt(RETIRE)
                 .hasArgs()
                 .argName("name")
-                .desc("Run regeneration on the system. ")
+                .desc("Run retirees on the system. ")
                 .valueSeparator(',')
                 .build()
 
