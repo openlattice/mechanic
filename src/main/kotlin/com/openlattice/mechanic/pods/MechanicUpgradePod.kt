@@ -243,6 +243,6 @@ class MechanicUpgradePod {
 
     @Bean
     fun updateAuditEntitySetPartitions(): UpdateAuditEntitySetPartitions {
-        return UpdateAuditEntitySetPartitions(toolbox())
+        return UpdateAuditEntitySetPartitions(toolbox)
     }
 }

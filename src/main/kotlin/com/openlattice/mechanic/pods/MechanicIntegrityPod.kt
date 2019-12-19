@@ -59,6 +59,6 @@ class MechanicIntegrityPod {
 
     @Bean
     fun orphanedLinkingPropertyData(): OrphanedLinkingPropertyData {
-        return OrphanedLinkingPropertyData()
+        return OrphanedLinkingPropertyData(toolbox)
     }
 }
