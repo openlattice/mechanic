@@ -45,13 +45,15 @@ private val logger = LoggerFactory.getLogger(IntegrityChecks::class.java)
 class IntegrityChecks(private val toolbox: Toolbox) : Check {
     override fun check(): Boolean {
         logger.info("Integrity checks aren't fully implemented.")
+        val corruptEntitySets = toolbox.entitySets.filter {
+            logger.info("Checking entity set {}", it.value.name)
+            !hasIdIntegrity(it.key)
+        }.toMap()
+
         return true
     }
 
-    private val corruptEntitySets = toolbox.entitySets.filter {
-        logger.info("Checking entity set {}", it.value.name)
-        !hasIdIntegrity(it.key)
-    }.toMap()
+
 
     fun ensureEntityKeyIdsSynchronized() {
         val latches: MutableList<CountDownLatch> = mutableListOf()
