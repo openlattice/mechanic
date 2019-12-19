@@ -245,4 +245,9 @@ class MechanicUpgradePod {
     fun updateAuditEntitySetPartitions(): UpdateAuditEntitySetPartitions {
         return UpdateAuditEntitySetPartitions(toolbox)
     }
+
+    @Bean
+    fun adjustNCRICDataDateTimes(): AdjustNCRICDataDateTimes {
+        return AdjustNCRICDataDateTimes(toolbox())
+    }
 }
