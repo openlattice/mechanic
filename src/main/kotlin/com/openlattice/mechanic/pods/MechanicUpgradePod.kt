@@ -248,6 +248,6 @@ class MechanicUpgradePod {
 
     @Bean
     fun adjustNCRICDataDateTimes(): AdjustNCRICDataDateTimes {
-        return AdjustNCRICDataDateTimes(toolbox())
+        return AdjustNCRICDataDateTimes(toolbox)
     }
 }
