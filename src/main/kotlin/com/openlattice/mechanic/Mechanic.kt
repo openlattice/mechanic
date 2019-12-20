@@ -41,15 +41,12 @@ import com.openlattice.mechanic.MechanicCli.Companion.CHECK
 import com.openlattice.mechanic.MechanicCli.Companion.HELP
 import com.openlattice.mechanic.MechanicCli.Companion.LOCAL
 import com.openlattice.mechanic.MechanicCli.Companion.POSTGRES
-import com.openlattice.mechanic.MechanicCli.Companion.REGEN
 import com.openlattice.mechanic.MechanicCli.Companion.REINDEX
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.integrity.Check
 import com.openlattice.mechanic.pods.MechanicIntegrityPod
-import com.openlattice.mechanic.pods.MechanicRegeneratePod
 import com.openlattice.mechanic.pods.MechanicRetireePod
 import com.openlattice.mechanic.pods.MechanicUpgradePod
-import com.openlattice.mechanic.regenerate.Regeneration
 import com.openlattice.mechanic.reindex.Reindexer
 import com.openlattice.mechanic.upgrades.Upgrade
 import com.openlattice.postgres.PostgresPod
@@ -101,10 +98,6 @@ fun main(args: Array<String>) {
         ars.add(UPGRADE)
     }
 
-    if (cl.hasOption(REGEN)) {
-        ars.add(REGEN)
-    }
-
     mechanic.sprout(*ars.toTypedArray())
 
     if (cl.hasOption(CHECK)) {
@@ -121,11 +114,6 @@ fun main(args: Array<String>) {
         mechanic.reIndex()
     }
 
-    if (cl.hasOption(REGEN)) {
-        val upgrades = cl.getOptionValues(REGEN).toSet()
-        mechanic.regenerate(upgrades)
-    }
-
     mechanic.close()
     exitProcess(0)
 
@@ -139,9 +127,9 @@ class Mechanic {
     private val mechanicPods = arrayOf(
             AssemblerConfigurationPod::class.java, AsyncPod::class.java, Auth0Pod::class.java,
             ConfigurationPod::class.java, HazelcastPod::class.java, JdbcPod::class.java, MapstoresPod::class.java,
-            MechanicIntegrityPod::class.java, MechanicRegeneratePod::class.java, MechanicRetireePod::class.java,
-            MechanicUpgradePod::class.java, PostgresPod::class.java,
-            RegistryBasedHazelcastInstanceConfigurationPod::class.java, SharedStreamSerializersPod::class.java
+            MechanicIntegrityPod::class.java, MechanicRetireePod::class.java, MechanicUpgradePod::class.java,
+            PostgresPod::class.java, RegistryBasedHazelcastInstanceConfigurationPod::class.java,
+            SharedStreamSerializersPod::class.java
     )
 
     private val context = AnnotationConfigApplicationContext()
@@ -200,19 +188,6 @@ class Mechanic {
                 logger.info("Successfully completed $it")
             } else {
                 logger.error("Upgrade failed on $it")
-            }
-        }
-    }
-
-    fun regenerate(regenNames: Set<String>) {
-        val regens = context.getBeansOfType(Regeneration::class.java)
-        check(regens.keys.containsAll(regenNames)) { "Unable to find regenerations: ${regenNames - regens.keys}" }
-
-        regenNames.forEach {
-            if (regens[it]!!.regenerate()) {
-                logger.info("Successfully completed $it")
-            } else {
-                logger.error("Regeneration failed on $it")
             }
         }
     }

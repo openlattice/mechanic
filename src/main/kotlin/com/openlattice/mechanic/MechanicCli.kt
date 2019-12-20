@@ -37,7 +37,6 @@ class MechanicCli {
         const val AWS = "aws"
         const val POSTGRES = "postgres"
         const val LOCAL = "local"
-        const val REGEN = "regen"
         const val RETIRE = "retire"
 
 
@@ -94,14 +93,6 @@ class MechanicCli {
                 .hasArg(false)
                 .build()
 
-        private val regenOption = Option.builder()
-                .longOpt(REGEN)
-                .hasArgs()
-                .argName("name")
-                .desc("Run regeneration on the system. ")
-                .valueSeparator(',')
-                .build()
-
         private val retireOption = Option.builder()
                 .longOpt(RETIRE)
                 .hasArgs()
@@ -118,7 +109,6 @@ class MechanicCli {
             options.addOption(checkOption)
             options.addOption(reindexOption)
             options.addOption(upgradeOption)
-            options.addOption(regenOption)
             options.addOption(retireOption)
 
             options.addOptionGroup(
