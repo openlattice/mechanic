@@ -22,14 +22,9 @@
 package com.openlattice.mechanic.integrity
 
 import com.google.common.base.Preconditions.checkState
-import com.google.common.util.concurrent.ListeningExecutorService
-import com.openlattice.mechanic.checks.Check
+import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
-import com.openlattice.postgres.mapstores.EntitySetMapstore
-import com.openlattice.postgres.mapstores.EntityTypeMapstore
-import com.openlattice.postgres.mapstores.PropertyTypeMapstore
-import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 import java.sql.ResultSetMetaData
 
@@ -38,27 +33,17 @@ import java.sql.ResultSetMetaData
  */
 private val logger = LoggerFactory.getLogger(EdmChecks::class.java)
 
-class EdmChecks(
-        private val hds: HikariDataSource,
-        private val ptms: PropertyTypeMapstore,
-        private val etms: EntityTypeMapstore,
-        private val esms: EntitySetMapstore,
-        private val executor: ListeningExecutorService
-) : Check {
+class EdmChecks(private val toolbox: Toolbox) : Check {
     override fun check(): Boolean {
         checkPropertyTypesAlignWithTable()
         return true
     }
 
-    private val entitySets = esms.loadAllKeys().map { it to esms.load(it) }.toMap()
-    private val entityTypes = etms.loadAllKeys().map { it to etms.load(it) }.toMap()
-    private val propertyTypes = ptms.loadAllKeys().map { it to ptms.load(it) }.toMap()
-
     private fun checkPropertyTypesAlignWithTable() {
 
-        hds.connection.use {
+        toolbox.hds.connection.use {
             val connection = it
-            propertyTypes.values.forEach pt@{
+            toolbox.propertyTypes.values.forEach pt@{
                 val propertyTypeName = it.type.fullQualifiedNameAsString
                 val propertyTableName = quote(DataTables.propertyTableName(it.id))
                 val sql = "SELECT * FROM $propertyTableName LIMIT 1"

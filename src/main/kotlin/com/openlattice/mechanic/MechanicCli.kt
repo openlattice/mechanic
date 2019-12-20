@@ -37,7 +37,8 @@ class MechanicCli {
         const val AWS = "aws"
         const val POSTGRES = "postgres"
         const val LOCAL = "local"
-        const val SQL = "sql"
+        const val RETIRE = "retire"
+
 
         private val options = Options()
         private val clp = DefaultParser()
@@ -72,17 +73,11 @@ class MechanicCli {
                 .valueSeparator(',')
                 .build()
 
-        private val sqlOption = Option.builder()
-                .longOpt(SQL)
-                .desc("Print out SQL query for given entity set.")
-                .hasArg(false)
-                .build()
-
         private val upgradeOption = Option.builder()
                 .longOpt(UPGRADE)
                 .desc("Run upgrade tasks.")
                 .hasArgs()
-                .argName("version")
+                .argName("name")
                 .valueSeparator(',')
                 .build()
 
@@ -98,6 +93,14 @@ class MechanicCli {
                 .hasArg(false)
                 .build()
 
+        private val retireOption = Option.builder()
+                .longOpt(RETIRE)
+                .hasArgs()
+                .argName("name")
+                .desc("Run retirees on the system. ")
+                .valueSeparator(',')
+                .build()
+
         init {
             options.addOption(helpOption)
             options.addOption(postgresOption)
@@ -105,8 +108,8 @@ class MechanicCli {
             options.addOption(localOption)
             options.addOption(checkOption)
             options.addOption(reindexOption)
-            options.addOption(sqlOption)
             options.addOption(upgradeOption)
+            options.addOption(retireOption)
 
             options.addOptionGroup(
                     OptionGroup()
@@ -120,7 +123,7 @@ class MechanicCli {
             try {
                 return clp.parse(options, args)
             } catch (ex: AlreadySelectedException) {
-                System.out.println(ex.message)
+                println(ex.message)
                 printHelp()
                 exitProcess(1)
             }

@@ -1,4 +1,4 @@
-package com.openlattice.mechanic.checks
+package com.openlattice.mechanic.integrity
 
 /**
  *

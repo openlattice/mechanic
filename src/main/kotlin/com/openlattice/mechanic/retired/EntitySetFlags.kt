@@ -2,13 +2,12 @@ package com.openlattice.mechanic.retired
 
 import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.mechanic.upgrades.Upgrade
 import com.openlattice.mechanic.upgrades.Version
 import com.openlattice.postgres.PostgresColumn
 import com.openlattice.postgres.PostgresTable
 import org.slf4j.LoggerFactory
 
-class EntitySetFlags(private val toolbox: Toolbox) : Upgrade {
+class EntitySetFlags(private val toolbox: Toolbox) : Retiree {
     companion object {
         private val logger = LoggerFactory.getLogger(EntitySetFlags::class.java)
     }
@@ -84,7 +83,7 @@ class EntitySetFlags(private val toolbox: Toolbox) : Upgrade {
     }
 
 
-    override fun upgrade(): Boolean {
+    override fun retire(): Boolean {
         addFlagsColumn()
         setFlags()
         return true

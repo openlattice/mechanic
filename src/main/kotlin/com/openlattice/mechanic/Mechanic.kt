@@ -43,7 +43,9 @@ import com.openlattice.mechanic.MechanicCli.Companion.LOCAL
 import com.openlattice.mechanic.MechanicCli.Companion.POSTGRES
 import com.openlattice.mechanic.MechanicCli.Companion.REINDEX
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
-import com.openlattice.mechanic.checks.Check
+import com.openlattice.mechanic.integrity.Check
+import com.openlattice.mechanic.pods.MechanicIntegrityPod
+import com.openlattice.mechanic.pods.MechanicRetireePod
 import com.openlattice.mechanic.pods.MechanicUpgradePod
 import com.openlattice.mechanic.reindex.Reindexer
 import com.openlattice.mechanic.upgrades.Upgrade
@@ -88,6 +90,14 @@ fun main(args: Array<String>) {
         ars.add(PostgresPod.PROFILE)
     }
 
+    if (cl.hasOption(CHECK)) {
+        ars.add(CHECK)
+    }
+
+    if (cl.hasOption(UPGRADE)) {
+        ars.add(UPGRADE)
+    }
+
     mechanic.sprout(*ars.toTypedArray())
 
     if (cl.hasOption(CHECK)) {
@@ -104,12 +114,6 @@ fun main(args: Array<String>) {
         mechanic.reIndex()
     }
 
-//    if (cl.hasOption(SQL)) {
-//
-//    }
-
-//    val w = Stopwatch.createStarted()
-
     mechanic.close()
     exitProcess(0)
 
@@ -121,17 +125,14 @@ fun main(args: Array<String>) {
 class Mechanic {
 
     private val mechanicPods = arrayOf(
-            Auth0Pod::class.java, JdbcPod::class.java, PostgresPod::class.java, MapstoresPod::class.java,
-            MechanicUpgradePod::class.java, AsyncPod::class.java, ConfigurationPod::class.java,
-            RegistryBasedHazelcastInstanceConfigurationPod::class.java, HazelcastPod::class.java,
-            SharedStreamSerializersPod::class.java, AssemblerConfigurationPod::class.java
+            AssemblerConfigurationPod::class.java, AsyncPod::class.java, Auth0Pod::class.java,
+            ConfigurationPod::class.java, HazelcastPod::class.java, JdbcPod::class.java, MapstoresPod::class.java,
+            MechanicIntegrityPod::class.java, MechanicRetireePod::class.java, MechanicUpgradePod::class.java,
+            PostgresPod::class.java, RegistryBasedHazelcastInstanceConfigurationPod::class.java,
+            SharedStreamSerializersPod::class.java
     )
 
     private val context = AnnotationConfigApplicationContext()
-
-    init {
-        this.context.register(*mechanicPods)
-    }
 
     fun sprout(vararg activeProfiles: String) {
         var awsProfile = false
@@ -152,9 +153,7 @@ class Mechanic {
             context.environment.addActiveProfile(LOCAL_CONFIGURATION_PROFILE)
         }
 
-        /*if ( additionalPods.size() > 0 ) {
-            context.register( additionalPods.toArray( new Class<?>[] {} ) );
-        }*/
+        context.register(*mechanicPods)
         context.refresh()
 
         if (context.isRunning && startupRequirementsSatisfied(context)) {
@@ -167,7 +166,7 @@ class Mechanic {
         val results = if (checkAll) {
             checks.mapValues { it.value.check() }
         } else {
-            check(checks.keys.containsAll(checkNames)) { "Unable  to find checks: ${checkNames - checks.keys}" }
+            check(checks.keys.containsAll(checkNames)) { "Unable to find checks: ${checkNames - checks.keys}" }
             Maps.toMap(checkNames) { name -> checks[name]!!.check() }
         }
 
@@ -175,8 +174,7 @@ class Mechanic {
     }
 
     fun reIndex() {
-        val reindexer = context.getBean(Reindexer::class.java)
-        reindexer.runReindex()
+        context.getBean(Reindexer::class.java).runReindex()
     }
 
     fun doUpgrade(upgradeNames: Set<String>) {
