@@ -3,6 +3,7 @@ package com.openlattice.mechanic.upgrades
 import com.hazelcast.core.IMap
 import com.openlattice.data.storage.partitions.DEFAULT_PARTITION_COUNT
 import com.openlattice.data.storage.partitions.PartitionManager
+import com.openlattice.edm.EntitySet
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.organizations.Organization
@@ -18,10 +19,11 @@ class AddPartitionsToOrgsAndEntitySets(private val toolbox: Toolbox) : Upgrade {
     override fun upgrade(): Boolean {
 
         val organizations = toolbox.hazelcast.getMap<UUID, Organization>(HazelcastMap.ORGANIZATIONS.name)
+        val entitySets = toolbox.hazelcast.getMap<UUID, EntitySet>(HazelcastMap.ENTITY_SETS.name)
         val partitionManager = PartitionManager(toolbox.hazelcast, toolbox.hds)
 
         addMissingPartitionsToOrganizations(partitionManager, organizations)
-        addMissingPartitionsToEntitySets(partitionManager)
+        addMissingPartitionsToEntitySets(partitionManager, entitySets)
         return true
     }
 
@@ -47,15 +49,16 @@ class AddPartitionsToOrgsAndEntitySets(private val toolbox: Toolbox) : Upgrade {
 
     }
 
-    private fun addMissingPartitionsToEntitySets(partitionManager: PartitionManager) {
+    private fun addMissingPartitionsToEntitySets(partitionManager: PartitionManager, entitySets: IMap<UUID, EntitySet>) {
 
         logger.info("About to add missing partitions to entity sets.")
 
         toolbox.entitySets.values.filter { it.partitions.isEmpty() }.forEach {
 
             logger.info("Allocating partitions for entity set {} [{}]", it.name, it.id)
-            val partitions = partitionManager.allocatePartitions(it)
-            logger.info("Entity set {} assigned partitions {}", it.id, partitions)
+            val entitySetWithAllocatedPartitions = partitionManager.allocatePartitions(it)
+            entitySets[entitySetWithAllocatedPartitions.id] = entitySetWithAllocatedPartitions
+            logger.info("Entity set {} assigned partitions {}", it.id, entitySetWithAllocatedPartitions.partitions)
         }
 
         logger.info("Done adding missing partitions to entity sets.")
