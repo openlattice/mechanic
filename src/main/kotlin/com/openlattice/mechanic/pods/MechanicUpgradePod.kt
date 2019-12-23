@@ -250,4 +250,9 @@ class MechanicUpgradePod {
     fun adjustNCRICDataDateTimes(): AdjustNCRICDataDateTimes {
         return AdjustNCRICDataDateTimes(toolbox)
     }
+
+    @Bean
+    fun addPartitionsToOrgsAndEntitySets(): AddPartitionsToOrgsAndEntitySets {
+        return AddPartitionsToOrgsAndEntitySets(toolbox)
+    }
 }
