@@ -28,6 +28,7 @@ import com.openlattice.authorization.AuthorizationQueryService
 import com.openlattice.authorization.HazelcastAclKeyReservationService
 import com.openlattice.authorization.HazelcastAuthorizationService
 import com.openlattice.hazelcast.pods.MapstoresPod
+import com.openlattice.ids.IdCipherManager
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.*
@@ -249,5 +250,10 @@ class MechanicUpgradePod {
     @Bean
     fun adjustNCRICDataDateTimes(): AdjustNCRICDataDateTimes {
         return AdjustNCRICDataDateTimes(toolbox)
+    }
+
+    @Bean
+    fun generateLinkingEntitySetSecretKeys(): GenerateLinkingEntitySetSecretKeys {
+        return GenerateLinkingEntitySetSecretKeys(toolbox, IdCipherManager(hazelcastInstance))
     }
 }

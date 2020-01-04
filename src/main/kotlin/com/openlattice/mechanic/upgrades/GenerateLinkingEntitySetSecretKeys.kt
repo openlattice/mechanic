@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018. OpenLattice, Inc.
+ * Copyright (C) 2019. OpenLattice, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,28 +18,24 @@
  *
  *
  */
-
 package com.openlattice.mechanic.upgrades
 
-/**
- *
- * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
- */
-enum class Version(val value: Long) {
-    V2018_09_14(1L),
-    V2018_10_10(2L),
-    V2018_12_21(3L),
-    V2019_02_25(4L),
-    V2019_05_13(5L),
-    V2019_06_03(6L),
-    V2019_06_14(7L),
-    V2019_06_27(8L),
-    V2019_07_01(9L),
-    V2019_08_20(10L),
-    V2019_08_26(11L),
-    V2019_09_15(12L),
-    V2019_10_03(13L),
-    V2019_11_21(14L),
-    V2019_12_12(15L),
-    V2020_01_03(16L),
+import com.openlattice.ids.IdCipherManager
+import com.openlattice.mechanic.Toolbox
+
+class GenerateLinkingEntitySetSecretKeys(
+        private val toolbox: Toolbox,
+        private val cipherManager: IdCipherManager
+) : Upgrade {
+    override fun upgrade(): Boolean {
+        toolbox.entitySets.filter { it.value.isLinking }.forEach { (entitySetId, _) ->
+            cipherManager.assignSecretKey(entitySetId)
+        }
+
+        return true
+    }
+
+    override fun getSupportedVersion(): Long {
+        return Version.V2020_01_03.value
+    }
 }
