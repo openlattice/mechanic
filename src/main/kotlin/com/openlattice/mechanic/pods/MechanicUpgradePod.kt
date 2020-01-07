@@ -242,6 +242,11 @@ class MechanicUpgradePod {
     }
 
     @Bean
+    fun convertAppsToEntityTypeCollections(): ConvertAppsToEntityTypeCollections {
+        return ConvertAppsToEntityTypeCollections(toolbox(), eventBus)
+    }
+  
+    @Bean
     fun updateAuditEntitySetPartitions(): UpdateAuditEntitySetPartitions {
         return UpdateAuditEntitySetPartitions(toolbox)
     }
