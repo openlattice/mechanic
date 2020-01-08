@@ -243,7 +243,7 @@ class MechanicUpgradePod {
 
     @Bean
     fun convertAppsToEntityTypeCollections(): ConvertAppsToEntityTypeCollections {
-        return ConvertAppsToEntityTypeCollections(toolbox(), eventBus)
+        return ConvertAppsToEntityTypeCollections(toolbox, eventBus)
     }
   
     @Bean
