@@ -55,7 +55,7 @@ class MigrateOrganizationsToJsonb(private val toolbox: Toolbox) : Upgrade {
 
         logger.info("About to populate column with json from existing organizations.")
 
-        val principals = toolbox.hazelcast.getMap<AclKey, SecurablePrincipal>(HazelcastMap.PRINCIPALS.name)
+        val principals = HazelcastMap.PRINCIPALS.getMap( toolbox.hazelcast )
 
         val orgPrincipalsById = principals
                 .entrySet(Predicates.equal("principalType", PrincipalType.ORGANIZATION))

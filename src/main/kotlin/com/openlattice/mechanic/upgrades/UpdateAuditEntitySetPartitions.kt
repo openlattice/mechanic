@@ -25,7 +25,7 @@ class UpdateAuditEntitySetPartitions(private val toolbox: Toolbox) : Upgrade {
 
         logger.info("Mapped ${entitySetPartitions.size} non-audit entity set ids to their partitions")
 
-        val auditRecordEntitySets = toolbox.hazelcast.getMap<AclKey, AuditRecordEntitySetConfiguration>(HazelcastMap.AUDIT_RECORD_ENTITY_SETS.name)
+        val auditRecordEntitySets = HazelcastMap.AUDIT_RECORD_ENTITY_SETS.getMap( toolbox.hazelcast )
 
         val sql = "UPDATE ${ENTITY_SETS.name} SET ${PARTITIONS.name} = ? WHERE ${ID.name} = ANY(?)"
 

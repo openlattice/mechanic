@@ -30,15 +30,15 @@ class ConvertAppsToEntityTypeCollections(
 
     val hazelcast = toolbox.hazelcast
 
-    val organizations = hazelcast.getMap<UUID, Organization>(HazelcastMap.ORGANIZATIONS.name)
+    val organizations = HazelcastMap.ORGANIZATIONS.getMap( hazelcast )
 
-    val apps = hazelcast.getMap<UUID, App>(HazelcastMap.APPS.name)
-    val appTypes = hazelcast.getMap<UUID, AppType>(HazelcastMap.APP_TYPES.name)
-    val appConfigs = hazelcast.getMap<AppConfigKey, AppTypeSetting>(HazelcastMap.APP_CONFIGS.name)
+    val apps = HazelcastMap.APPS.getMap( hazelcast )
+    val appTypes = HazelcastMap.APP_TYPES.getMap( hazelcast )
+    val appConfigs = HazelcastMap.APP_CONFIGS.getMap( hazelcast )
 
-    val entityTypeCollections = hazelcast.getMap<UUID, EntityTypeCollection>(HazelcastMap.ENTITY_TYPE_COLLECTIONS.name)
-    val entitySetCollections = hazelcast.getMap<UUID, EntitySetCollection>(HazelcastMap.ENTITY_SET_COLLECTIONS.name)
-    val entitySetCollectionsConfig = hazelcast.getMap<CollectionTemplateKey, UUID>(HazelcastMap.ENTITY_SET_COLLECTION_CONFIG.name)
+    val entityTypeCollections = HazelcastMap.ENTITY_TYPE_COLLECTIONS.getMap( hazelcast )
+    val entitySetCollections = HazelcastMap.ENTITY_SET_COLLECTIONS.getMap( hazelcast )
+    val entitySetCollectionsConfig = HazelcastMap.ENTITY_SET_COLLECTION_CONFIG.getMap( hazelcast )
 
     val reservations = HazelcastAclKeyReservationService(hazelcast)
 
