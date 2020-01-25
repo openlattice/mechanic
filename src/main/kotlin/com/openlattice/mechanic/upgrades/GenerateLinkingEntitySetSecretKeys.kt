@@ -22,12 +22,19 @@ package com.openlattice.mechanic.upgrades
 
 import com.openlattice.ids.IdCipherManager
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.postgres.PostgresTable
 
 class GenerateLinkingEntitySetSecretKeys(
         private val toolbox: Toolbox,
         private val cipherManager: IdCipherManager
 ) : Upgrade {
     override fun upgrade(): Boolean {
+        toolbox.hds.connection.use { conn ->
+            conn.createStatement().use { stmt ->
+                stmt.execute(PostgresTable.LINKED_ENTITY_SET_SECRET_KEYS.createTableQuery())
+            }
+        }
+
         toolbox.entitySets.filter { it.value.isLinking }.forEach { (entitySetId, _) ->
             cipherManager.assignSecretKey(entitySetId)
         }
