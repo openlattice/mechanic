@@ -23,19 +23,26 @@ package com.openlattice.mechanic.upgrades
 import com.openlattice.ids.IdCipherManager
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresTable
+import org.slf4j.LoggerFactory
 
 class GenerateLinkingEntitySetSecretKeys(
         private val toolbox: Toolbox,
         private val cipherManager: IdCipherManager
 ) : Upgrade {
+    companion object {
+        private val logger = LoggerFactory.getLogger(GenerateLinkingEntitySetSecretKeys::class.java)
+    }
+
     override fun upgrade(): Boolean {
         toolbox.hds.connection.use { conn ->
             conn.createStatement().use { stmt ->
+                logger.info("Creating the ${PostgresTable.LINKED_ENTITY_SET_SECRET_KEYS.name} table.")
                 stmt.execute(PostgresTable.LINKED_ENTITY_SET_SECRET_KEYS.createTableQuery())
             }
         }
 
         toolbox.entitySets.filter { it.value.isLinking }.forEach { (entitySetId, _) ->
+            logger.info("Generating secret key for $entitySetId.")
             cipherManager.assignSecretKey(entitySetId)
         }
 
