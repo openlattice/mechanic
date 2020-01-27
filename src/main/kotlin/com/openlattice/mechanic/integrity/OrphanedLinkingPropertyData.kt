@@ -73,7 +73,7 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
             var count = 0L
 
             BasePostgresIterable<Triple<UUID, UUID, UUID>>(
-                    StatementHolderSupplier(toolbox.hds, selectDeletableSql, LIMIT)
+                    StatementHolderSupplier(toolbox.hds, selectDeletableSql)
             ) { rs ->
                 Triple(ResultSetAdapters.id(rs), ResultSetAdapters.originId(rs), ResultSetAdapters.propertyTypeId(rs))
             }
