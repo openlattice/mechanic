@@ -33,6 +33,8 @@ import org.slf4j.LoggerFactory
 import java.util.*
 import java.util.concurrent.TimeUnit
 
+data class LinkedEntityRow(val linkingId: UUID, val originId: UUID, val propertyTypeId: UUID)
+
 class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
     companion object {
         private val logger = LoggerFactory.getLogger(OrphanedLinkingPropertyData::class.java)
@@ -72,16 +74,18 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
             sw.reset().start()
             var count = 0L
 
-            BasePostgresIterable<Triple<UUID, UUID, UUID>>(
+            BasePostgresIterable(
                     StatementHolderSupplier(toolbox.hds, selectDeletableSql)
             ) { rs ->
-                Triple(ResultSetAdapters.id(rs), ResultSetAdapters.originId(rs), ResultSetAdapters.propertyTypeId(rs))
+                LinkedEntityRow(
+                        ResultSetAdapters.id(rs), ResultSetAdapters.originId(rs), ResultSetAdapters.propertyTypeId(rs)
+                )
             }
-                    .groupBy { it.first }
+                    .groupBy { it.linkingId }
                     .forEach { (linkingId, deletablesOfLinkingId) ->
                         deletablesOfLinkingId
-                                .map { it.second to it.third }
-                                .groupBy { it.first }
+                                .map { it.originId to it.propertyTypeId }
+                                .groupBy { it.first } // originId
                                 .forEach { (originId, propertyTypeIdsByOriginId) ->
                                     count += toolbox.hds.connection.use { conn ->
                                         val propertyTypeIdsArr = PostgresArrays.createUuidArray(
