@@ -21,7 +21,7 @@ class ClearJSONOrganizationRoles(private val toolbox: Toolbox) : Upgrade {
 
         logger.info("About to clear roles for organizations")
 
-        organizations.executeOnKeys(organizations.keys, OrganizationEntryProcessor {
+        organizations.executeOnEntries(OrganizationEntryProcessor {
             it.roles.clear()
         })
 
