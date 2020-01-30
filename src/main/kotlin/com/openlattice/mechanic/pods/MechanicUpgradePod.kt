@@ -260,4 +260,9 @@ class MechanicUpgradePod {
     fun addPartitionsToOrgsAndEntitySets(): AddPartitionsToOrgsAndEntitySets {
         return AddPartitionsToOrgsAndEntitySets(toolbox)
     }
+
+    @Bean
+    fun clearJSONOrganizationRoles() : ClearJSONOrganizationRoles {
+        return ClearJSONOrganizationRoles(toolbox)
+    }
 }
