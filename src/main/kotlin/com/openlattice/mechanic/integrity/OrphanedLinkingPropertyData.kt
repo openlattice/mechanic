@@ -109,7 +109,8 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
     }
 
 
-    private val LIMIT = 3000
+    private val limitClear = 3000
+    private val limitDelete = 100
 
     // @formatter:off
     private val tombStoneSql =
@@ -120,7 +121,7 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
                 "WHERE " +
                     "${VERSION.name} < 0 " +
                     "AND ${ORIGIN_ID.name} = '${IdConstants.EMPTY_ORIGIN_ID.id}' " +
-                "LIMIT $LIMIT " +
+                "LIMIT $limitClear " +
             ") " +
             "UPDATE ${DATA.name} as d " +
             "SET " +
@@ -146,7 +147,7 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
                     ") " +
                 "AND ${VERSION.name} > 0 " +
                 "AND ${ORIGIN_ID.name} != '${IdConstants.EMPTY_ORIGIN_ID.id}' " +
-            "LIMIT $LIMIT"
+            "LIMIT $limitDelete"
 
     private val deleteSql =
             "DELETE FROM ${DATA.name} " +
