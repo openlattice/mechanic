@@ -84,13 +84,12 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
                     .groupBy { it.linkingId }
                     .forEach { (linkingId, deletablesOfLinkingId) ->
                         deletablesOfLinkingId
-                                .map { it.originId to it.propertyTypeId }
-                                .groupBy { it.first } // originId
-                                .forEach { (originId, propertyTypeIdsByOriginId) ->
+                                .groupBy { it.originId }
+                                .forEach { (originId, deletablesOfOriginId) ->
                                     count += toolbox.hds.connection.use { conn ->
                                         val propertyTypeIdsArr = PostgresArrays.createUuidArray(
                                                 conn,
-                                                propertyTypeIdsByOriginId.map { it.second }
+                                                deletablesOfOriginId.map { it.propertyTypeId }
                                         )
                                         conn.prepareStatement(deleteSql).use {
                                             it.setObject(1, linkingId)
