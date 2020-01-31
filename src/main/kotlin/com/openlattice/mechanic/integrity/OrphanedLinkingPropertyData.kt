@@ -22,12 +22,18 @@ package com.openlattice.mechanic.integrity
 
 import com.google.common.base.Stopwatch
 import com.openlattice.IdConstants
-import com.openlattice.data.DeleteType
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.postgres.PostgresArrays
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresTable.DATA
+import com.openlattice.postgres.ResultSetAdapters
+import com.openlattice.postgres.streams.BasePostgresIterable
+import com.openlattice.postgres.streams.StatementHolderSupplier
 import org.slf4j.LoggerFactory
+import java.util.*
 import java.util.concurrent.TimeUnit
+
+data class LinkedEntityRow(val linkingId: UUID, val originId: UUID, val propertyTypeId: UUID)
 
 class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
     companion object {
@@ -41,29 +47,69 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
     }
 
     private fun tombstoneOrphanedLinkingProperties() {
-        executeUpdate(tombStoneSql, DeleteType.Soft)
+        logger.info("Starting task to clear orphaned linking property types values.")
+        val sw = Stopwatch.createStarted()
+
+        do {
+            sw.reset().start()
+
+            val count = toolbox.hds.connection.use { conn ->
+                conn.createStatement().use {
+                    it.executeUpdate(tombStoneSql)
+                }
+            }
+
+            logger.info(
+                    "Cleared $count orphaned linking property types in ${DATA.name} table in " +
+                            "${sw.elapsed(TimeUnit.MILLISECONDS)} ms."
+            )
+        } while (count > 0)
     }
 
     private fun deleteOrphanedLinkingProperties() {
-        executeUpdate(deleteSql, DeleteType.Hard)
-    }
-
-    private fun executeUpdate(sql: String, deleteType: DeleteType) {
-        val deleteTypeStr1 = if (deleteType == DeleteType.Hard) "delete" else "clear"
-        val deleteTypeStr2 = if (deleteType == DeleteType.Hard) "Deleted" else "Cleared"
-
+        logger.info("Starting task to delete orphaned linking property types values.")
         val sw = Stopwatch.createStarted()
-        logger.info("Starting task to $deleteTypeStr1 orphaned linking property types values.")
-        val count = toolbox.hds.connection.use { conn ->
-            conn.createStatement().use {
-                it.executeUpdate(sql)
-            }
-        }
-        logger.info(
-                "$deleteTypeStr2 $count orphaned linking property types in ${DATA.name} table in " +
-                        "${sw.elapsed(TimeUnit.MILLISECONDS)} ms.")
 
+        do {
+            sw.reset().start()
+            var count = 0L
+
+            BasePostgresIterable(
+                    StatementHolderSupplier(toolbox.hds, selectDeletableSql)
+            ) { rs ->
+                LinkedEntityRow(
+                        ResultSetAdapters.id(rs), ResultSetAdapters.originId(rs), ResultSetAdapters.propertyTypeId(rs)
+                )
+            }
+                    .groupBy { it.linkingId }
+                    .forEach { (linkingId, deletablesOfLinkingId) ->
+                        deletablesOfLinkingId
+                                .groupBy { it.originId }
+                                .forEach { (originId, deletablesOfOriginId) ->
+                                    count += toolbox.hds.connection.use { conn ->
+                                        val propertyTypeIdsArr = PostgresArrays.createUuidArray(
+                                                conn,
+                                                deletablesOfOriginId.map { it.propertyTypeId }
+                                        )
+                                        conn.prepareStatement(deleteSql).use {
+                                            it.setObject(1, linkingId)
+                                            it.setObject(2, originId)
+                                            it.setArray(3, propertyTypeIdsArr)
+                                            it.executeUpdate()
+                                        }
+                                    }
+                                }
+                    }
+
+            logger.info(
+                    "Deleted $count orphaned linking property types in ${DATA.name} table in " +
+                            "${sw.elapsed(TimeUnit.MILLISECONDS)} ms."
+            )
+        } while (count > 0)
     }
+
+
+    private val LIMIT = 3000
 
     // @formatter:off
     private val tombStoneSql =
@@ -74,7 +120,8 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
                 "WHERE " +
                     "${VERSION.name} < 0 " +
                     "AND ${ORIGIN_ID.name} = '${IdConstants.EMPTY_ORIGIN_ID.id}' " +
-            ")" +
+                "LIMIT $LIMIT " +
+            ") " +
             "UPDATE ${DATA.name} as d " +
             "SET " +
                 "${VERSION.name} = actual_version, " +
@@ -85,11 +132,11 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
                 "d.${ORIGIN_ID.name} = cleared_entities.${ID.name} " +
                 "AND d.${PROPERTY_TYPE_ID.name} = cleared_entities.${PROPERTY_TYPE_ID.name} " +
                 "AND d.${VERSION.name} > 0 " +
-                "AND d.${ORIGIN_ID.name} != '${IdConstants.EMPTY_ORIGIN_ID.id}'"
+                "AND d.${ORIGIN_ID.name} != '${IdConstants.EMPTY_ORIGIN_ID.id}' "
 
 
-    private val deleteSql =
-            "DELETE FROM ${DATA.name} " +
+    private val selectDeletableSql =
+            "SELECT ${ID.name}, ${ORIGIN_ID.name}, ${PROPERTY_TYPE_ID.name} FROM ${DATA.name} " +
             "WHERE " +
                 "( ${ORIGIN_ID.name}, ${PROPERTY_TYPE_ID.name} ) NOT IN " +
                     "( " +
@@ -98,6 +145,11 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
                         "WHERE ${ORIGIN_ID.name} = '${IdConstants.EMPTY_ORIGIN_ID.id}' " +
                     ") " +
                 "AND ${VERSION.name} > 0 " +
-                "AND ${ORIGIN_ID.name} != '${IdConstants.EMPTY_ORIGIN_ID.id}' "
+                "AND ${ORIGIN_ID.name} != '${IdConstants.EMPTY_ORIGIN_ID.id}' " +
+            "LIMIT $LIMIT"
+
+    private val deleteSql =
+            "DELETE FROM ${DATA.name} " +
+            "WHERE ${ID.name} = ? AND ${ORIGIN_ID.name} = ? AND ${PROPERTY_TYPE_ID.name} = ANY( ? )"
     // @formatter:on
 }
