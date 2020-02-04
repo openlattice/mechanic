@@ -24,6 +24,7 @@ package com.openlattice.mechanic
 import com.google.common.base.Stopwatch
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
+import com.kryptnostic.rhizome.pods.ConfigurationLoader
 import com.openlattice.postgres.CitusDistributedTableDefinition
 import com.openlattice.postgres.PostgresTableDefinition
 import com.openlattice.postgres.PostgresTableManager
@@ -47,7 +48,8 @@ class Toolbox(
         etms: EntityTypeMapstore,
         internal val esms: EntitySetMapstore,
         val executor: ListeningExecutorService,
-        val hazelcast: HazelcastInstance
+        val hazelcast: HazelcastInstance,
+        val configurationLoader: ConfigurationLoader
 ) {
     companion object {
         private val logger = LoggerFactory.getLogger(Toolbox::class.java)
