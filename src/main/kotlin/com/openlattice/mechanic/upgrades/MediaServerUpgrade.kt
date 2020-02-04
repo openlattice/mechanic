@@ -5,8 +5,6 @@ import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.kryptnostic.rhizome.configuration.amazon.AmazonLaunchConfiguration
-import com.kryptnostic.rhizome.configuration.amazon.AwsLaunchConfiguration
-import com.openlattice.ResourceConfigurationLoader
 import com.openlattice.data.storage.ByteBlobDataManager
 import com.openlattice.data.storage.aws.AwsBlobDataService
 import com.openlattice.data.util.PostgresDataHasher
@@ -45,15 +43,7 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
     }
 
     private fun setUp() {
-        val awsConfig = ResourceConfigurationLoader
-                .loadConfigurationFromResource("aws.yaml", AwsLaunchConfiguration::class.java)
-        val s3 = newS3Client(awsConfig)
-        val config = ResourceConfigurationLoader.loadConfigurationFromS3(
-                s3,
-                awsConfig.bucket,
-                awsConfig.folder,
-                DatastoreConfiguration::class.java
-        )
+        val config = toolbox.configurationLoader.load(DatastoreConfiguration::class.java)
         val byteBlobDataManager = AwsBlobDataService(config, toolbox.executor)
         this.byteBlobDataManager = byteBlobDataManager
     }
