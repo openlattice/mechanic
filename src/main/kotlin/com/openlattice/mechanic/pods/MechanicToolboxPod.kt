@@ -2,6 +2,7 @@ package com.openlattice.mechanic.pods
 
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
+import com.kryptnostic.rhizome.pods.ConfigurationLoader
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresTableManager
@@ -35,6 +36,9 @@ class MechanicToolboxPod {
     @Inject
     private lateinit var hazelcastInstance: HazelcastInstance
 
+    @Inject
+    private lateinit var configurationLoader: ConfigurationLoader
+
 
     @Bean
     fun toolbox(): Toolbox {
@@ -45,7 +49,8 @@ class MechanicToolboxPod {
                 mapstoresPod.entityTypeMapstore() as EntityTypeMapstore,
                 mapstoresPod.entitySetMapstore() as EntitySetMapstore,
                 executor,
-                hazelcastInstance
+                hazelcastInstance,
+                configurationLoader
         )
     }
 }
