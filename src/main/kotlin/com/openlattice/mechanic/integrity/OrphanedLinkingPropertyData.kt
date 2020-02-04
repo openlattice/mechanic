@@ -28,6 +28,7 @@ import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresTable.DATA
 import com.openlattice.postgres.ResultSetAdapters
 import com.openlattice.postgres.streams.BasePostgresIterable
+import com.openlattice.postgres.streams.PreparedStatementHolderSupplier
 import com.openlattice.postgres.streams.StatementHolderSupplier
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -69,48 +70,76 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
     private fun deleteOrphanedLinkingProperties() {
         logger.info("Starting task to delete orphaned linking property types values.")
         val sw = Stopwatch.createStarted()
+        val swTotal = Stopwatch.createStarted()
+        var countTotal = 0L
 
-        do {
-            sw.reset().start()
-            var count = 0L
+        selectAllLinkingIds()
+                .asSequence()
+                .chunked(fetchDelete)
+                .forEachIndexed { batchNum, idsBatch ->
+                    sw.reset().start()
+                    var count = 0L
 
-            BasePostgresIterable(
-                    StatementHolderSupplier(toolbox.hds, selectDeletableSql)
-            ) { rs ->
-                LinkedEntityRow(
-                        ResultSetAdapters.id(rs), ResultSetAdapters.originId(rs), ResultSetAdapters.propertyTypeId(rs)
-                )
-            }
-                    .groupBy { it.linkingId }
-                    .forEach { (linkingId, deletablesOfLinkingId) ->
-                        deletablesOfLinkingId
-                                .groupBy { it.originId }
-                                .forEach { (originId, deletablesOfOriginId) ->
-                                    count += toolbox.hds.connection.use { conn ->
-                                        val propertyTypeIdsArr = PostgresArrays.createUuidArray(
-                                                conn,
-                                                deletablesOfOriginId.map { it.propertyTypeId }
-                                        )
-                                        conn.prepareStatement(deleteSql).use {
-                                            it.setObject(1, linkingId)
-                                            it.setObject(2, originId)
-                                            it.setArray(3, propertyTypeIdsArr)
-                                            it.executeUpdate()
-                                        }
-                                    }
-                                }
+                    val linkingIds = idsBatch.map { it.first }
+                    val originIds = idsBatch.flatMap { it.second }
+
+                    BasePostgresIterable(
+                            PreparedStatementHolderSupplier(toolbox.hds, selectDeletableSql) { ps ->
+                                val originIdsArray = PostgresArrays.createUuidArray(ps.connection, originIds)
+                                val linkingIdsArray = PostgresArrays.createUuidArray(ps.connection, linkingIds)
+                                ps.setArray(1, originIdsArray)
+                                ps.setArray(2, linkingIdsArray)
+                            }
+                    ) { rs ->
+                        LinkedEntityRow(
+                                ResultSetAdapters.id(rs),
+                                ResultSetAdapters.originId(rs),
+                                ResultSetAdapters.propertyTypeId(rs)
+                        )
                     }
+                            .groupBy { it.linkingId }
+                            .forEach { (linkingId, deletablesOfLinkingId) ->
+                                deletablesOfLinkingId
+                                        .groupBy { it.originId }
+                                        .forEach { (originId, deletablesOfOriginId) ->
+                                            count += toolbox.hds.connection.use { conn ->
+                                                val propertyTypeIdsArr = PostgresArrays.createUuidArray(
+                                                        conn,
+                                                        deletablesOfOriginId.map { it.propertyTypeId }
+                                                )
+                                                conn.prepareStatement(deleteSql).use {
+                                                    it.setObject(1, linkingId)
+                                                    it.setObject(2, originId)
+                                                    it.setArray(3, propertyTypeIdsArr)
+                                                    it.executeUpdate()
+                                                }
+                                            }
+                                        }
+                            }
 
-            logger.info(
-                    "Deleted $count orphaned linking property types in ${DATA.name} table in " +
-                            "${sw.elapsed(TimeUnit.MILLISECONDS)} ms."
-            )
-        } while (count > 0)
+                    countTotal += count
+
+                    logger.info(
+                            "Batch number $batchNum: Deleted $count orphaned linking property types from " +
+                                    "${DATA.name} table in ${sw.elapsed(TimeUnit.MILLISECONDS)} ms."
+                    )
+                }
+
+        logger.info(
+                "Finished task to delete orphaned linking property types values. Deleted $countTotal total orphaned " +
+                        "linking property types in ${swTotal.elapsed(TimeUnit.MILLISECONDS)} ms."
+        )
+    }
+
+    private fun selectAllLinkingIds(): BasePostgresIterable<Pair<UUID, Set<UUID>>> {
+        return BasePostgresIterable(
+                StatementHolderSupplier(toolbox.hds, selectAllLinkingIds, fetchDelete)
+        ) { rs -> ResultSetAdapters.id(rs) to ResultSetAdapters.entityKeyIds(rs) }
     }
 
 
     private val limitClear = 3000
-    private val limitDelete = 100
+    private val fetchDelete = 3000
 
     // @formatter:off
     private val tombStoneSql =
@@ -136,6 +165,14 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
                 "AND d.${ORIGIN_ID.name} != '${IdConstants.EMPTY_ORIGIN_ID.id}' "
 
 
+    private val selectAllLinkingIds =
+            "SELECT DISTINCT ${ID.name}, array_agg( DISTINCT ${ORIGIN_ID.name} ) AS ${ENTITY_KEY_IDS_COL.name} " +
+            "FROM ${DATA.name} " +
+            "WHERE " +
+                "${ORIGIN_ID.name} != '${IdConstants.EMPTY_ORIGIN_ID.id}' " +
+                "AND ${VERSION.name} > 0 " +
+            "GROUP BY ${ID.name} "
+
     private val selectDeletableSql =
             "SELECT ${ID.name}, ${ORIGIN_ID.name}, ${PROPERTY_TYPE_ID.name} FROM ${DATA.name} " +
             "WHERE " +
@@ -144,10 +181,12 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
                         "SELECT ${ID.name}, ${PROPERTY_TYPE_ID.name} " +
                         "FROM ${DATA.name} " +
                         "WHERE ${ORIGIN_ID.name} = '${IdConstants.EMPTY_ORIGIN_ID.id}' " +
+                            "AND ${ID.name} = ANY( ? ) " +
+                            "AND ${VERSION.name} > 0 "+
                     ") " +
+                "AND ${ID.name} = ANY( ? ) " +
                 "AND ${VERSION.name} > 0 " +
-                "AND ${ORIGIN_ID.name} != '${IdConstants.EMPTY_ORIGIN_ID.id}' " +
-            "LIMIT $limitDelete"
+                "AND ${ORIGIN_ID.name} != '${IdConstants.EMPTY_ORIGIN_ID.id}' "
 
     private val deleteSql =
             "DELETE FROM ${DATA.name} " +
