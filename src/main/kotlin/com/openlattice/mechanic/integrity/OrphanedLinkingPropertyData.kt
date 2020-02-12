@@ -35,6 +35,7 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 
 data class LinkedEntityRow(val linkingId: UUID, val originId: UUID, val propertyTypeId: UUID)
+data class LinkedEntityMetaData(val originIds: Set<UUID>, val entitySetIds: Set<UUID>, val partitions: Set<Int>)
 
 class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
     companion object {
@@ -81,14 +82,22 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
                     var count = 0L
 
                     val linkingIds = idsBatch.map { it.first }
-                    val originIds = idsBatch.flatMap { it.second }
+                    val originIds = idsBatch.flatMap { it.second.originIds }
+                    val entitySetIds = idsBatch.flatMap { it.second.entitySetIds }
+                    val partitions = idsBatch.flatMap { it.second.partitions }
 
                     BasePostgresIterable(
                             PreparedStatementHolderSupplier(toolbox.hds, selectDeletableSql) { ps ->
                                 val originIdsArray = PostgresArrays.createUuidArray(ps.connection, originIds)
+                                val entitySetIdsArray = PostgresArrays.createUuidArray(ps.connection, entitySetIds)
                                 val linkingIdsArray = PostgresArrays.createUuidArray(ps.connection, linkingIds)
+                                val partitionsArray = PostgresArrays.createIntArray(ps.connection, partitions)
                                 ps.setArray(1, originIdsArray)
-                                ps.setArray(2, linkingIdsArray)
+                                ps.setArray(2, entitySetIdsArray)
+                                ps.setArray(3, linkingIdsArray)
+                                ps.setArray(4, originIdsArray)
+                                ps.setArray(5, entitySetIdsArray)
+                                ps.setArray(6, partitionsArray)
                             }
                     ) { rs ->
                         LinkedEntityRow(
@@ -131,10 +140,17 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
         )
     }
 
-    private fun selectAllLinkingIds(): BasePostgresIterable<Pair<UUID, Set<UUID>>> {
+    private fun selectAllLinkingIds(): BasePostgresIterable<Pair<UUID, LinkedEntityMetaData>> {
         return BasePostgresIterable(
                 StatementHolderSupplier(toolbox.hds, selectAllLinkingIds, fetchDelete)
-        ) { rs -> ResultSetAdapters.id(rs) to ResultSetAdapters.entityKeyIds(rs) }
+        ) { rs ->
+            ResultSetAdapters.id(rs) to
+                    LinkedEntityMetaData(
+                            ResultSetAdapters.entityKeyIds(rs),
+                            ResultSetAdapters.entitySetIds(rs),
+                            ResultSetAdapters.partitions(rs).toSet()
+                    )
+        }
     }
 
 
@@ -166,7 +182,10 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
 
 
     private val selectAllLinkingIds =
-            "SELECT DISTINCT ${ID.name}, array_agg( DISTINCT ${ORIGIN_ID.name} ) AS ${ENTITY_KEY_IDS_COL.name} " +
+            "SELECT DISTINCT ${ID.name}, " +
+                    "array_agg( DISTINCT ${ORIGIN_ID.name} ) AS ${ENTITY_KEY_IDS_COL.name}, " +
+                    "array_agg( DISTINCT ${ENTITY_SET_ID.name} ) AS ${ENTITY_SET_IDS.name}, " +
+                    "array_agg( DISTINCT ${PARTITION.name} ) AS ${PARTITIONS.name} " +
             "FROM ${DATA.name} " +
             "WHERE " +
                 "${ORIGIN_ID.name} != '${IdConstants.EMPTY_ORIGIN_ID.id}' " +
@@ -182,9 +201,13 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
                         "FROM ${DATA.name} " +
                         "WHERE ${ORIGIN_ID.name} = '${IdConstants.EMPTY_ORIGIN_ID.id}' " +
                             "AND ${ID.name} = ANY( ? ) " +
-                            "AND ${VERSION.name} > 0 "+
+                            "AND ${ENTITY_SET_ID.name} = ANY( ? ) " +
+                            "AND ${VERSION.name} > 0 " +
                     ") " +
                 "AND ${ID.name} = ANY( ? ) " +
+                "AND ${ORIGIN_ID.name} = ANY( ? ) " +
+                "AND ${ENTITY_SET_ID.name} = ANY( ? ) " +
+                "AND ${PARTITION.name} = ANY( ? ) " +
                 "AND ${VERSION.name} > 0 " +
                 "AND ${ORIGIN_ID.name} != '${IdConstants.EMPTY_ORIGIN_ID.id}' "
 
