@@ -35,7 +35,7 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 
 data class LinkedEntityRow(val linkingId: UUID, val originId: UUID, val propertyTypeId: UUID)
-data class LinkedEntityMetaData(val originIds: Set<UUID>, val entitySetIds: Set<UUID>, val partitions: Set<Int>)
+data class LinkedEntityMetaData(val linkingId: UUID, val originId: UUID, val entitySetId: UUID, val partition: Int)
 
 class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
     companion object {
@@ -81,50 +81,54 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
                     sw.reset().start()
                     var count = 0L
 
-                    val linkingIds = idsBatch.map { it.first }
-                    val originIds = idsBatch.flatMap { it.second.originIds }
-                    val entitySetIds = idsBatch.flatMap { it.second.entitySetIds }
-                    val partitions = idsBatch.flatMap { it.second.partitions }
+                    idsBatch.groupBy { it.partition }.forEach {
 
-                    BasePostgresIterable(
-                            PreparedStatementHolderSupplier(toolbox.hds, selectDeletableSql) { ps ->
-                                val originIdsArray = PostgresArrays.createUuidArray(ps.connection, originIds)
-                                val entitySetIdsArray = PostgresArrays.createUuidArray(ps.connection, entitySetIds)
-                                val linkingIdsArray = PostgresArrays.createUuidArray(ps.connection, linkingIds)
-                                val partitionsArray = PostgresArrays.createIntArray(ps.connection, partitions)
-                                ps.setArray(1, originIdsArray)
-                                ps.setArray(2, entitySetIdsArray)
-                                ps.setArray(3, linkingIdsArray)
-                                ps.setArray(4, originIdsArray)
-                                ps.setArray(5, entitySetIdsArray)
-                                ps.setArray(6, partitionsArray)
-                            }
-                    ) { rs ->
-                        LinkedEntityRow(
-                                ResultSetAdapters.id(rs),
-                                ResultSetAdapters.originId(rs),
-                                ResultSetAdapters.propertyTypeId(rs)
-                        )
-                    }
-                            .groupBy { it.linkingId }
-                            .forEach { (linkingId, deletablesOfLinkingId) ->
-                                deletablesOfLinkingId
-                                        .groupBy { it.originId }
-                                        .forEach { (originId, deletablesOfOriginId) ->
-                                            count += toolbox.hds.connection.use { conn ->
-                                                val propertyTypeIdsArr = PostgresArrays.createUuidArray(
-                                                        conn,
-                                                        deletablesOfOriginId.map { it.propertyTypeId }
-                                                )
-                                                conn.prepareStatement(deleteSql).use {
-                                                    it.setObject(1, linkingId)
-                                                    it.setObject(2, originId)
-                                                    it.setArray(3, propertyTypeIdsArr)
-                                                    it.executeUpdate()
+                        val linkingIds = it.value.map { it.linkingId }.toSet()
+                        val originIds = it.value.map { it.originId }.toSet()
+                        val entitySetIds = it.value.map { it.entitySetId }.toSet()
+                        val partition = it.key
+
+                        BasePostgresIterable(
+                                PreparedStatementHolderSupplier(toolbox.hds, selectDeletableSql) { ps ->
+                                    val originIdsArray = PostgresArrays.createUuidArray(ps.connection, originIds)
+                                    val entitySetIdsArray = PostgresArrays.createUuidArray(ps.connection, entitySetIds)
+                                    val linkingIdsArray = PostgresArrays.createUuidArray(ps.connection, linkingIds)
+
+                                    ps.setArray(1, originIdsArray)
+                                    ps.setArray(2, entitySetIdsArray)
+                                    ps.setArray(3, linkingIdsArray)
+                                    ps.setArray(4, originIdsArray)
+                                    ps.setArray(5, entitySetIdsArray)
+                                    ps.setInt(6, partition)
+                                }
+                        ) { rs ->
+                            LinkedEntityRow(
+                                    ResultSetAdapters.id(rs),
+                                    ResultSetAdapters.originId(rs),
+                                    ResultSetAdapters.propertyTypeId(rs)
+                            )
+                        }
+                                .groupBy { it.linkingId }
+                                .forEach { (linkingId, deletablesOfLinkingId) ->
+                                    deletablesOfLinkingId
+                                            .groupBy { it.originId }
+                                            .forEach { (originId, deletablesOfOriginId) ->
+                                                count += toolbox.hds.connection.use { conn ->
+                                                    val propertyTypeIdsArr = PostgresArrays.createUuidArray(
+                                                            conn,
+                                                            deletablesOfOriginId.map { it.propertyTypeId }
+                                                    )
+                                                    conn.prepareStatement(deleteSql).use {
+                                                        it.setObject(1, linkingId)
+                                                        it.setObject(2, originId)
+                                                        it.setInt(3, partition) // same partition
+                                                        it.setArray(4, propertyTypeIdsArr)
+                                                        it.executeUpdate()
+                                                    }
                                                 }
                                             }
-                                        }
-                            }
+                                }
+                    }
 
                     countTotal += count
 
@@ -140,16 +144,16 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
         )
     }
 
-    private fun selectAllLinkingIds(): BasePostgresIterable<Pair<UUID, LinkedEntityMetaData>> {
+    private fun selectAllLinkingIds(): BasePostgresIterable<LinkedEntityMetaData> {
         return BasePostgresIterable(
                 StatementHolderSupplier(toolbox.hds, selectAllLinkingIds, fetchDelete)
         ) { rs ->
-            ResultSetAdapters.id(rs) to
-                    LinkedEntityMetaData(
-                            ResultSetAdapters.entityKeyIds(rs),
-                            ResultSetAdapters.entitySetIds(rs),
-                            ResultSetAdapters.partitions(rs).toSet()
-                    )
+            LinkedEntityMetaData(
+                    ResultSetAdapters.id(rs),
+                    ResultSetAdapters.originId(rs),
+                    ResultSetAdapters.entitySetId(rs),
+                    ResultSetAdapters.partition(rs)
+            )
         }
     }
 
@@ -182,18 +186,15 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
 
 
     private val selectAllLinkingIds =
-            "SELECT DISTINCT ${ID.name}, " +
-                    "array_agg( DISTINCT ${ORIGIN_ID.name} ) AS ${ENTITY_KEY_IDS_COL.name}, " +
-                    "array_agg( DISTINCT ${ENTITY_SET_ID.name} ) AS ${ENTITY_SET_IDS.name}, " +
-                    "array_agg( DISTINCT ${PARTITION.name} ) AS ${PARTITIONS.name} " +
+            "SELECT ${ID.name}, ${ORIGIN_ID.name}, ${ENTITY_SET_ID.name}, ${PARTITION.name} " +
             "FROM ${DATA.name} " +
             "WHERE " +
                 "${ORIGIN_ID.name} != '${IdConstants.EMPTY_ORIGIN_ID.id}' " +
-                "AND ${VERSION.name} > 0 " +
-            "GROUP BY ${ID.name} "
+                "AND ${VERSION.name} > 0 "
 
     private val selectDeletableSql =
-            "SELECT ${ID.name}, ${ORIGIN_ID.name}, ${PROPERTY_TYPE_ID.name} FROM ${DATA.name} " +
+            "SELECT ${ID.name}, ${ORIGIN_ID.name}, ${PROPERTY_TYPE_ID.name} " +
+            "FROM ${DATA.name} " +
             "WHERE " +
                 "( ${ORIGIN_ID.name}, ${PROPERTY_TYPE_ID.name} ) NOT IN " +
                     "( " +
@@ -207,12 +208,15 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
                 "AND ${ID.name} = ANY( ? ) " +
                 "AND ${ORIGIN_ID.name} = ANY( ? ) " +
                 "AND ${ENTITY_SET_ID.name} = ANY( ? ) " +
-                "AND ${PARTITION.name} = ANY( ? ) " +
+                "AND ${PARTITION.name} = ? " +
                 "AND ${VERSION.name} > 0 " +
                 "AND ${ORIGIN_ID.name} != '${IdConstants.EMPTY_ORIGIN_ID.id}' "
 
     private val deleteSql =
             "DELETE FROM ${DATA.name} " +
-            "WHERE ${ID.name} = ? AND ${ORIGIN_ID.name} = ? AND ${PROPERTY_TYPE_ID.name} = ANY( ? )"
+            "WHERE ${ID.name} = ? " +
+                    "AND ${ORIGIN_ID.name} = ? " +
+                    "AND ${PARTITION.name} = ? " +
+                    "AND ${PROPERTY_TYPE_ID.name} = ANY( ? )"
     // @formatter:on
 }
