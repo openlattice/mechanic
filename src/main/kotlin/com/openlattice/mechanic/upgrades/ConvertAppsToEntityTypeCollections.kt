@@ -21,6 +21,7 @@ import com.openlattice.mechanic.pods.legacy.AppType
 import com.openlattice.mechanic.pods.legacy.LegacyApp
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresTable.APPS
+import com.openlattice.postgres.PostgresTable.APP_CONFIGS
 import com.openlattice.postgres.ResultSetAdapters
 import com.openlattice.postgres.mapstores.AppConfigMapstore
 import com.openlattice.postgres.streams.BasePostgresIterable
@@ -34,6 +35,8 @@ import kotlin.collections.LinkedHashSet
 
 private val SET_NEW_APP_FIELDS_SQL = "UPDATE ${APPS.name} SET ${ENTITY_TYPE_COLLECTION_ID.name} = ?, ${ROLES.name} = ?::jsonb WHERE ${ID.name} = ?"
 
+/** This update should be run *after* the UpdateAppTables upgrade has run **/
+
 class ConvertAppsToEntityTypeCollections(
         private val toolbox: Toolbox,
         private val eventBus: EventBus
@@ -42,8 +45,6 @@ class ConvertAppsToEntityTypeCollections(
     val hazelcast = toolbox.hazelcast
 
     val organizations = HazelcastMap.ORGANIZATIONS.getMap(hazelcast)
-
-    val appConfigs = HazelcastMap.APP_CONFIGS.getMap(hazelcast)
 
     val entityTypeCollections = HazelcastMap.ENTITY_TYPE_COLLECTIONS.getMap(hazelcast)
     val entitySetCollections = HazelcastMap.ENTITY_SET_COLLECTIONS.getMap(hazelcast)
@@ -245,7 +246,7 @@ class ConvertAppsToEntityTypeCollections(
     }
 
     private fun getLegacyApps(): List<LegacyApp> {
-        val sql = "SELECT * FROM apps"
+        val sql = "SELECT * FROM ${APPS.name}"
 
         return BasePostgresIterable(StatementHolderSupplier(toolbox.hds, sql)) {
             LegacyApp(
@@ -261,7 +262,7 @@ class ConvertAppsToEntityTypeCollections(
 
     // appId -> [ <orgId, appTypeId, entitySetId> ]
     private fun getLegacyAppConfigs(): Map<UUID, List<Triple<UUID, UUID, UUID>>> {
-        val sql = "SELECT * FROM app_configs"
+        val sql = "SELECT * FROM ${APP_CONFIGS.name}_legacy"
 
         return BasePostgresIterable(StatementHolderSupplier(toolbox.hds, sql)) {
             Pair(
