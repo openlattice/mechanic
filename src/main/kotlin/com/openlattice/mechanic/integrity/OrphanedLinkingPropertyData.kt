@@ -75,13 +75,14 @@ class OrphanedLinkingPropertyData(private val toolbox: Toolbox) : Check {
         var countTotal = 0L
 
         selectAllLinkingIds()
+                .groupBy { it.partition }
                 .asSequence()
                 .chunked(fetchDelete)
-                .forEachIndexed { batchNum, idsBatch ->
+                .forEachIndexed { batchNum, idsBatchByPartition ->
                     sw.reset().start()
                     var count = 0L
 
-                    idsBatch.groupBy { it.partition }.forEach {
+                    idsBatchByPartition.forEach {
 
                         val linkingIds = it.value.map { it.linkingId }.toSet()
                         val originIds = it.value.map { it.originId }.toSet()
