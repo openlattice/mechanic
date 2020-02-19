@@ -61,7 +61,7 @@ class OrphanedEdgesChecks(private val toolbox: Toolbox) : Check {
         sw.reset().start()
         logger.info("Starting job to delete edges, whose src, edge or dst entities are non-existent anymore.")
 
-        val deleteEntitiesCount = toolbox.entitySets.map { esId ->
+        val deleteEntitiesCount = toolbox.entitySets.keys.map { esId ->
             logger.info("Starting to delete edges from entity set {}.", esId)
             val count = toolbox.hds.connection.use { conn ->
                 conn.prepareStatement(deleteOrphanedEdgesOfEntitySet).use {
@@ -90,20 +90,21 @@ class OrphanedEdgesChecks(private val toolbox: Toolbox) : Check {
         return true
     }
 
+    // @formatter:off
     private val entitySetIds = "SELECT ${ID.name} FROM ${ENTITY_SETS.name}"
-
-    private val deleteOrphanedEdges = "WITH entitySetIds AS ( $entitySetIds ) " +
+    private val deleteOrphanedEdges =
+            "WITH entitySetIds AS ( $entitySetIds ) " +
             "DELETE FROM ${E.name} " +
-            "WHERE ( ${SRC_ENTITY_SET_ID.name} NOT IN $entitySetIds ) " +
-            "OR ( ${DST_ENTITY_SET_ID.name} = NOT IN $entitySetIds ) " +
-            "OR ( ${EDGE_ENTITY_SET_ID.name} = NOT IN $entitySetIds )"
+            "WHERE ( ${SRC_ENTITY_SET_ID.name} NOT IN ( SELECT ${ID.name} FROM entitySetIds ) ) " +
+                "OR ( ${DST_ENTITY_SET_ID.name} NOT IN ( SELECT ${ID.name} FROM entitySetIds ) ) " +
+                "OR ( ${EDGE_ENTITY_SET_ID.name} NOT IN ( SELECT ${ID.name} FROM entitySetIds ) )"
 
     private val idsOfEntitySet = "SELECT ${ID.name} FROM ${IDS.name} WHERE ${ENTITY_SET_ID.name} = ?"
-
-    private val deleteOrphanedEdgesOfEntitySet = "WITH idsOfEntitySet AS ( $idsOfEntitySet ) " +
+    private val deleteOrphanedEdgesOfEntitySet =
+            "WITH idsOfEntitySet AS ( $idsOfEntitySet ) " +
             "DELETE FROM ${E.name} " +
-            "WHERE ( ${SRC_ENTITY_SET_ID.name} = ? AND ${SRC_ENTITY_KEY_ID.name} NOT IN $idsOfEntitySet ) " +
-            "OR ( ${DST_ENTITY_SET_ID.name} = ? AND ${DST_ENTITY_KEY_ID.name} NOT IN $idsOfEntitySet ) " +
-            "OR ( ${EDGE_ENTITY_SET_ID.name} = ? AND ${EDGE_ENTITY_KEY_ID.name} NOT IN $idsOfEntitySet )"
-
+            "WHERE ( ${SRC_ENTITY_SET_ID.name} = ? AND ${SRC_ENTITY_KEY_ID.name} NOT IN ( SELECT  ${ID.name} FROM idsOfEntitySet ) ) " +
+                "OR ( ${DST_ENTITY_SET_ID.name} = ? AND ${DST_ENTITY_KEY_ID.name} NOT IN ( SELECT  ${ID.name} FROM idsOfEntitySet ) ) " +
+                "OR ( ${EDGE_ENTITY_SET_ID.name} = ? AND ${EDGE_ENTITY_KEY_ID.name} NOT IN ( SELECT  ${ID.name} FROM idsOfEntitySet ) )"
+    // @formatter:on
 }
