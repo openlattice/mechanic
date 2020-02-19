@@ -90,7 +90,7 @@ class OrphanedEdgesChecks(private val toolbox: Toolbox) : Check {
         return true
     }
 
-    private val entitySetIds = "SELECT ${ID.name} FROM $ENTITY_SETS"
+    private val entitySetIds = "SELECT ${ID.name} FROM ${ENTITY_SETS.name}"
 
     private val deleteOrphanedEdges = "WITH entitySetIds AS ( $entitySetIds ) " +
             "DELETE FROM ${E.name} " +
@@ -98,7 +98,7 @@ class OrphanedEdgesChecks(private val toolbox: Toolbox) : Check {
             "OR ( ${DST_ENTITY_SET_ID.name} = NOT IN $entitySetIds ) " +
             "OR ( ${EDGE_ENTITY_SET_ID.name} = NOT IN $entitySetIds )"
 
-    private val idsOfEntitySet = "SELECT ${ID.name} FROM $IDS WHERE ${ENTITY_SET_ID.name} = ?"
+    private val idsOfEntitySet = "SELECT ${ID.name} FROM ${IDS.name} WHERE ${ENTITY_SET_ID.name} = ?"
 
     private val deleteOrphanedEdgesOfEntitySet = "WITH idsOfEntitySet AS ( $idsOfEntitySet ) " +
             "DELETE FROM ${E.name} " +
