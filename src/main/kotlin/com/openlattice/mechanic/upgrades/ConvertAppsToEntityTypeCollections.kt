@@ -79,7 +79,7 @@ class ConvertAppsToEntityTypeCollections(
          * 4) create new app configs
          *
          * **/
-        getLegacyApps().forEach { migrateApp(it, getAppTypesForApp(it, appTypes), appConfigs.getValue(it.id)) }
+        getLegacyApps().forEach { migrateApp(it, getAppTypesForApp(it, appTypes), appConfigs.getOrDefault(it.id, listOf())) }
 
         return true
     }
