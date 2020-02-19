@@ -229,34 +229,37 @@ class ConvertAppsToEntityTypeCollections(
             )
 
             /** map roles **/
-            val mappedRoles = appRoles.associate { appRole ->
+            val mappedRoles = appRoles.filter { appRole ->
+                reservations.isReserved("$orgId|${appRole.name}")
+            }.associate { appRole ->
                 val orgAppRoleName = "$orgId|${appRole.name}"
                 val roleId = reservations.getId(orgAppRoleName)
 
                 appRole.id!! to AclKey(orgId, roleId)
             }.toMutableMap()
 
-            /** create entity set collection **/
-            reservations.reserveIdAndValidateType(entitySetCollection, entitySetCollection::name)
-            entitySetCollections[entitySetCollection.id] = entitySetCollection
+                /** create entity set collection **/
+                reservations.reserveIdAndValidateType(entitySetCollection, entitySetCollection::name)
+                entitySetCollections[entitySetCollection.id] = entitySetCollection
 
-            /** create entity set collection mappings **/
-            entitySetCollectionsConfig.putAll(entitySetCollection.template.entries.associate { CollectionTemplateKey(entitySetCollection.id, it.key) to it.value })
+                /** create entity set collection mappings **/
+                entitySetCollectionsConfig.putAll(entitySetCollection.template.entries.associate { CollectionTemplateKey(entitySetCollection.id, it.key) to it.value })
 
-            /** grant permissions on entity set collection to organization owners **/
-            authorizations.setSecurableObjectType(AclKey(entitySetCollection.id), SecurableObjectType.EntitySetCollection)
-            authorizations.addPermissions(listOf(
-                    Acl(
-                            AclKey(entitySetCollection.id),
-                            orgOwners[AclKey(orgId)].map { Ace(it, EnumSet.allOf(Permission::class.java)) }.toList()
-                    )
-            ))
+                /** grant permissions on entity set collection to organization owners **/
+                authorizations.setSecurableObjectType(AclKey(entitySetCollection.id), SecurableObjectType.EntitySetCollection)
+                authorizations.addPermissions(listOf(
+                        Acl(
+                                AclKey(entitySetCollection.id),
+                                orgOwners[AclKey(orgId)].map { Ace(it, EnumSet.allOf(Permission::class.java)) }.toList()
+                        )
+                ))
 
-            /** trigger indexing **/
-            eventBus.post(EntitySetCollectionCreatedEvent(entitySetCollection))
+                /** trigger indexing **/
+                eventBus.post(EntitySetCollectionCreatedEvent(entitySetCollection))
 
-            /** create app config **/
-            appConfigs[AppConfigKey(appId, orgId)] = AppTypeSetting(UUID.randomUUID(), entitySetCollection.id, mappedRoles, mutableMapOf())
+                /** create app config **/
+                appConfigs[AppConfigKey(appId, orgId)] = AppTypeSetting(UUID.randomUUID(), entitySetCollection.id, mappedRoles, mutableMapOf())
+            }
         }
 
     }
