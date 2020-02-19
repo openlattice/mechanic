@@ -3,11 +3,12 @@ package com.openlattice.mechanic.upgrades
 import com.dataloom.mappers.ObjectMappers
 import com.google.common.collect.ImmutableSet
 import com.google.common.eventbus.EventBus
-import com.hazelcast.query.Predicates
-import com.openlattice.apps.App
+import com.openlattice.apps.AppConfigKey
 import com.openlattice.apps.AppRole
-import com.openlattice.apps.historical.HistoricalAppConfig
+import com.openlattice.apps.AppTypeSetting
+import com.openlattice.apps.processors.AddRoleToAppConfigProcessor
 import com.openlattice.authorization.*
+import com.openlattice.authorization.securable.AbstractSecurableObject
 import com.openlattice.authorization.securable.SecurableObjectType
 import com.openlattice.collections.CollectionTemplateKey
 import com.openlattice.collections.CollectionTemplateType
@@ -23,11 +24,9 @@ import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresTable.APPS
 import com.openlattice.postgres.PostgresTable.APP_CONFIGS
 import com.openlattice.postgres.ResultSetAdapters
-import com.openlattice.postgres.mapstores.AppConfigMapstore
 import com.openlattice.postgres.streams.BasePostgresIterable
 import com.openlattice.postgres.streams.StatementHolderSupplier
 import org.apache.olingo.commons.api.edm.FullQualifiedName
-import org.nd4j.linalg.primitives.Quad
 import org.slf4j.LoggerFactory
 import java.util.*
 import java.util.stream.Collectors
@@ -46,6 +45,7 @@ class ConvertAppsToEntityTypeCollections(
 
     val organizations = HazelcastMap.ORGANIZATIONS.getMap(hazelcast)
 
+    val appConfigs = HazelcastMap.APP_CONFIGS.getMap(hazelcast)
     val entityTypeCollections = HazelcastMap.ENTITY_TYPE_COLLECTIONS.getMap(hazelcast)
     val entitySetCollections = HazelcastMap.ENTITY_SET_COLLECTIONS.getMap(hazelcast)
     val entitySetCollectionsConfig = HazelcastMap.ENTITY_SET_COLLECTION_CONFIG.getMap(hazelcast)
@@ -59,14 +59,28 @@ class ConvertAppsToEntityTypeCollections(
     companion object {
         private val logger = LoggerFactory.getLogger(ConvertAppsToEntityTypeCollections::class.java)
         private val mapper = ObjectMappers.getJsonMapper()
+
+        private val DEFAULT_ROLE_PERMISSIONS = EnumSet.of(Permission.READ, Permission.WRITE, Permission.OWNER)
     }
 
+    /** We assume the apps and app_configs tables have already been udpated **/
     override fun upgrade(): Boolean {
-        alterAppsTable()
 
+        /** Load legacy appTypes from old app_types table **/
         val appTypes = getAppTypes()
+
+        /** Load legacy app configs, mapping appId -> List<(orgId, appTypeId, entitySetId)> **/
         val appConfigs = getLegacyAppConfigs()
 
+        /**
+         * For each app:
+         *
+         * 1) convert app to EntityTypeCollection
+         * 2) convert all its configs to EntitySetCollections
+         * 3) create mappings for existing roles
+         * 4) create new app configs
+         *
+         * **/
         getLegacyApps().forEach { migrateApp(it, getAppTypesForApp(it, appTypes), appConfigs.getValue(it.id)) }
 
         return true
@@ -80,26 +94,21 @@ class ConvertAppsToEntityTypeCollections(
         return Version.V2019_07_01.value
     }
 
-    private fun alterAppsTable() {
-        val sql = "ALTER TABLE ${APPS.name} " +
-                "ADD COLUMN ${ENTITY_TYPE_COLLECTION_ID.sql()}, " +
-                "ADD COLUMN ${ROLES.sql()}, " +
-                "ADD COLUMN ${SETTINGS.sql()}"
-
-        toolbox.hds.connection.use {
-            it.createStatement().use { stmt ->
-                stmt.execute(sql)
-            }
-        }
-    }
-
+    /**
+     *
+     * 1) convert app to EntityTypeCollection
+     * 2) convert all its configs to EntitySetCollections
+     * 3) create mappings for existing roles
+     * 4) create new app configs
+     *
+     * **/
     private fun migrateApp(app: LegacyApp, appTypes: Map<UUID, AppType>, appConfigs: List<Triple<UUID, UUID, UUID>>) {
 
         val entityTypeCollection = createEntityTypeCollectionForApp(app, appTypes)
 
-        updateAppFields(app, entityTypeCollection)
+        val appRoles = createAppRolesAndEntityTypeCollectionId(app, entityTypeCollection)
 
-        migrateAppConfigToEntitySetCollections(app, appTypes, appConfigs, entityTypeCollection)
+        migrateAppConfigsToEntitySetCollections(app, appTypes, appRoles, appConfigs, entityTypeCollection)
 
     }
 
@@ -140,7 +149,7 @@ class ConvertAppsToEntityTypeCollections(
         return entityTypeCollection
     }
 
-    private fun updateAppFields(app: LegacyApp, entityTypeCollection: EntityTypeCollection) {
+    private fun createAppRolesAndEntityTypeCollectionId(app: LegacyApp, entityTypeCollection: EntityTypeCollection): List<AppRole> {
 
         logger.info("About to update entityTypeCollectionId and roles fields for app ${app.name}")
 
@@ -149,11 +158,12 @@ class ConvertAppsToEntityTypeCollections(
             entityTypesAndPropertyTypes[it.entityTypeId] = Optional.of(toolbox.entityTypes.getValue(it.entityTypeId).properties)
         }
 
-        val roles = EnumSet.of(Permission.READ, Permission.WRITE, Permission.OWNER).map {
+        val roles = DEFAULT_ROLE_PERMISSIONS.map {
+            val roleTitle = "${app.title} - $it"
             AppRole(
                     UUID.randomUUID(),
-                    "${app.title} - $it",
-                    "${app.title} - $it",
+                    roleTitle,
+                    roleTitle,
                     "$it permission for ${app.title} app",
                     mapOf(it to entityTypesAndPropertyTypes)
             )
@@ -167,9 +177,17 @@ class ConvertAppsToEntityTypeCollections(
         }
 
         logger.info("Finished updating fields for app ${app.name}")
+
+        return roles
     }
 
-    private fun migrateAppConfigToEntitySetCollections(app: LegacyApp, appTypes: Map<UUID, AppType>, appConfigs: List<Triple<UUID, UUID, UUID>>, entityTypeCollection: EntityTypeCollection) {
+    private fun migrateAppConfigsToEntitySetCollections(
+            app: LegacyApp,
+            appTypes: Map<UUID, AppType>,
+            appRoles: List<AppRole>,
+            appConfigsToMigrate: List<Triple<UUID, UUID, UUID>>,
+            entityTypeCollection: EntityTypeCollection
+    ) {
 
         val appId = app.id
 
@@ -181,7 +199,7 @@ class ConvertAppsToEntityTypeCollections(
 
         val templatesByOrg = mutableMapOf<UUID, MutableMap<UUID, UUID>>()
 
-        appConfigs.forEach {
+        appConfigsToMigrate.forEach {
             val orgId = it.first
             val templateTypeId = appTypeIdsToTemplateTypeIds.getValue(it.second)
             val entitySetId = it.third
@@ -208,13 +226,22 @@ class ConvertAppsToEntityTypeCollections(
                     orgId
             )
 
-            // TODO role mapping
+            /** map roles **/
+            val mappedRoles = appRoles.associate { appRole ->
+                val orgAppRoleName = "$orgId|${appRole.name}"
+                val roleId = reservations.getId(orgAppRoleName)
 
+                appRole.id!! to AclKey(orgId, roleId)
+            }.toMutableMap()
+
+            /** create entity set collection **/
             reservations.reserveIdAndValidateType(entitySetCollection, entitySetCollection::name)
-
             entitySetCollections[entitySetCollection.id] = entitySetCollection
+
+            /** create entity set collection mappings **/
             entitySetCollectionsConfig.putAll(entitySetCollection.template.entries.associate { CollectionTemplateKey(entitySetCollection.id, it.key) to it.value })
 
+            /** grant permissions on entity set collection to organization owners **/
             authorizations.setSecurableObjectType(AclKey(entitySetCollection.id), SecurableObjectType.EntitySetCollection)
             authorizations.addPermissions(listOf(
                     Acl(
@@ -223,7 +250,11 @@ class ConvertAppsToEntityTypeCollections(
                     )
             ))
 
+            /** trigger indexing **/
             eventBus.post(EntitySetCollectionCreatedEvent(entitySetCollection))
+
+            /** create app config **/
+            appConfigs[AppConfigKey(appId, orgId)] = AppTypeSetting(UUID.randomUUID(), entitySetCollection.id, mappedRoles, mutableMapOf())
         }
 
     }
@@ -260,7 +291,7 @@ class ConvertAppsToEntityTypeCollections(
         }.toList()
     }
 
-    // appId -> [ <orgId, appTypeId, entitySetId> ]
+    /** appId -> List<(orgId, appTypeId, entitySetId)> **/
     private fun getLegacyAppConfigs(): Map<UUID, List<Triple<UUID, UUID, UUID>>> {
         val sql = "SELECT * FROM ${APP_CONFIGS.name}_legacy"
 
