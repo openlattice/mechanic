@@ -6,9 +6,7 @@ import com.google.common.eventbus.EventBus
 import com.openlattice.apps.AppConfigKey
 import com.openlattice.apps.AppRole
 import com.openlattice.apps.AppTypeSetting
-import com.openlattice.apps.processors.AddRoleToAppConfigProcessor
 import com.openlattice.authorization.*
-import com.openlattice.authorization.securable.AbstractSecurableObject
 import com.openlattice.authorization.securable.SecurableObjectType
 import com.openlattice.collections.CollectionTemplateKey
 import com.openlattice.collections.CollectionTemplateType
