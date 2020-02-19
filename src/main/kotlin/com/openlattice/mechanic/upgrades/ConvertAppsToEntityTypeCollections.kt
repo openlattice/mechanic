@@ -3,6 +3,7 @@ package com.openlattice.mechanic.upgrades
 import com.dataloom.mappers.ObjectMappers
 import com.google.common.collect.ImmutableSet
 import com.google.common.eventbus.EventBus
+import com.openlattice.apps.App
 import com.openlattice.apps.AppConfigKey
 import com.openlattice.apps.AppRole
 import com.openlattice.apps.AppTypeSetting
@@ -30,8 +31,6 @@ import java.util.*
 import java.util.stream.Collectors
 import kotlin.collections.LinkedHashSet
 
-private val SET_NEW_APP_FIELDS_SQL = "UPDATE ${APPS.name} SET ${ENTITY_TYPE_COLLECTION_ID.name} = ?, ${ROLES.name} = ?::jsonb WHERE ${ID.name} = ?"
-
 /** This update should be run *after* the UpdateAppTables upgrade has run **/
 
 class ConvertAppsToEntityTypeCollections(
@@ -43,6 +42,7 @@ class ConvertAppsToEntityTypeCollections(
 
     val organizations = HazelcastMap.ORGANIZATIONS.getMap(hazelcast)
 
+    val apps = HazelcastMap.APPS.getMap(hazelcast)
     val appConfigs = HazelcastMap.APP_CONFIGS.getMap(hazelcast)
     val entityTypeCollections = HazelcastMap.ENTITY_TYPE_COLLECTIONS.getMap(hazelcast)
     val entitySetCollections = HazelcastMap.ENTITY_SET_COLLECTIONS.getMap(hazelcast)
@@ -167,12 +167,16 @@ class ConvertAppsToEntityTypeCollections(
             )
         }
 
-        toolbox.hds.connection.prepareStatement(SET_NEW_APP_FIELDS_SQL).use {
-            it.setObject(1, entityTypeCollection.id)
-            it.setString(2, mapper.writeValueAsString(roles))
-            it.setObject(3, app.id)
-            it.execute()
-        }
+        apps[app.id] = App(
+                app.id,
+                app.name,
+                app.title,
+                Optional.of(app.description),
+                app.url,
+                entityTypeCollection.id,
+                roles.toMutableSet(),
+                mutableMapOf()
+        )
 
         logger.info("Finished updating fields for app ${app.name}")
 
@@ -275,7 +279,7 @@ class ConvertAppsToEntityTypeCollections(
     }
 
     private fun getLegacyApps(): List<LegacyApp> {
-        val sql = "SELECT * FROM ${APPS.name}"
+        val sql = "SELECT * FROM ${APPS.name}_legacy"
 
         return BasePostgresIterable(StatementHolderSupplier(toolbox.hds, sql)) {
             LegacyApp(

@@ -27,6 +27,7 @@ import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.AWS
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.LOCAL_CONFIGURATION_PROFILE
 import com.kryptnostic.rhizome.core.Rhizome
 import com.kryptnostic.rhizome.pods.AsyncPod
+import com.kryptnostic.rhizome.pods.ConfigurationLoaderPod
 import com.kryptnostic.rhizome.pods.ConfigurationPod
 import com.kryptnostic.rhizome.pods.HazelcastPod
 import com.kryptnostic.rhizome.pods.hazelcast.RegistryBasedHazelcastInstanceConfigurationPod
@@ -125,7 +126,7 @@ fun main(args: Array<String>) {
 class Mechanic {
 
     private val mechanicPods = arrayOf(
-            AssemblerConfigurationPod::class.java, AsyncPod::class.java, Auth0Pod::class.java,
+            AssemblerConfigurationPod::class.java, AsyncPod::class.java, Auth0Pod::class.java, ConfigurationLoaderPod::class.java,
             ConfigurationPod::class.java, HazelcastPod::class.java, JdbcPod::class.java, MapstoresPod::class.java,
             MechanicIntegrityPod::class.java, MechanicRetireePod::class.java, MechanicUpgradePod::class.java,
             PostgresPod::class.java, RegistryBasedHazelcastInstanceConfigurationPod::class.java,
