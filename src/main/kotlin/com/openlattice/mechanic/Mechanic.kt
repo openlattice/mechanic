@@ -26,11 +26,9 @@ import com.google.common.collect.Maps
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.AWS_CONFIGURATION_PROFILE
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.LOCAL_CONFIGURATION_PROFILE
 import com.kryptnostic.rhizome.core.Rhizome
-import com.kryptnostic.rhizome.pods.AsyncPod
-import com.kryptnostic.rhizome.pods.ConfigurationLoaderPod
-import com.kryptnostic.rhizome.pods.ConfigurationPod
-import com.kryptnostic.rhizome.pods.HazelcastPod
-import com.kryptnostic.rhizome.pods.hazelcast.RegistryBasedHazelcastInstanceConfigurationPod
+
+import com.kryptnostic.rhizome.core.RhizomeApplicationServer
+import com.kryptnostic.rhizome.hazelcast.serializers.RhizomeUtils
 import com.kryptnostic.rhizome.startup.Requirement
 import com.openlattice.assembler.pods.AssemblerConfigurationPod
 import com.openlattice.auth0.Auth0Pod
@@ -125,12 +123,13 @@ fun main(args: Array<String>) {
  */
 class Mechanic {
 
-    private val mechanicPods = arrayOf(
-            AssemblerConfigurationPod::class.java, AsyncPod::class.java, Auth0Pod::class.java, ConfigurationLoaderPod::class.java,
-            ConfigurationPod::class.java, HazelcastPod::class.java, JdbcPod::class.java, MapstoresPod::class.java,
-            MechanicIntegrityPod::class.java, MechanicRetireePod::class.java, MechanicUpgradePod::class.java,
-            PostgresPod::class.java, RegistryBasedHazelcastInstanceConfigurationPod::class.java,
-            SharedStreamSerializersPod::class.java
+    private val mechanicPods = RhizomeUtils.Pods.concatenate(
+            RhizomeApplicationServer.DEFAULT_PODS,
+            arrayOf(
+                    AssemblerConfigurationPod::class.java, Auth0Pod::class.java, JdbcPod::class.java,
+                    MapstoresPod::class.java, MechanicIntegrityPod::class.java, MechanicRetireePod::class.java,
+                    MechanicUpgradePod::class.java, PostgresPod::class.java, SharedStreamSerializersPod::class.java
+            )
     )
 
     private val context = AnnotationConfigApplicationContext()

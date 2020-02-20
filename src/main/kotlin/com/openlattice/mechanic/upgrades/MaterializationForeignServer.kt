@@ -68,6 +68,8 @@ class MaterializationForeignServer(
         return AssemblerConnectionManager.createDataSource(organizationDbName, connectionConfig, assemblerConfiguration.ssl)
     }
 
-    private val ALTER_FOREIGN_SERVER_PORT_SQL = "ALTER SERVER ${AssemblerConnectionManager.PRODUCTION_SERVER} " +
+    private val PRODUCTION_SERVER = "prod"
+
+    private val ALTER_FOREIGN_SERVER_PORT_SQL = "ALTER SERVER $PRODUCTION_SERVER " +
                     "OPTIONS (SET port '${assemblerConfiguration.foreignPort}')"
 }
