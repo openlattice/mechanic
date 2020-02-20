@@ -59,11 +59,11 @@ class OrphanedEdgesChecks(private val toolbox: Toolbox) : Check {
 
         // delete edges, where src or dst or association does not exist
         sw.reset().start()
-        logger.info("Starting job to delete edges, whose src, edge or dst entities are non-existent anymore.")
+        logger.info("Starting job to delete/clear edges, whose src, edge or dst entities are non-existent anymore.")
 
         val deleteEntitiesCount = toolbox.entitySets.keys.map { esId ->
-            logger.info("Starting to delete edges from entity set {}.", esId)
-            val count = toolbox.hds.connection.use { conn ->
+            logger.info("Starting to delete/clear edges from entity set {}.", esId)
+            val countDelete = toolbox.hds.connection.use { conn ->
                 conn.prepareStatement(deleteOrphanedEdgesOfEntitySet).use {
                     it.setObject(1, esId)
                     it.setObject(2, esId)
@@ -73,14 +73,25 @@ class OrphanedEdgesChecks(private val toolbox: Toolbox) : Check {
                     it.executeUpdate()
                 }
             }
+            logger.info("Deleted {} edges, from entity set {}.", countDelete, esId)
 
-            logger.info("Deleted {} edges, from entity set {}.", count, esId)
+            val countClear = toolbox.hds.connection.use { conn ->
+                conn.prepareStatement(clearOrphanedEdgesOfEntitySet).use {
+                    it.setObject(1, esId)
+                    it.setObject(2, esId)
+                    it.setObject(3, esId)
+                    it.setObject(4, esId)
 
-            count
+                    it.executeUpdate()
+                }
+            }
+            logger.info("Cleared {} edges, from entity set {}.", countClear, esId)
+
+            countDelete + countClear
         }.sum()
 
         logger.info(
-                "Finished deleting {} edges with non-existing entities in {} ms.",
+                "Finished deleting/clearing {} edges with non-existing entities in {} ms.",
                 deleteEntitiesCount,
                 sw.elapsed(TimeUnit.MILLISECONDS)
         )
@@ -91,7 +102,11 @@ class OrphanedEdgesChecks(private val toolbox: Toolbox) : Check {
     }
 
     // @formatter:off
-    private val entitySetIds = "SELECT ${ID.name} FROM ${ENTITY_SETS.name}"
+
+    // delete entries, where one or more entity sets are non-existent anymore
+    private val entitySetIds =
+            "SELECT ${ID.name} " +
+            "FROM ${ENTITY_SETS.name}"
     private val deleteOrphanedEdges =
             "WITH entitySetIds AS ( $entitySetIds ) " +
             "DELETE FROM ${E.name} " +
@@ -99,12 +114,34 @@ class OrphanedEdgesChecks(private val toolbox: Toolbox) : Check {
                 "OR ( ${DST_ENTITY_SET_ID.name} NOT IN ( SELECT ${ID.name} FROM entitySetIds ) ) " +
                 "OR ( ${EDGE_ENTITY_SET_ID.name} NOT IN ( SELECT ${ID.name} FROM entitySetIds ) )"
 
-    private val idsOfEntitySet = "SELECT ${ID.name} FROM ${IDS.name} WHERE ${ENTITY_SET_ID.name} = ?"
+    // delete entries, where one or more entities in entity set are non-existent
+    private val idsOfEntitySet =
+            "SELECT ${ID.name} " +
+            "FROM ${IDS.name} " +
+            "WHERE ${ENTITY_SET_ID.name} = ?"
     private val deleteOrphanedEdgesOfEntitySet =
             "WITH idsOfEntitySet AS ( $idsOfEntitySet ) " +
             "DELETE FROM ${E.name} " +
             "WHERE ( ${SRC_ENTITY_SET_ID.name} = ? AND ${SRC_ENTITY_KEY_ID.name} NOT IN ( SELECT  ${ID.name} FROM idsOfEntitySet ) ) " +
                 "OR ( ${DST_ENTITY_SET_ID.name} = ? AND ${DST_ENTITY_KEY_ID.name} NOT IN ( SELECT  ${ID.name} FROM idsOfEntitySet ) ) " +
                 "OR ( ${EDGE_ENTITY_SET_ID.name} = ? AND ${EDGE_ENTITY_KEY_ID.name} NOT IN ( SELECT  ${ID.name} FROM idsOfEntitySet ) )"
+
+    // clear entries (update version), where one or more entities in entity set are non-existent
+    private val clearedIdsOfEntitySet =
+            "SELECT ${ID.name}, ${VERSION.name} as actual_version " +
+            "FROM ${IDS.name} " +
+            "WHERE ${ENTITY_SET_ID.name} = ? AND ${VERSION.name} < 0"
+    private val clearOrphanedEdgesOfEntitySet =
+            "WITH idsOfEntitySet AS ( $clearedIdsOfEntitySet ) " +
+                    "UPDATE ${E.name} " +
+                    "SET ${VERSION.name} = actual_version, " +
+                        "${VERSIONS.name} = ${VERSIONS.name} || ARRAY[actual_version] " +
+                    "FROM idsOfEntitySet " +
+                    "WHERE ${E.name}.${VERSION.name} > 0 AND " +
+                    "( " +
+                        "( ${SRC_ENTITY_SET_ID.name} = ? AND ${SRC_ENTITY_KEY_ID.name} = idsOfEntitySet.${ID.name} ) " +
+                        "OR ( ${DST_ENTITY_SET_ID.name} = ? AND ${DST_ENTITY_KEY_ID.name} = idsOfEntitySet.${ID.name} ) " +
+                        "OR ( ${EDGE_ENTITY_SET_ID.name} = ? AND ${EDGE_ENTITY_KEY_ID.name} = idsOfEntitySet.${ID.name} ) " +
+                    ")"
     // @formatter:on
 }
