@@ -108,6 +108,8 @@ class ConvertAppsToEntityTypeCollections(
 
         migrateAppConfigsToEntitySetCollections(app, appTypes, appRoles, appConfigs, entityTypeCollection)
 
+        logger.info("Finished migrating apps!")
+
     }
 
     private fun createEntityTypeCollectionForApp(app: LegacyApp, appTypes: Map<UUID, AppType>): EntityTypeCollection {
@@ -191,6 +193,8 @@ class ConvertAppsToEntityTypeCollections(
             entityTypeCollection: EntityTypeCollection
     ) {
 
+        logger.info("Migrating app configs for app ${app.title}")
+
         val appId = app.id
 
         val templateByFqn = entityTypeCollection.template.map { it.name to it.id }.toMap()
@@ -215,7 +219,10 @@ class ConvertAppsToEntityTypeCollections(
         val orgOwners = authorizations.getOwnersForSecurableObjects(templatesByOrg.keys.map { AclKey(it) })
 
         templatesByOrg.forEach {
+
             val orgId = it.key
+
+            logger.info("Migrating app ${app.title} for organization $orgId")
 
             val entitySetCollection = EntitySetCollection(
                     Optional.empty(),
@@ -262,7 +269,10 @@ class ConvertAppsToEntityTypeCollections(
             }
         }
 
-    }
+    logger.info("Finished migrating app configs for app ${app.title}")
+
+
+}
 
 
     // LOAD FROM OLD TABLES
