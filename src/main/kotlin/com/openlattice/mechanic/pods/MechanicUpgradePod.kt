@@ -265,4 +265,9 @@ class MechanicUpgradePod {
     fun clearJSONOrganizationRoles() : ClearJSONOrganizationRoles {
         return ClearJSONOrganizationRoles(toolbox)
     }
+
+    @Bean
+    fun adjustNCRICDataDateTimeHashes(): AdjustNCRICDataDateTimeHashes {
+        return AdjustNCRICDataDateTimeHashes(toolbox)
+    }
 }
