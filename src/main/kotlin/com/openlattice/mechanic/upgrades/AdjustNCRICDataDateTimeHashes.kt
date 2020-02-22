@@ -10,6 +10,9 @@ import com.openlattice.postgres.streams.BasePostgresIterable
 import com.openlattice.postgres.streams.StatementHolderSupplier
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind
 import org.slf4j.LoggerFactory
+import java.sql.Timestamp
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 
 class AdjustNCRICDataDateTimeHashes(private val toolbox: Toolbox) : Upgrade {
 
@@ -39,22 +42,20 @@ class AdjustNCRICDataDateTimeHashes(private val toolbox: Toolbox) : Upgrade {
         val propertyTypesByFqn = toolbox.propertyTypes.values.associate { it.type.fullQualifiedNameAsString to it.id }
 
         entitySetsToPropertyTypes.entries.stream().parallel().forEach {
-            val entitySet = entitySetsByName.getValue(it.key)
-            val propertyTypeId = propertyTypesByFqn.getValue(it.value)
-
             val entitySetName = it.key
+
+            val entitySet = entitySetsByName.getValue(entitySetName)
+            val propertyTypeId = propertyTypesByFqn.getValue(it.value)
 
             logger.info("About to update find ids needing updating from entity set $entitySetName")
 
             toolbox.hds.connection.use { conn ->
                 conn.prepareStatement(createTempIdsTableSql(it.key)).use { ps ->
-                    {
-                        ps.setObject(1, entitySet.id)
-                        ps.setObject(2, propertyTypeId)
-                        ps.setArray(3, PostgresArrays.createIntArray(conn, entitySet.partitions))
+                    ps.setObject(1, entitySet.id)
+                    ps.setObject(2, propertyTypeId)
+                    ps.setArray(3, PostgresArrays.createIntArray(conn, entitySet.partitions))
 
-                        ps.execute()
-                    }
+                    ps.execute()
                 }
             }
 
@@ -74,16 +75,19 @@ class AdjustNCRICDataDateTimeHashes(private val toolbox: Toolbox) : Upgrade {
                             BasePostgresIterable(StatementHolderSupplier(toolbox.hds, readBatchSql)) { rs ->
 
                                 val dateTimeObj = rs.getObject(DATETIME_COL)
+                                val odt = OffsetDateTime.ofInstant((dateTimeObj as Timestamp).toInstant(), ZoneOffset.UTC)
 
-                                ps.setObject(1, PostgresDataHasher.hashObject(dateTimeObj, EdmPrimitiveTypeKind.DateTimeOffset))
+                                ps.setObject(1, PostgresDataHasher.hashObject(odt, EdmPrimitiveTypeKind.DateTimeOffset))
                                 ps.setObject(2, entitySet.id)
-                                ps.setObject(3, propertyTypeId)
-                                ps.setInt(4, ResultSetAdapters.partition(rs))
-                                ps.setObject(5, dateTimeObj)
+                                ps.setObject(3, ResultSetAdapters.id(rs))
+                                ps.setObject(4, propertyTypeId)
+                                ps.setInt(5, ResultSetAdapters.partition(rs))
+                                ps.setObject(6, dateTimeObj)
 
                                 ps.addBatch()
-                            }
 
+                                1
+                            }.count()
 
                             insertCount = ps.executeBatch().sum()
                             logger.info("Updated $insertCount property hashes for entity set $entitySetName.")
@@ -119,11 +123,22 @@ class AdjustNCRICDataDateTimeHashes(private val toolbox: Toolbox) : Upgrade {
     fun getReadBatchSql(entitySetName: String): String {
         val idsTable = "temp_ids_$entitySetName"
 
-        return "UPDATE $idsTable SET $MIGRATED_VERSION = now() WHERE id IN (SELECT * FROM $idsTable WHERE $MIGRATED_VERSION < $LAST_VALID_MIGRATE LIMIT $BATCH_SIZE) RETURNING *"
+        return "UPDATE $idsTable SET $MIGRATED_VERSION = now() WHERE id IN (SELECT id FROM $idsTable WHERE $MIGRATED_VERSION <= $LAST_VALID_MIGRATE LIMIT $BATCH_SIZE) RETURNING *"
     }
 
+    /**
+     * Bind order:
+     *
+     * 1) hash
+     * 2) entity set id
+     * 3) id
+     * 4) property type id
+     * 5) partition
+     * 6) datetime value
+     */
     val UPDATE_SQL = "UPDATE ${DATA.name} SET ${PostgresColumn.HASH.name} = ? " +
             "WHERE ${PostgresColumn.ENTITY_SET_ID.name} = ? " +
+            "AND ${PostgresColumn.ID.name} = ? " +
             "AND ${PostgresColumn.PROPERTY_TYPE_ID.name} = ? " +
             "AND ${PostgresColumn.PARTITION.name} = ? " +
             "AND $DATETIME_COL = ?"
