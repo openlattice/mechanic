@@ -19,9 +19,10 @@ class AdjustNCRICDataDateTimeHashes(private val toolbox: Toolbox) : Upgrade {
     companion object {
         private val logger = LoggerFactory.getLogger(AdjustNCRICDataDateTimeHashes::class.java)
         private const val BATCH_SIZE = 16000
-        private val MIGRATED_VERSION = "migrated_version"
+        private const val MIGRATED_VERSION = "migrated_version"
+        private const val DATETIME_COL = "n_timestamptz"
 
-        private val LAST_VALID_MIGRATE = "'-infinity'"
+        private const val LAST_VALID_MIGRATE = "'-infinity'"
 
         val entitySetsToPropertyTypes = mapOf(
                 "NCRICNotifications" to "general.datetime",
