@@ -29,6 +29,7 @@ import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.ResultSetAdapters
 import com.openlattice.postgres.streams.PostgresIterable
 import com.openlattice.postgres.streams.StatementHolder
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.slf4j.LoggerFactory
 import java.sql.ResultSet
 import java.util.*
@@ -42,6 +43,7 @@ import java.util.function.Supplier
  */
 private val logger = LoggerFactory.getLogger(IntegrityChecks::class.java)
 
+@SuppressFBWarnings( value = ["SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"] )
 class IntegrityChecks(private val toolbox: Toolbox) : Check {
     override fun check(): Boolean {
         logger.info("Integrity checks aren't fully implemented.")
