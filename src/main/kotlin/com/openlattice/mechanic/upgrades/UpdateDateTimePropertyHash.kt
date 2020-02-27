@@ -1,9 +1,11 @@
 package com.openlattice.mechanic.upgrades
 
 import com.google.common.base.Stopwatch
+import com.openlattice.data.storage.partitions.PartitionManager
 import com.openlattice.edm.type.PropertyType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.LAST_WRITE
+import com.openlattice.postgres.IndexType
 import com.openlattice.postgres.PostgresArrays
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresColumn.PROPERTY_TYPE_ID
@@ -23,6 +25,7 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
 
     companion object {
         private val logger = LoggerFactory.getLogger(UpdateDateTimePropertyHash::class.java)
+        val allPartitions = (0..257).toList()
     }
 
     override fun upgrade(): Boolean {
@@ -43,30 +46,30 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
 
         val sw = Stopwatch.createStarted()
 
-        val dateTimePropertyTypeIds = dateTimePropertyTypes.groupBy { it.postgresIndexType }
+        val propertyTypeIds = dateTimePropertyTypes.filter { it.postgresIndexType == IndexType.NONE }.map { it.id }.toMutableSet()
 
-        dateTimePropertyTypeIds.entries.stream().parallel().forEach { pair ->
+        allPartitions.stream().parallel().forEach { partition ->
 
-            val indexType = pair.key
-            val propertyTypeIds = pair.value.map { it.id }.toSet()
-
-            val dateTimeCol = PostgresDataTables.getColumnDefinition(indexType, EdmPrimitiveTypeKind.DateTimeOffset)
+            val dateTimeCol = PostgresDataTables.getColumnDefinition(IndexType.NONE, EdmPrimitiveTypeKind.DateTimeOffset)
             val insertSql = getInsertSql(dateTimeCol.name)
 
             val entityTypeIds = toolbox.entityTypes.values.filterNot { Sets.haveEmptyIntersection(it.properties, propertyTypeIds) }.map { it.id }.toSet()
             val entitySetIds = toolbox.entitySets.values.filter { entityTypeIds.contains(it.entityTypeId) }.map { it.id }
 
-            logger.info("Updating property types in column ${dateTimeCol.name} using SQL: $insertSql")
+            logger.info("Updating property types in for partition $partition using SQL: $insertSql")
 
             toolbox.hds.connection.use { conn ->
                 conn.prepareStatement(insertSql).use { ps ->
 
                     ps.setArray(1, PostgresArrays.createUuidArray(conn, propertyTypeIds))
                     ps.setArray(2, PostgresArrays.createUuidArray(conn, entitySetIds))
+                    ps.setInt(3, partition)
 
                     ps.execute()
                 }
             }
+
+            logger.info("COMPLETE: partition $partition")
 
         }
 
@@ -121,6 +124,7 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
      *
      * 1) property_type_id array
      * 2) entity_set_id array
+     * 3) partition
      */
     private fun getInsertSql(dateTimeCol: String): String {
 
@@ -136,6 +140,7 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
                 "FROM ${DATA.name} " +
                 "WHERE ${PROPERTY_TYPE_ID.name} = ANY(?) " +
                 "AND ${ENTITY_SET_ID.name} = ANY(?) " +
+                "AND ${PARTITION.name} = ? " +
                 "AND length(${HASH.name}) = 16 " +
                 "ON CONFLICT ($keyCols) DO UPDATE SET " +
                 "${LAST_WRITE.name} = GREATEST(${DATA.name}.${LAST_WRITE.name},EXCLUDED.${LAST_WRITE.name}), " +
