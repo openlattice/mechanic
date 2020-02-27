@@ -271,4 +271,9 @@ class MechanicUpgradePod {
     fun clearJSONOrganizationRoles() : ClearJSONOrganizationRoles {
         return ClearJSONOrganizationRoles(toolbox)
     }
+
+    @Bean
+    fun updateDateTimePropertyHash(): UpdateDateTimePropertyHash {
+        return UpdateDateTimePropertyHash(toolbox)
+    }
 }
