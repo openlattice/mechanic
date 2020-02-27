@@ -19,10 +19,12 @@ import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.organizations.Organization
 import com.openlattice.postgres.mapstores.AppConfigMapstore
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.apache.olingo.commons.api.edm.FullQualifiedName
 import java.util.*
 import kotlin.collections.LinkedHashSet
 
+@SuppressFBWarnings( value = ["NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"] )
 class ConvertAppsToEntityTypeCollections(
         private val toolbox: Toolbox,
         private val eventBus: EventBus
@@ -90,7 +92,7 @@ class ConvertAppsToEntityTypeCollections(
         }
 
         reservations.reserveIdAndValidateType(entityTypeCollection)
-        entityTypeCollections.putIfAbsent(entityTypeCollection.id, entityTypeCollection)
+        entityTypeCollections.putIfAbsent(entityTypeCollection.id, entityTypeCollection)?.let { return it }
         eventBus.post(EntityTypeCollectionCreatedEvent(entityTypeCollection))
 
         return entityTypeCollection

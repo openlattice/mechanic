@@ -39,6 +39,7 @@ import com.openlattice.postgres.mapstores.PropertyTypeMapstore
 import com.openlattice.postgres.streams.PostgresIterable
 import com.openlattice.postgres.streams.StatementHolder
 import com.zaxxer.hikari.HikariDataSource
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.slf4j.LoggerFactory
 import java.sql.ResultSet
 import java.util.*
@@ -53,6 +54,7 @@ import java.util.function.Supplier
  *
  */
 
+@SuppressFBWarnings( value = ["SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"] )
 class Organizations(
         private val hds: HikariDataSource,
         private val ptms: PropertyTypeMapstore,
