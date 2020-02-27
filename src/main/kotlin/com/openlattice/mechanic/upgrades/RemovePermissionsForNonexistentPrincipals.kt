@@ -4,8 +4,10 @@ import com.openlattice.authorization.PrincipalType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn
 import com.openlattice.postgres.PostgresTable
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.slf4j.LoggerFactory
 
+@SuppressFBWarnings( value = ["SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"] )
 class RemovePermissionsForNonexistentPrincipals(val toolbox: Toolbox) : Upgrade {
 
     companion object {
