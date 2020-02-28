@@ -22,10 +22,7 @@ package com.openlattice.mechanic.pods
 
 import com.openlattice.mechanic.MechanicCli.Companion.CHECK
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.mechanic.integrity.CheckOrphanedEntities
-import com.openlattice.mechanic.integrity.EdmChecks
-import com.openlattice.mechanic.integrity.IntegrityChecks
-import com.openlattice.mechanic.integrity.OrphanedLinkingPropertyData
+import com.openlattice.mechanic.integrity.*
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
@@ -60,5 +57,10 @@ class MechanicIntegrityPod {
     @Bean
     fun orphanedLinkingPropertyData(): OrphanedLinkingPropertyData {
         return OrphanedLinkingPropertyData(toolbox)
+    }
+
+    @Bean
+    fun orphanedEdgesChecks(): OrphanedEdgesChecks {
+        return OrphanedEdgesChecks(toolbox)
     }
 }
