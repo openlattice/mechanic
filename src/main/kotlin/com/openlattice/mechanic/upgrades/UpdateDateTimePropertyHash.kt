@@ -133,7 +133,6 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
             PARTITION,
             PROPERTY_TYPE_ID,
             LAST_WRITE,
-            LAST_PROPAGATE,
             VERSION,
             VERSIONS,
             VALUE_COLUMN
@@ -180,6 +179,7 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
      */
     private fun getPopulateTempTableSql(): String {
         val newHashComputation = "int8send(floor(extract(epoch from ${VALUE_COLUMN.name}) * 1000)::bigint)"
+        val keyCols = (DATA_TABLE_KEY_COLS - HASH.name).joinToString(", ")
 
         val unchangedCols = TEMP_TABLE_UNCHANGED_COLS.joinToString(", ") { it.name }
 
@@ -187,11 +187,17 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
                 "${OLD_HASHES_COL.name} = $TEMP_TABLE_NAME.${OLD_HASHES_COL.name} || EXCLUDED.${OLD_HASHES_COL.name}"
 
         return "INSERT INTO $TEMP_TABLE_NAME " +
-                "SELECT $unchangedCols, $newHashComputation AS ${HASH.name}, ARRAY[${HASH.name}] AS ${OLD_HASHES_COL.name} " +
+                "SELECT $keyCols, " +
+                "  max(${LAST_WRITE.name} AS ${LAST_WRITE.name}, " +
+                "  max(abs(${VERSION.name})) AS ${VERSION.name}, " +
+                "  max(abs(${VERSIONS.name}[array_upper(${VERSIONS.name}, 1)])) " + // TODO -- take versions array with largest max abs version, or concatenate and sort them all
+                "  $newHashComputation AS ${HASH.name}, " +
+                "  array_agg(${HASH.name}) AS ${OLD_HASHES_COL.name} " +
                 "FROM ${DATA.name} " +
                 "WHERE ${PROPERTY_TYPE_ID.name} = ANY(?) " +
                 "AND ${ENTITY_SET_ID.name} = ANY(?) " +
                 "AND length(${HASH.name}) = 16 " +
+                "GROUP BY $keyCols, ${VALUE_COLUMN.name}" +
                 onConflict
     }
 
