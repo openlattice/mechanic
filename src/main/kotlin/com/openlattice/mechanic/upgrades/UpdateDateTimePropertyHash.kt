@@ -205,15 +205,12 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
     }
 
     private fun deleteSql(): String {
-        val cteName = "to_delete"
+        val colsToMatch = (DATA_TABLE_KEY_COLS - HASH.name).joinToString(" AND ") { "${DATA.name}.$it = $TEMP_TABLE_NAME.$it" }
 
-        val colsToMatch = (DATA_TABLE_KEY_COLS - HASH.name).joinToString(" AND ") { "${DATA.name}.$it = $cteName.$it" }
-
-        return "WITH $cteName AS ( SELECT * FROM $TEMP_TABLE_NAME ) " +
-                "DELETE FROM ${DATA.name} " +
-                "USING $cteName " +
+        return "DELETE FROM ${DATA.name} " +
+                "USING $TEMP_TABLE_NAME " +
                 "WHERE $colsToMatch " +
-                "AND ${DATA.name}.${HASH.name} = ANY($cteName.${OLD_HASHES_COL.name})"
+                "AND ${DATA.name}.${HASH.name} = ANY($TEMP_TABLE_NAME.${OLD_HASHES_COL.name})"
     }
 
 }
