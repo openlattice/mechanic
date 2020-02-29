@@ -133,7 +133,6 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
             PARTITION,
             PROPERTY_TYPE_ID,
             LAST_WRITE,
-            VERSION,
             VERSIONS,
             VALUE_COLUMN
     )
@@ -156,19 +155,10 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
     private fun updateColumnIfLatestVersion(tableName: String, col: PostgresColumnDefinition): String {
 
         return "${col.name} = CASE " +
-                "WHEN abs($tableName.${VERSION.name}) <= abs(EXCLUDED.${VERSION.name}) " +
+                "WHEN $tableName.${LAST_WRITE.name} <= EXCLUDED.${LAST_WRITE.name} " +
                 "THEN EXCLUDED.${col.name} " +
                 "ELSE $tableName.${col.name} " +
                 "END"
-    }
-
-    private fun onConflictClause(tableName: String): String {
-        val keyCols = DATA_TABLE_KEY_COLS.joinToString(", ")
-
-        return "ON CONFLICT ($keyCols) DO UPDATE SET " +
-                "${LAST_WRITE.name} = GREATEST($tableName.${LAST_WRITE.name},EXCLUDED.${LAST_WRITE.name}), " +
-                "${updateColumnIfLatestVersion(tableName, VERSION)}, " +
-                "${updateColumnIfLatestVersion(tableName, VERSIONS)} "
     }
 
     /**
@@ -181,33 +171,39 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
         val newHashComputation = "int8send(floor(extract(epoch from ${VALUE_COLUMN.name}) * 1000)::bigint)"
         val keyCols = (DATA_TABLE_KEY_COLS - HASH.name).joinToString(", ")
 
-        val unchangedCols = TEMP_TABLE_UNCHANGED_COLS.joinToString(", ") { it.name }
-
-        val onConflict = "${onConflictClause(TEMP_TABLE_NAME)}, " +
+        val onConflict =  "ON CONFLICT ($keyCols, ${HASH.name}) DO UPDATE SET " +
+                "${LAST_WRITE.name} = GREATEST($TEMP_TABLE_NAME.${LAST_WRITE.name},EXCLUDED.${LAST_WRITE.name}), " +
+                "${updateColumnIfLatestVersion(TEMP_TABLE_NAME, VERSIONS)}," +
                 "${OLD_HASHES_COL.name} = $TEMP_TABLE_NAME.${OLD_HASHES_COL.name} || EXCLUDED.${OLD_HASHES_COL.name}"
+
+        val sortVersions = "ARRAY(SELECT * FROM (SELECT UNNEST(array_agg(DISTINCT ${VERSIONS.name})) as ${VERSIONS.name}) as foo ORDER BY abs(foo.${VERSIONS.name})) as ${VERSIONS.name}"
 
         return "INSERT INTO $TEMP_TABLE_NAME " +
                 "SELECT $keyCols, " +
-                "  max(${LAST_WRITE.name} AS ${LAST_WRITE.name}, " +
-                "  max(abs(${VERSION.name})) AS ${VERSION.name}, " +
-                "  max(abs(${VERSIONS.name}[array_upper(${VERSIONS.name}, 1)])) " + // TODO -- take versions array with largest max abs version, or concatenate and sort them all
+                "  max(${LAST_WRITE.name}) AS ${LAST_WRITE.name}, " +
+                "  $sortVersions, " +
+                "  ${VALUE_COLUMN.name}, " +
                 "  $newHashComputation AS ${HASH.name}, " +
                 "  array_agg(${HASH.name}) AS ${OLD_HASHES_COL.name} " +
                 "FROM ${DATA.name} " +
                 "WHERE ${PROPERTY_TYPE_ID.name} = ANY(?) " +
                 "AND ${ENTITY_SET_ID.name} = ANY(?) " +
                 "AND length(${HASH.name}) = 16 " +
-                "GROUP BY $keyCols, ${VALUE_COLUMN.name}" +
+                "GROUP BY $keyCols, ${VALUE_COLUMN.name} " +
                 onConflict
     }
 
     private fun insertRehashedRowsIntoDataTableSql(): String {
-
+        val keyCols = DATA_TABLE_KEY_COLS.joinToString(", ")
         val insertSelectCols = (TEMP_TABLE_UNCHANGED_COLS + HASH).joinToString(", ") { it.name }
 
         return "INSERT INTO ${DATA.name} ($insertSelectCols) " +
                 "SELECT $insertSelectCols FROM $TEMP_TABLE_NAME " +
-                onConflictClause(DATA.name)
+                "ON CONFLICT ($keyCols) DO UPDATE SET " +
+                "${LAST_WRITE.name} = GREATEST(${DATA.name}.${LAST_WRITE.name},EXCLUDED.${LAST_WRITE.name}), " +
+                "${updateColumnIfLatestVersion(DATA.name, VERSION)}, " +
+                "${updateColumnIfLatestVersion(DATA.name, VERSIONS)} "
+
     }
 
     private fun deleteSql(): String {
