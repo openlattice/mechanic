@@ -71,7 +71,6 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
 
     private fun populateTempTable() {
         val sw = Stopwatch.createStarted()
-        val createAggregateSql = createArrayCatAggregate()
         val insertSql = getPopulateTempTableSql()
 
         logger.info("About to populate temp table using sql: $insertSql")
@@ -85,10 +84,6 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
         val entitySetIds = toolbox.entitySets.values.filter { entityTypeIds.contains(it.entityTypeId) }.map { it.id }
 
         toolbox.hds.connection.use { conn ->
-
-//            conn.createStatement().use { stmt ->
-//                stmt.execute(createAggregateSql)
-//            }
 
             conn.prepareStatement(insertSql).use { ps ->
 
@@ -165,13 +160,6 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
                 "THEN EXCLUDED.${col.name} " +
                 "ELSE $tableName.${col.name} " +
                 "END"
-    }
-
-    private fun createArrayCatAggregate(): String {
-        return "CREATE AGGREGATE array_cat(anyarray) (" +
-                "  SFUNC=array_cat," +
-                "  STYPE=anyarray" +
-                ")"
     }
 
     /**
