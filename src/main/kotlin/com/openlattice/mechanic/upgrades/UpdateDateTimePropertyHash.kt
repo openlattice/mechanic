@@ -59,21 +59,22 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
             }
         }
 
-        logger.info("Distributing temp data table using sql: $distributeTableSql")
-        toolbox.hds.connection.use { conn ->
-            conn.createStatement().use { stmt ->
-                stmt.execute(distributeTableSql)
-            }
-        }
+//        logger.info("Distributing temp data table using sql: $distributeTableSql")
+//        toolbox.hds.connection.use { conn ->
+//            conn.createStatement().use { stmt ->
+//                stmt.execute(distributeTableSql)
+//            }
+//        }
 
         logger.info("Finished creating temp table")
     }
 
     private fun populateTempTable() {
         val sw = Stopwatch.createStarted()
-        val sql = getPopulateTempTableSql()
+        val createAggregateSql = createArrayCatAggregate()
+        val insertSql = getPopulateTempTableSql()
 
-        logger.info("About to populate temp table using sql: $sql")
+        logger.info("About to populate temp table using sql: $insertSql")
 
         val propertyTypeIds = toolbox.propertyTypes.values
                 .filter { it.datatype == EdmPrimitiveTypeKind.DateTimeOffset && it.postgresIndexType == IndexType.NONE }
@@ -84,7 +85,12 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
         val entitySetIds = toolbox.entitySets.values.filter { entityTypeIds.contains(it.entityTypeId) }.map { it.id }
 
         toolbox.hds.connection.use { conn ->
-            conn.prepareStatement(sql).use { ps ->
+
+            conn.createStatement().use { stmt ->
+                stmt.execute(createAggregateSql)
+            }
+
+            conn.prepareStatement(insertSql).use { ps ->
 
                 ps.setArray(1, PostgresArrays.createUuidArray(conn, propertyTypeIds))
                 ps.setArray(2, PostgresArrays.createUuidArray(conn, entitySetIds))
@@ -161,6 +167,13 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
                 "END"
     }
 
+    private fun createArrayCatAggregate(): String {
+        return "CREATE AGGREGATE array_cat(anyarray) (" +
+                "  SFUNC=array_cat," +
+                "  STYPE=anyarray" +
+                ")"
+    }
+
     /**
      * Bind order:
      *
@@ -176,7 +189,7 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
                 "${updateColumnIfLatestVersion(TEMP_TABLE_NAME, VERSIONS)}," +
                 "${OLD_HASHES_COL.name} = $TEMP_TABLE_NAME.${OLD_HASHES_COL.name} || EXCLUDED.${OLD_HASHES_COL.name}"
 
-        val sortVersions = "ARRAY(SELECT * FROM UNNEST(array_agg(DISTINCT ${VERSIONS.name})) AS foo(${VERSION.name}) ORDER BY abs(foo.${VERSION.name})) AS ${VERSIONS.name}"
+        val sortVersions = "ARRAY(SELECT DISTINCT ${VERSION.name} FROM (SELECT ${VERSION.name} FROM UNNEST(array_cat(${VERSIONS.name})) AS foo(${VERSION.name}) ORDER BY abs(foo.${VERSION.name})) AS bar) AS ${VERSIONS.name}"
 
         return "INSERT INTO $TEMP_TABLE_NAME " +
                 "SELECT $keyCols, " +
