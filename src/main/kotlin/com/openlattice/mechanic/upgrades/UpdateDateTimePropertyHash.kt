@@ -176,7 +176,7 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
                 "${updateColumnIfLatestVersion(TEMP_TABLE_NAME, VERSIONS)}," +
                 "${OLD_HASHES_COL.name} = $TEMP_TABLE_NAME.${OLD_HASHES_COL.name} || EXCLUDED.${OLD_HASHES_COL.name}"
 
-        val sortVersions = "ARRAY(SELECT * FROM (SELECT UNNEST(array_agg(DISTINCT ${VERSIONS.name})) as ${VERSIONS.name}) as foo ORDER BY abs(foo.${VERSIONS.name})) as ${VERSIONS.name}"
+        val sortVersions = "ARRAY(SELECT * FROM UNNEST(${VERSIONS.name}) AS foo(${VERSION.name}) ORDER BY abs(foo.${VERSION.name}) AS ${VERSIONS.name}"
 
         return "INSERT INTO $TEMP_TABLE_NAME " +
                 "SELECT $keyCols, " +
