@@ -197,8 +197,10 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
         val keyCols = DATA_TABLE_KEY_COLS.joinToString(", ")
         val insertSelectCols = (TEMP_TABLE_UNCHANGED_COLS + HASH).joinToString(", ") { it.name }
 
-        return "INSERT INTO ${DATA.name} ($insertSelectCols) " +
-                "SELECT $insertSelectCols FROM $TEMP_TABLE_NAME " +
+        val maxAbsVersions = "${VERSIONS.name}[array_upper(${VERSIONS.name}, 1)]"
+
+        return "INSERT INTO ${DATA.name} ($insertSelectCols, ${VERSION.name}) " +
+                "SELECT $insertSelectCols, $maxAbsVersions AS ${VERSION.name} FROM $TEMP_TABLE_NAME " +
                 "ON CONFLICT ($keyCols) DO UPDATE SET " +
                 "${LAST_WRITE.name} = GREATEST(${DATA.name}.${LAST_WRITE.name},EXCLUDED.${LAST_WRITE.name}), " +
                 "${updateColumnIfLatestVersion(DATA.name, VERSION)}, " +
