@@ -195,14 +195,14 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
                 "SELECT $keyCols, " +
                 "  max(${LAST_WRITE.name}) AS ${LAST_WRITE.name}, " +
                 "  $sortVersions, " +
-                "  ${VALUE_COLUMN.name}, " +
+                "  max(${VALUE_COLUMN.name}), " +
                 "  $newHashComputation AS ${HASH.name}, " +
                 "  array_agg(${HASH.name}) AS ${OLD_HASHES_COL.name} " +
                 "FROM ${DATA.name} " +
                 "WHERE ${PROPERTY_TYPE_ID.name} = ANY(?) " +
                 "AND ${ENTITY_SET_ID.name} = ANY(?) " +
                 "AND length(${HASH.name}) = 16 " +
-                "GROUP BY $keyCols, ${VALUE_COLUMN.name} " +
+                "GROUP BY $keyCols, $newHashComputation " +
                 onConflict
     }
 
