@@ -86,9 +86,9 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
 
         toolbox.hds.connection.use { conn ->
 
-            conn.createStatement().use { stmt ->
-                stmt.execute(createAggregateSql)
-            }
+//            conn.createStatement().use { stmt ->
+//                stmt.execute(createAggregateSql)
+//            }
 
             conn.prepareStatement(insertSql).use { ps ->
 
@@ -189,7 +189,7 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
                 "${updateColumnIfLatestVersion(TEMP_TABLE_NAME, VERSIONS)}," +
                 "${OLD_HASHES_COL.name} = $TEMP_TABLE_NAME.${OLD_HASHES_COL.name} || EXCLUDED.${OLD_HASHES_COL.name}"
 
-        val sortVersions = "ARRAY(SELECT DISTINCT ${VERSION.name} FROM (SELECT ${VERSION.name} FROM UNNEST(array_cat(${VERSIONS.name})) AS foo(${VERSION.name}) ORDER BY abs(foo.${VERSION.name})) AS bar) AS ${VERSIONS.name}"
+        val sortVersions = "ARRAY(SELECT DISTINCT ${VERSION.name} FROM (SELECT ${VERSION.name} FROM UNNEST(array_cat_agg(${VERSIONS.name})) AS foo(${VERSION.name}) ORDER BY abs(foo.${VERSION.name})) AS bar) AS ${VERSIONS.name}"
 
         return "INSERT INTO $TEMP_TABLE_NAME " +
                 "SELECT $keyCols, " +
