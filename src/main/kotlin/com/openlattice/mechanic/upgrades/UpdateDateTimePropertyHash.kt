@@ -59,12 +59,12 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
             }
         }
 
-//        logger.info("Distributing temp data table using sql: $distributeTableSql")
-//        toolbox.hds.connection.use { conn ->
-//            conn.createStatement().use { stmt ->
-//                stmt.execute(distributeTableSql)
-//            }
-//        }
+        logger.info("Distributing temp data table using sql: $distributeTableSql")
+        toolbox.hds.connection.use { conn ->
+            conn.createStatement().use { stmt ->
+                stmt.execute(distributeTableSql)
+            }
+        }
 
         logger.info("Finished creating temp table")
     }
