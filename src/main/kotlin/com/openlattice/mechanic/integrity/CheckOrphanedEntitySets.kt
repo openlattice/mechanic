@@ -24,11 +24,8 @@ import com.google.common.base.Stopwatch
 import com.openlattice.authorization.securable.SecurableObjectType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn.*
-import com.openlattice.postgres.PostgresTable.PERMISSIONS
-import com.openlattice.postgres.PostgresTable.ENTITY_SETS
-import com.openlattice.postgres.PostgresTable.SECURABLE_OBJECTS
-import com.openlattice.postgres.PostgresTable.MATERIALIZED_ENTITY_SETS
-import com.openlattice.postgres.PostgresTable.ENTITY_SET_PROPERTY_METADATA
+import com.openlattice.postgres.PostgresTable
+import com.openlattice.postgres.PostgresTable.*
 import com.openlattice.postgres.ResultSetAdapters
 import com.openlattice.postgres.streams.BasePostgresIterable
 import com.openlattice.postgres.streams.StatementHolderSupplier
@@ -49,6 +46,7 @@ class CheckOrphanedEntitySets(private val toolbox: Toolbox) : Check {
 
 
         // check securable objects and permissions
+
         var deletedEntitySetIdsInSecurableObjects = setOf<UUID>()
 
         val deletedPermissionCount = toolbox.hds.connection.use { conn ->
@@ -83,6 +81,7 @@ class CheckOrphanedEntitySets(private val toolbox: Toolbox) : Check {
 
 
         // check materialized entity sets
+
         val deletedEntitySetIdsInMaterializedEntitySets = BasePostgresIterable(
                 StatementHolderSupplier(toolbox.hds, deleteOrphanedMaterializedEntitySets)
         ) { rs -> ResultSetAdapters.entitySetId(rs) }
@@ -94,6 +93,7 @@ class CheckOrphanedEntitySets(private val toolbox: Toolbox) : Check {
 
 
         // check entity set property metadata
+
         val deletedEntitySetIdsInPropertyMetaData = BasePostgresIterable(
                 StatementHolderSupplier(toolbox.hds, deleteOrphanedEntitySetPropertyMetaData)
         ) { rs -> ResultSetAdapters.entitySetId(rs) }
@@ -102,6 +102,32 @@ class CheckOrphanedEntitySets(private val toolbox: Toolbox) : Check {
         logger.info("Deleted ${deletedEntitySetIdsInPropertyMetaData.count()} rows of following non-existing entity " +
                 "sets ${deletedEntitySetIdsInPropertyMetaData.toSet()} from entity set property metadata in " +
                 "${sw.elapsed(TimeUnit.MILLISECONDS)} ms.")
+        sw.reset().start()
+
+
+        // check names and acl_keys
+        val deletedEntitySetIdsInNames = BasePostgresIterable(
+                StatementHolderSupplier(toolbox.hds, deleteOrphanedEntitySetNames)
+        ) { rs -> ResultSetAdapters.entitySetId(rs) }
+
+
+        logger.info("Deleted ${deletedEntitySetIdsInNames.count()} rows of following non-existing entity " +
+                "sets ${deletedEntitySetIdsInNames.toSet()} from names in " +
+                "${sw.elapsed(TimeUnit.MILLISECONDS)} ms.")
+        sw.reset().start()
+
+
+        //check acl keys
+
+        val deletedEntitySetIdsInAclKeys = BasePostgresIterable(
+                StatementHolderSupplier(toolbox.hds, deleteOrphanedEntitySetAclKeys)
+        ) { rs -> ResultSetAdapters.entitySetId(rs) }
+
+
+        logger.info("Deleted ${deletedEntitySetIdsInAclKeys.count()} rows of following non-existing entity " +
+                "sets ${deletedEntitySetIdsInAclKeys.toSet()} from acl keys in " +
+                "${sw.elapsed(TimeUnit.MILLISECONDS)} ms.")
+
 
         return true
     }
@@ -119,7 +145,7 @@ class CheckOrphanedEntitySets(private val toolbox: Toolbox) : Check {
             "RETURNING ${ACL_KEY.name}"
 
     private val deleteOrphanedPermissions =
-            "DELETE FROM ${PERMISSIONS.name} " +
+            "DELETE FROM ${PostgresTable.PERMISSIONS.name} " +
             "WHERE ${ACL_KEY.name} = ?"
 
     private val deleteOrphanedMaterializedEntitySets =
@@ -131,5 +157,15 @@ class CheckOrphanedEntitySets(private val toolbox: Toolbox) : Check {
             "DELETE FROM ${ENTITY_SET_PROPERTY_METADATA.name} " +
             "WHERE ${ENTITY_SET_ID.name} NOT IN ( $entitySetIds ) " +
             "RETURNING ${ENTITY_SET_ID.name}"
+
+    private val deleteOrphanedEntitySetNames =
+            "DELETE FROM ${NAMES.name} " +
+                    "WHERE ${SECURABLE_OBJECTID.name} NOT IN ( $entitySetIds ) " +
+                    "RETURNING ${SECURABLE_OBJECTID.name}"
+
+    private val deleteOrphanedEntitySetAclKeys =
+            "DELETE FROM ${ACL_KEYS.name} " +
+                    "WHERE ${SECURABLE_OBJECTID.name} NOT IN ( $entitySetIds ) " +
+                    "RETURNING ${SECURABLE_OBJECTID.name}"
     // @formatter:on
 }
