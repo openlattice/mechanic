@@ -238,7 +238,7 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
         val getBatch = "WITH batch AS ( " +
                 "UPDATE $TEMP_TABLE_NAME " +
                 "SET $LAST_MIGRATE = now() " +
-                "WHERE id in (" +
+                "WHERE ${PARTITION.name} = $partition AND id in (" +
                 "  SELECT id " +
                 "  FROM $TEMP_TABLE_NAME " +
                 "  WHERE $LAST_MIGRATE = '-infinity' " +
