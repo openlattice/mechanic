@@ -186,6 +186,16 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
                 "END"
     }
 
+
+    private fun updateColumnIfLatestVersion(tableName: String, col: PostgresColumnDefinition): String {
+
+        return "${col.name} = CASE " +
+                "WHEN abs($tableName.${VERSION.name}) <= abs(EXCLUDED.${VERSION.name}) " +
+                "THEN EXCLUDED.${col.name} " +
+                "ELSE $tableName.${col.name} " +
+                "END"
+    }
+
     /**
      * Bind order:
      *
@@ -220,16 +230,25 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
 
     private fun insertRehashedRowsIntoDataTableSql(partition: Int): String {
         val keyCols = DATA_TABLE_KEY_COLS.joinToString(", ")
-        val insertSelectCols = (TEMP_TABLE_UNCHANGED_COLS + HASH).joinToString(", ") { it.name }
-
-        val getBatch = "WITH batch AS ( UPDATE $TEMP_TABLE_NAME set $LAST_MIGRATE = now() WHERE id in (SELECT id from $TEMP_TABLE_NAME WHERE $LAST_MIGRATE = '-infinity' AND ${PARTITION.name} = $partition limit $BATCH_SIZE) RETURNING * )"
+        val insertSelectCols = (TEMP_TABLE_UNCHANGED_COLS + HASH + VERSION).joinToString(", ") { it.name }
 
         val maxAbsVersions = "${VERSIONS.name}[array_upper(${VERSIONS.name}, 1)]"
+        val sortVersions = "ARRAY(SELECT DISTINCT ${VERSION.name} FROM (SELECT ${VERSION.name} FROM UNNEST(array_cat_agg(${VERSIONS.name})) AS foo(${VERSION.name}) ORDER BY abs(foo.${VERSION.name})) AS bar) AS ${VERSIONS.name}"
 
-        return "$getBatch INSERT INTO ${DATA.name} ($insertSelectCols, ${VERSION.name}) " +
-                "  SELECT $insertSelectCols, $maxAbsVersions AS ${VERSION.name} " +
+        val getBatch = "WITH batch AS ( " +
+                "UPDATE $TEMP_TABLE_NAME " +
+                "SET $LAST_MIGRATE = now() " +
+                "WHERE id in (" +
+                "  SELECT id " +
+                "  FROM $TEMP_TABLE_NAME " +
+                "  WHERE $LAST_MIGRATE = '-infinity' " +
+                "  AND ${PARTITION.name} = $partition " +
+                "  LIMIT $BATCH_SIZE" +
+                ") RETURNING *, $maxAbsVersions as ${VERSION.name} )"
+
+        return "$getBatch INSERT INTO ${DATA.name} ($insertSelectCols) " +
+                "  SELECT $insertSelectCols " +
                 "  FROM batch " +
-                "  WHERE ${PARTITION.name} = $partition " +
                 "ON CONFLICT ($keyCols) DO UPDATE SET " +
                 "${LAST_WRITE.name} = GREATEST(${DATA.name}.${LAST_WRITE.name},EXCLUDED.${LAST_WRITE.name}), " +
                 "${updateColumnIfLatestVersion(DATA.name, VERSION)}, " +
