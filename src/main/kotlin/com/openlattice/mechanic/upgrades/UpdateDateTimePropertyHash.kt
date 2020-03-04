@@ -9,9 +9,11 @@ import com.openlattice.postgres.PostgresTable.DATA
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind
 import org.elasticsearch.common.util.set.Sets
 import org.slf4j.LoggerFactory
+import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 
 class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
+    private val limiter = Semaphore(16)
 
     override fun getSupportedVersion(): Long {
         return Version.V2020_01_29.value
@@ -23,6 +25,8 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
         val TEMP_TABLE_NAME = "temp_datetime_data"
         val OLD_HASHES_COL = PostgresColumnDefinition("old_hashes", PostgresDatatype.BYTEA_ARRAY).notNull()
         val VALUE_COLUMN = PostgresColumnDefinition(PostgresDataTables.getSourceDataColumnName(PostgresDatatype.TIMESTAMPTZ, IndexType.NONE), PostgresDatatype.TIMESTAMPTZ)
+        val LAST_MIGRATE = "last_migrate"
+        val BATCH_SIZE = 16_000
     }
 
     override fun upgrade(): Boolean {
@@ -98,14 +102,34 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
     }
 
     private fun insertRowsWithNewHashesToDataTable() {
-        val insertSql = insertRehashedRowsIntoDataTableSql()
-        logger.info("Inserting/updating hashes to the data table using sql: $insertSql")
+        logger.info("Inserting/updating hashes to the data table using sql")
         val sw = Stopwatch.createStarted()
 
-        toolbox.hds.connection.use { conn ->
-            conn.createStatement().use { stmt ->
-                stmt.execute(insertSql)
+        (0..257).toList().stream().parallel().forEach { partition ->
+            limiter.acquire()
+
+            val insertSql = insertRehashedRowsIntoDataTableSql(partition)
+            logger.info("Migrating data for partition $partition using SQL: $insertSql")
+
+            val partitionSw = Stopwatch.createStarted()
+            var partitionTotalUpdated = 0
+            var insertCount = 1
+
+            toolbox.hds.connection.use { conn ->
+
+                conn.createStatement().use { stmt ->
+
+                    while (insertCount > 0) {
+                        insertCount = stmt.executeUpdate(insertSql)
+                        partitionTotalUpdated += insertCount
+                        logger.info("Migrated a batch of $insertCount elements for partition $partition")
+                    }
+                }
+
             }
+
+            logger.info("Finished migrating $partitionTotalUpdated rows for partition $partition in ${partitionSw.elapsed(TimeUnit.MILLISECONDS)} ms.")
+            limiter.release()
         }
 
         logger.info("Finished inserting new datetime rows into the data table. Took ${sw.elapsed(TimeUnit.SECONDS)} seconds.")
@@ -194,14 +218,18 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
                 onConflict
     }
 
-    private fun insertRehashedRowsIntoDataTableSql(): String {
+    private fun insertRehashedRowsIntoDataTableSql(partition: Int): String {
         val keyCols = DATA_TABLE_KEY_COLS.joinToString(", ")
         val insertSelectCols = (TEMP_TABLE_UNCHANGED_COLS + HASH).joinToString(", ") { it.name }
 
+        val getBatch = "WITH batch AS ( UPDATE $TEMP_TABLE_NAME set $LAST_MIGRATE = now() WHERE id in (SELECT id from $TEMP_TABLE_NAME WHERE ($LAST_MIGRATE = '-infinity') limit $BATCH_SIZE) RETURNING * )"
+
         val maxAbsVersions = "${VERSIONS.name}[array_upper(${VERSIONS.name}, 1)]"
 
-        return "INSERT INTO ${DATA.name} ($insertSelectCols, ${VERSION.name}) " +
-                "SELECT $insertSelectCols, $maxAbsVersions AS ${VERSION.name} FROM $TEMP_TABLE_NAME " +
+        return "$getBatch INSERT INTO ${DATA.name} ($insertSelectCols, ${VERSION.name}) " +
+                "  SELECT $insertSelectCols, $maxAbsVersions AS ${VERSION.name} " +
+                "  FROM batch " +
+                "  WHERE ${PARTITION.name} = $partition " +
                 "ON CONFLICT ($keyCols) DO UPDATE SET " +
                 "${LAST_WRITE.name} = GREATEST(${DATA.name}.${LAST_WRITE.name},EXCLUDED.${LAST_WRITE.name}), " +
                 "${updateColumnIfLatestVersion(DATA.name, VERSION)}, " +
