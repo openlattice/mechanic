@@ -176,17 +176,6 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
             HASH
     ).map { it.name }
 
-
-    private fun updateColumnIfLatestVersion(tableName: String, col: PostgresColumnDefinition): String {
-
-        return "${col.name} = CASE " +
-                "WHEN $tableName.${LAST_WRITE.name} <= EXCLUDED.${LAST_WRITE.name} " +
-                "THEN EXCLUDED.${col.name} " +
-                "ELSE $tableName.${col.name} " +
-                "END"
-    }
-
-
     private fun updateColumnIfLatestVersion(tableName: String, col: PostgresColumnDefinition): String {
 
         return "${col.name} = CASE " +
