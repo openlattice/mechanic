@@ -59,7 +59,8 @@ class CheckOrphanedEntitySets(private val toolbox: Toolbox) : Check {
                 deletedEntitySetIdsInSecurableObjects = BasePostgresIterable(
                         StatementHolderSupplier(toolbox.hds, deleteOrphanedSecurableObjects)) { rs ->
                     val deletedAclKey = ResultSetAdapters.aclKey(rs)
-                    ps.setObject(1, deletedAclKey)
+                    val deletedAclKeyArr = PostgresArrays.createUuidArray(ps.connection, deletedAclKey)
+                    ps.setArray(1, deletedAclKeyArr)
 
                     ps.addBatch()
 
@@ -99,7 +100,7 @@ class CheckOrphanedEntitySets(private val toolbox: Toolbox) : Check {
         sw.reset().start()
 
 
-        //check acl keys
+        // check acl keys
 
         val deletedEntitySetIdsInAclKeys = BasePostgresIterable(
                 PreparedStatementHolderSupplier(toolbox.hds, deleteOrphanedEntitySetAclKeys) { ps ->
