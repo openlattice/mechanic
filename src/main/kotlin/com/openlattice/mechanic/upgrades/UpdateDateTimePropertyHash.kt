@@ -222,7 +222,7 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
         val keyCols = DATA_TABLE_KEY_COLS.joinToString(", ")
         val insertSelectCols = (TEMP_TABLE_UNCHANGED_COLS + HASH).joinToString(", ") { it.name }
 
-        val getBatch = "WITH batch AS ( UPDATE $TEMP_TABLE_NAME set $LAST_MIGRATE = now() WHERE id in (SELECT id from $TEMP_TABLE_NAME WHERE ($LAST_MIGRATE = '-infinity') limit $BATCH_SIZE) RETURNING * )"
+        val getBatch = "WITH batch AS ( UPDATE $TEMP_TABLE_NAME set $LAST_MIGRATE = now() WHERE id in (SELECT id from $TEMP_TABLE_NAME WHERE $LAST_MIGRATE = '-infinity' AND ${PARTITION.name} = $partition limit $BATCH_SIZE) RETURNING * )"
 
         val maxAbsVersions = "${VERSIONS.name}[array_upper(${VERSIONS.name}, 1)]"
 
