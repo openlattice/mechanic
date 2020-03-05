@@ -9,6 +9,7 @@ import com.openlattice.postgres.PostgresTable.DATA
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind
 import org.elasticsearch.common.util.set.Sets
 import org.slf4j.LoggerFactory
+import java.util.*
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 
@@ -27,6 +28,12 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
         val VALUE_COLUMN = PostgresColumnDefinition(PostgresDataTables.getSourceDataColumnName(PostgresDatatype.TIMESTAMPTZ, IndexType.NONE), PostgresDatatype.TIMESTAMPTZ)
         val LAST_MIGRATE = "last_migrate"
         val BATCH_SIZE = 16_000
+
+        val NCRIC_ENTITY_SETS = mapOf(
+                "2d20ecf8-17ca-43b5-9d49-1721b2e79cc7" to 166,
+                "93969261-557b-4f8f-816a-381bb279bf9d" to 106,
+                "d4601423-24ed-4d6b-aa0b-263d82fe67ab" to 206
+        ).mapKeys { UUID.fromString(it.key) }
     }
 
     override fun upgrade(): Boolean {
@@ -105,11 +112,11 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
         logger.info("Inserting/updating hashes to the data table using sql")
         val sw = Stopwatch.createStarted()
 
-        (0..257).toList().stream().parallel().forEach { partition ->
+        NCRIC_ENTITY_SETS.values.stream().parallel().forEach { partition ->
             limiter.acquire()
 
             val insertSql = insertRehashedRowsIntoDataTableSql(partition)
-            logger.info("Migrating data for partition $partition using SQL: $insertSql")
+            logger.info("Migrating non-NCRIC data for partition $partition using SQL: $insertSql")
 
             val partitionSw = Stopwatch.createStarted()
             var partitionTotalUpdated = 0
@@ -132,7 +139,30 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
             limiter.release()
         }
 
-        logger.info("Finished inserting new datetime rows into the data table. Took ${sw.elapsed(TimeUnit.SECONDS)} seconds.")
+        logger.info("Finished inserting new non-NCRIC datetime rows into the data table. Took ${sw.elapsed(TimeUnit.SECONDS)} seconds.")
+
+
+        logger.info("About to insert NCRIC datetime rows into the data table.")
+
+        NCRIC_ENTITY_SETS.entries.stream().parallel().forEach {
+            val entitySetId = it.key
+            val partition = it.value
+
+            val sql = nonBatchedInsertRehashedRowsIntoDataTableSql(entitySetId, partition)
+
+            logger.info("Updating all entity set $entitySetId data using SQL: $sql")
+
+            toolbox.hds.connection.use { conn ->
+
+                conn.createStatement().use { stmt ->
+                    val updateCount = stmt.executeUpdate(sql)
+                    logger.info("Updated $updateCount rows for entity set $entitySetId")
+                }
+
+            }
+        }
+
+        logger.info("All the data has been migrated to the data table! All that is left now is to delete......")
     }
 
     private fun deleteOldDateTimeRowsFromDataTable() {
@@ -195,9 +225,15 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
         val newHashComputation = "int8send(floor(extract(epoch from ${VALUE_COLUMN.name}) * 1000)::bigint)"
         val keyCols = (DATA_TABLE_KEY_COLS - HASH.name).joinToString(", ")
 
+        val versionsOnConflict = "${VERSIONS.name} = CASE " +
+                "WHEN $TEMP_TABLE_NAME.${LAST_WRITE.name} <= EXCLUDED.${LAST_WRITE.name} " +
+                "THEN EXCLUDED.${VERSIONS.name} " +
+                "ELSE $TEMP_TABLE_NAME.${VERSIONS.name} " +
+                "END"
+
         val onConflict =  "ON CONFLICT ($keyCols, ${HASH.name}) DO UPDATE SET " +
                 "${LAST_WRITE.name} = GREATEST($TEMP_TABLE_NAME.${LAST_WRITE.name},EXCLUDED.${LAST_WRITE.name}), " +
-                "${updateColumnIfLatestVersion(TEMP_TABLE_NAME, VERSIONS)}," +
+                "$versionsOnConflict," +
                 "${OLD_HASHES_COL.name} = $TEMP_TABLE_NAME.${OLD_HASHES_COL.name} || EXCLUDED.${OLD_HASHES_COL.name}"
 
         val sortVersions = "ARRAY(SELECT DISTINCT ${VERSION.name} FROM (SELECT ${VERSION.name} FROM UNNEST(array_cat_agg(${VERSIONS.name})) AS foo(${VERSION.name}) ORDER BY abs(foo.${VERSION.name})) AS bar) AS ${VERSIONS.name}"
@@ -221,23 +257,45 @@ class UpdateDateTimePropertyHash(private val toolbox: Toolbox) : Upgrade {
         val keyCols = DATA_TABLE_KEY_COLS.joinToString(", ")
         val insertSelectCols = (TEMP_TABLE_UNCHANGED_COLS + HASH + VERSION).joinToString(", ") { it.name }
 
+        val notNCRIC = " NOT (${ENTITY_SET_ID.name} = ANY('{${NCRIC_ENTITY_SETS.keys.joinToString(",")}}') ) "
+
         val maxAbsVersions = "${VERSIONS.name}[array_upper(${VERSIONS.name}, 1)]"
-        val sortVersions = "ARRAY(SELECT DISTINCT ${VERSION.name} FROM (SELECT ${VERSION.name} FROM UNNEST(array_cat_agg(${VERSIONS.name})) AS foo(${VERSION.name}) ORDER BY abs(foo.${VERSION.name})) AS bar) AS ${VERSIONS.name}"
 
         val getBatch = "WITH batch AS ( " +
                 "UPDATE $TEMP_TABLE_NAME " +
                 "SET $LAST_MIGRATE = now() " +
-                "WHERE ${PARTITION.name} = $partition AND id in (" +
+                "WHERE ${PARTITION.name} = $partition " +
+                "AND $notNCRIC " +
+                "AND id in (" +
                 "  SELECT id " +
                 "  FROM $TEMP_TABLE_NAME " +
                 "  WHERE $LAST_MIGRATE = '-infinity' " +
                 "  AND ${PARTITION.name} = $partition " +
+                "  AND $notNCRIC " +
                 "  LIMIT $BATCH_SIZE" +
                 ") RETURNING *, $maxAbsVersions as ${VERSION.name} )"
 
         return "$getBatch INSERT INTO ${DATA.name} ($insertSelectCols) " +
                 "  SELECT $insertSelectCols " +
                 "  FROM batch " +
+                "ON CONFLICT ($keyCols) DO UPDATE SET " +
+                "${LAST_WRITE.name} = GREATEST(${DATA.name}.${LAST_WRITE.name},EXCLUDED.${LAST_WRITE.name}), " +
+                "${updateColumnIfLatestVersion(DATA.name, VERSION)}, " +
+                "${updateColumnIfLatestVersion(DATA.name, VERSIONS)} "
+
+    }
+
+    private fun nonBatchedInsertRehashedRowsIntoDataTableSql(entitySetId: UUID, partition: Int): String {
+        val keyCols = DATA_TABLE_KEY_COLS.joinToString(", ")
+        val insertSelectCols = (TEMP_TABLE_UNCHANGED_COLS + HASH).joinToString(", ") { it.name }
+
+        val maxAbsVersions = "${VERSIONS.name}[array_upper(${VERSIONS.name}, 1)]"
+
+        return "INSERT INTO ${DATA.name} ($insertSelectCols, ${VERSION.name}) " +
+                "  SELECT $insertSelectCols, $maxAbsVersions AS ${VERSION.name} " +
+                "  FROM $TEMP_TABLE_NAME " +
+                "  WHERE ${ENTITY_SET_ID.name} = '$entitySetId' " +
+                "  AND ${PARTITION.name} = $partition " +
                 "ON CONFLICT ($keyCols) DO UPDATE SET " +
                 "${LAST_WRITE.name} = GREATEST(${DATA.name}.${LAST_WRITE.name},EXCLUDED.${LAST_WRITE.name}), " +
                 "${updateColumnIfLatestVersion(DATA.name, VERSION)}, " +
