@@ -60,6 +60,11 @@ class MechanicIntegrityPod {
     }
 
     @Bean
+    fun checkOrphanedEntitySets(): CheckOrphanedEntitySets {
+        return CheckOrphanedEntitySets(toolbox)
+    }
+
+    @Bean
     fun orphanedEdgesChecks(): OrphanedEdgesChecks {
         return OrphanedEdgesChecks(toolbox)
     }
