@@ -270,4 +270,9 @@ class MechanicUpgradePod {
     fun updateDateTimePropertyHash(): UpdateDateTimePropertyHash {
         return UpdateDateTimePropertyHash(toolbox)
     }
+
+    @Bean
+    fun fixAssociationTypeCatogories(): FixAssociationTypeCatogories {
+        return FixAssociationTypeCatogories(toolbox)
+    }
 }
