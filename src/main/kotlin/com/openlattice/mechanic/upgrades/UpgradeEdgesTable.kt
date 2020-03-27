@@ -7,6 +7,7 @@ import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresColumnDefinition
 import com.openlattice.postgres.PostgresDatatype
 import com.openlattice.postgres.PostgresTable.*
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.util.*
@@ -221,6 +222,7 @@ private val PARTITIONS_VERSION = PostgresColumnDefinition(
         "partitions_version",
         PostgresDatatype.INTEGER).notNull()
 
+@SuppressFBWarnings( value = ["SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"] )
 @Component
 class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
     private val limiter = Semaphore(16)

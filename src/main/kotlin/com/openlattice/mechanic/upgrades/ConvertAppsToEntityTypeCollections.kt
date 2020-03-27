@@ -19,12 +19,12 @@ import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.pods.legacy.AppType
 import com.openlattice.mechanic.pods.legacy.LegacyApp
-import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresTable.APPS
 import com.openlattice.postgres.PostgresTable.APP_CONFIGS
 import com.openlattice.postgres.ResultSetAdapters
 import com.openlattice.postgres.streams.BasePostgresIterable
 import com.openlattice.postgres.streams.StatementHolderSupplier
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.apache.olingo.commons.api.edm.FullQualifiedName
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -33,6 +33,7 @@ import kotlin.collections.LinkedHashSet
 
 /** This update should be run *after* the UpdateAppTables upgrade has run **/
 
+@SuppressFBWarnings(value = ["NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"])
 class ConvertAppsToEntityTypeCollections(
         private val toolbox: Toolbox,
         private val eventBus: EventBus
@@ -141,7 +142,7 @@ class ConvertAppsToEntityTypeCollections(
         }
 
         reservations.reserveIdAndValidateType(entityTypeCollection)
-        entityTypeCollections.putIfAbsent(entityTypeCollection.id, entityTypeCollection)
+        entityTypeCollections.putIfAbsent(entityTypeCollection.id, entityTypeCollection)?.let { return it }
         eventBus.post(EntityTypeCollectionCreatedEvent(entityTypeCollection))
 
         logger.info("Finished creating entity type collection ${entityTypeCollection.id} for app ${app.name}")
@@ -245,34 +246,32 @@ class ConvertAppsToEntityTypeCollections(
                 appRole.id!! to AclKey(orgId, roleId)
             }.toMutableMap()
 
-                /** create entity set collection **/
-                reservations.reserveIdAndValidateType(entitySetCollection, entitySetCollection::name)
-                entitySetCollections[entitySetCollection.id] = entitySetCollection
+            /** create entity set collection **/
+            reservations.reserveIdAndValidateType(entitySetCollection, entitySetCollection::name)
+            entitySetCollections[entitySetCollection.id] = entitySetCollection
 
-                /** create entity set collection mappings **/
-                entitySetCollectionsConfig.putAll(entitySetCollection.template.entries.associate { CollectionTemplateKey(entitySetCollection.id, it.key) to it.value })
+            /** create entity set collection mappings **/
+            entitySetCollectionsConfig.putAll(entitySetCollection.template.entries.associate { CollectionTemplateKey(entitySetCollection.id, it.key) to it.value })
 
-                /** grant permissions on entity set collection to organization owners **/
-                authorizations.setSecurableObjectType(AclKey(entitySetCollection.id), SecurableObjectType.EntitySetCollection)
-                authorizations.addPermissions(listOf(
-                        Acl(
-                                AclKey(entitySetCollection.id),
-                                orgOwners[AclKey(orgId)].map { Ace(it, EnumSet.allOf(Permission::class.java)) }.toList()
-                        )
-                ))
+            /** grant permissions on entity set collection to organization owners **/
+            authorizations.setSecurableObjectType(AclKey(entitySetCollection.id), SecurableObjectType.EntitySetCollection)
+            authorizations.addPermissions(listOf(
+                    Acl(
+                            AclKey(entitySetCollection.id),
+                            orgOwners[AclKey(orgId)].map { Ace(it, EnumSet.allOf(Permission::class.java)) }.toList()
+                    )
+            ))
 
-                /** trigger indexing **/
-                eventBus.post(EntitySetCollectionCreatedEvent(entitySetCollection))
+            /** trigger indexing **/
+            eventBus.post(EntitySetCollectionCreatedEvent(entitySetCollection))
 
-                /** create app config **/
-                appConfigs[AppConfigKey(appId, orgId)] = AppTypeSetting(UUID.randomUUID(), entitySetCollection.id, mappedRoles, mutableMapOf())
-            }
+            /** create app config **/
+            appConfigs[AppConfigKey(appId, orgId)] = AppTypeSetting(UUID.randomUUID(), entitySetCollection.id, mappedRoles, mutableMapOf())
         }
 
-    logger.info("Finished migrating app configs for app ${app.title}")
 
-
-}
+        logger.info("Finished migrating app configs for app ${app.title}")
+    }
 
 
     // LOAD FROM OLD TABLES
