@@ -126,13 +126,12 @@ class Mechanic {
     private val mechanicPods = RhizomeUtils.Pods.concatenate(
             RhizomeApplicationServer.DEFAULT_PODS,
             arrayOf(
-                    AssemblerConfigurationPod::class.java, Auth0Pod::class.java, JdbcPod::class.java,
+                    AssemblerConfigurationPod::class.java, AuditingConfigurationPod::class.java, Auth0Pod::class.java,
+                    JdbcPod::class.java, MapstoresPod::class.java, MechanicIntegrityPod::class.java,
+                    MechanicRetireePod::class.java, MechanicUpgradePod::class.java, PostgresPod::class.java,
+                    SharedStreamSerializersPod::class.java, Auth0Pod::class.java, JdbcPod::class.java,
                     MapstoresPod::class.java, MechanicIntegrityPod::class.java, MechanicRetireePod::class.java,
                     MechanicUpgradePod::class.java, PostgresPod::class.java, SharedStreamSerializersPod::class.java
-                    AssemblerConfigurationPod ::class.java, Auth0Pod::class.java, JdbcPod::class.java,
-                    MapstoresPod::class.java, MechanicIntegrityPod::class.java, MechanicRetireePod::class.java,
-                    MechanicUpgradePod::class.java, PostgresPod::class.java, SharedStreamSerializersPod::class.java,
-                    AuditingConfigurationPod::class.java
             )
     )
 

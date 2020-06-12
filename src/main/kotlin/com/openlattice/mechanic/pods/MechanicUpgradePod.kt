@@ -29,9 +29,7 @@ import com.openlattice.authorization.AuthorizationManager
 import com.openlattice.authorization.AuthorizationQueryService
 import com.openlattice.authorization.HazelcastAclKeyReservationService
 import com.openlattice.authorization.HazelcastAuthorizationService
-import com.openlattice.data.storage.ByteBlobDataManager
 import com.openlattice.data.storage.partitions.PartitionManager
-import com.openlattice.datastore.pods.ByteBlobServicePod
 import com.openlattice.datastore.services.EdmManager
 import com.openlattice.datastore.services.EdmService
 import com.openlattice.datastore.services.EntitySetManager
@@ -57,7 +55,7 @@ import org.springframework.context.annotation.Profile
 import javax.inject.Inject
 
 @Configuration
-@Import(MechanicToolboxPod::class, ByteBlobServicePod::class, AuditingConfigurationPod::class)
+@Import(MechanicToolboxPod::class, AuditingConfigurationPod::class)
 @Profile(UPGRADE)
 class MechanicUpgradePod {
 
@@ -78,9 +76,6 @@ class MechanicUpgradePod {
 
     @Inject
     private lateinit var toolbox: Toolbox
-
-    @Inject
-    private lateinit var byteBlobDataManager: ByteBlobDataManager
 
     @Inject
     private lateinit var auditingConfiguration: AuditingConfiguration
@@ -260,10 +255,10 @@ class MechanicUpgradePod {
         return SetDataTableIdsFieldLastWriteToCreation(toolbox)
     }
 
-    @Bean
-    fun convertAppsToEntityTypeCollections(): ConvertAppsToEntityTypeCollections {
-        return ConvertAppsToEntityTypeCollections(toolbox, eventBus)
-    }
+//    @Bean
+//    fun convertAppsToEntityTypeCollections(): ConvertAppsToEntityTypeCollections {
+//        return ConvertAppsToEntityTypeCollections(toolbox, eventBus)
+//    }
   
     @Bean
     fun updateAuditEntitySetPartitions(): UpdateAuditEntitySetPartitions {
@@ -293,11 +288,6 @@ class MechanicUpgradePod {
     @Bean
     fun fixAssociationTypeCatogories(): FixAssociationTypeCatogories {
         return FixAssociationTypeCatogories(toolbox)
-    }
-
-    @Bean
-    fun migrateImmutableEntityDataToS3(): MigrateImmutableEntityDataToS3 {
-        return MigrateImmutableEntityDataToS3(toolbox, byteBlobDataManager)
     }
 
     @Bean
