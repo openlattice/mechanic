@@ -143,11 +143,7 @@ class CreateMissingEntitySetsForAppConfigs(
     private fun generateEntitySet(org: Organization, app: App, appType: AppType): EntitySet {
         val name = formatEntitySetName(org.title, appType.type)
         val title = appType.title + " (" + org.title + ")"
-        val description = """
-            Auto-generated for organization ${org.id}
-            
-            ${appType.description}
-            """.trimIndent()
+        val description = "Auto-generated for organization ${org.id}\n\n${appType.description}"
         val entitySet = EntitySet(
                 UUID.randomUUID(),
                 appType.entityTypeId,
