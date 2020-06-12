@@ -128,21 +128,22 @@ class CreateMissingEntitySetsForAppConfigs(
         var nameAttempt = name
         var counter = 1
         while (reservations.isReserved(nameAttempt)) {
-            nameAttempt = name + "_" + counter
+            nameAttempt = "${name}_$counter"
             counter++
         }
         return nameAttempt
     }
 
     private fun formatEntitySetName(prefix: String, appTypeFqn: FullQualifiedName): String {
-        var name = prefix + "_" + appTypeFqn.namespace + "_" + appTypeFqn.name
-        name = name.toLowerCase().replace("[^a-z0-9_]".toRegex(), "")
+        val name = "${prefix}_${appTypeFqn.namespace}_${appTypeFqn.name}"
+                .toLowerCase()
+                .replace(regex = "[^a-z0-9_]".toRegex(), replacement = "")
         return getNextAvailableName(name)
     }
 
     private fun generateEntitySet(org: Organization, app: App, appType: AppType): EntitySet {
         val name = formatEntitySetName(org.title, appType.type)
-        val title = appType.title + " (" + org.title + ")"
+        val title = "${appType.title} (${org.title})"
         val description = "Auto-generated for organization ${org.id}\n\n${appType.description}"
         val entitySet = EntitySet(
                 UUID.randomUUID(),
