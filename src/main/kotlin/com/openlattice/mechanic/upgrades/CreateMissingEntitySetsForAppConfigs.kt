@@ -110,7 +110,7 @@ class CreateMissingEntitySetsForAppConfigs(
     private fun getRoleAcesForApp(rolesByPrincipalId: Map<String, SecurablePrincipal>, orgId: UUID, app: App): Set<Ace> {
         val aces = mutableSetOf<Ace>()
         EnumSet.of(Permission.READ, Permission.WRITE, Permission.OWNER).forEach { permission ->
-            val title = "${app.title}-${permission.name}"
+            val title = "${app.title} - ${permission.name}"
             val principalId = "$orgId-$title"
 
             var principal: Principal? = null
