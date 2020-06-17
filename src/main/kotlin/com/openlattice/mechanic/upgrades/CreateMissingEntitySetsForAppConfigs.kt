@@ -54,7 +54,13 @@ class CreateMissingEntitySetsForAppConfigs(
             org.apps.forEach { appId ->
 
                 val app = apps.getValue(appId)
-                roleAcesByApp[appId] = getRoleAcesForApp(rolesByPrincipalId, org.id, app)
+                val orgAppRoles = getRoleAcesForApp(rolesByPrincipalId, org.id, app)
+                roleAcesByApp[appId] = orgAppRoles
+
+                if (orgAppRoles.size < 3) {
+                    logger.info("SKIPPING CREATION for org ${org.title} [${org.id}] on app ${app.name} [${app.id}] because corresponding app roles were not found.")
+                    return@forEach
+                }
 
                 app.appTypeIds.forEach { appTypeId ->
 
