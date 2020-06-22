@@ -73,7 +73,7 @@ class CreateMissingEntitySetsForAppConfigs(
 
                     val appConfigKey = AppConfigKey(appId, org.id, appTypeId)
                     if (!appConfigs.containsKey(appConfigKey)) {
-//                        appConfigKeysToCreate.add(appConfigKey) TODO
+                        appConfigKeysToCreate.add(appConfigKey)
                     } else {
                         val entitySetId = appConfigs.getValue(appConfigKey).entitySetId
                         aclsToGrant.add(Acl(AclKey(entitySetId), appPrincipalAces))
@@ -144,7 +144,7 @@ class CreateMissingEntitySetsForAppConfigs(
 
             if (principal != null) {
                 aces.add(Ace(principal, EnumSet.of(permission)))
-            } else  {
+            } else {
                 logger.info("Could not find $permission principal for app ${app.name} in org $orgId")
             }
         }
@@ -208,7 +208,7 @@ class CreateMissingEntitySetsForAppConfigs(
         return entitySet
     }
 
-    private fun getOrCreateAppPrincipal( app: App, organizationId: UUID, adminPrincipal: Principal ): Principal {
+    private fun getOrCreateAppPrincipal(app: App, organizationId: UUID, adminPrincipal: Principal): Principal {
         val principal = Principal(PrincipalType.APP, "${app.id}|$organizationId")
         try {
             spm.lookup(principal)
@@ -217,7 +217,7 @@ class CreateMissingEntitySetsForAppConfigs(
             spm.createSecurablePrincipalIfNotExists(adminPrincipal, SecurablePrincipal(
                     AclKey(app.id, UUID.randomUUID()),
                     principal,
-                     "${app.title} ($organizationId)",
+                    "${app.title} ($organizationId)",
                     Optional.of("${app.description}\nInstalled for organization $organizationId")
             ))
         }
@@ -225,7 +225,7 @@ class CreateMissingEntitySetsForAppConfigs(
         return principal
     }
 
-    private fun getAppPrincipalAce( appId: UUID, organizationId: UUID ): Ace {
+    private fun getAppPrincipalAce(appId: UUID, organizationId: UUID): Ace {
         val principalId = "$appId|$organizationId"
         return Ace(Principal(PrincipalType.APP, principalId), EnumSet.of(Permission.READ, Permission.WRITE))
     }
