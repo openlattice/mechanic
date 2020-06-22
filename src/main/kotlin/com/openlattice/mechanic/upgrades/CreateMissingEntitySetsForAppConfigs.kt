@@ -51,11 +51,18 @@ class CreateMissingEntitySetsForAppConfigs(
             val adminAceKeys = adminRole?.let { listOf(Ace(it, EnumSet.allOf(Permission::class.java))) } ?: listOf()
             val roleAcesByApp = mutableMapOf<UUID, Set<Ace>>()
 
+            if (adminAceKeys.isEmpty()) {
+                logger.info("No admin ace keys found  for org ${org.id}, skipping creation")
+                return@forEach
+            }
+
             org.apps.forEach { appId ->
 
                 val app = apps.getValue(appId)
                 val orgAppRoles = getRoleAcesForApp(rolesByPrincipalId, org.id, app)
                 roleAcesByApp[appId] = orgAppRoles
+                getOrCreateAppPrincipal(app, org.id, adminAceKeys.first().principal)
+                val appPrincipalAces = listOf(getAppPrincipalAce(appId, org.id))
 
                 if (orgAppRoles.size < 3) {
                     logger.info("SKIPPING CREATION for org ${org.title} [${org.id}] on app ${app.name} [${app.id}] because corresponding app roles were not found.")
@@ -66,7 +73,13 @@ class CreateMissingEntitySetsForAppConfigs(
 
                     val appConfigKey = AppConfigKey(appId, org.id, appTypeId)
                     if (!appConfigs.containsKey(appConfigKey)) {
-                        appConfigKeysToCreate.add(appConfigKey)
+//                        appConfigKeysToCreate.add(appConfigKey) TODO
+                    } else {
+                        val entitySetId = appConfigs.getValue(appConfigKey).entitySetId
+                        aclsToGrant.add(Acl(AclKey(entitySetId), appPrincipalAces))
+                        toolbox.entityTypes.getValue(appTypes.getValue(appTypeId).entityTypeId).properties.forEach { ptId ->
+                            aclsToGrant.add(Acl(AclKey(entitySetId, ptId), appPrincipalAces))
+                        }
                     }
 
                 }
@@ -88,7 +101,7 @@ class CreateMissingEntitySetsForAppConfigs(
             appConfigKeysToCreate.forEach { ack ->
                 val entitySet = generateEntitySet(org, apps.getValue(ack.appId), appTypes.getValue(ack.appTypeId))
                 val entitySetId = entitySetManager.createEntitySet(userOwnerPrincipal, entitySet)
-                val aceKeysToGrant = adminAceKeys + roleAcesByApp.getOrDefault(ack.appId, setOf())
+                val aceKeysToGrant = adminAceKeys + roleAcesByApp.getOrDefault(ack.appId, setOf()) + getAppPrincipalAce(ack.appId, ack.organizationId)
 
                 newAppConfigEntries[ack] = AppTypeSetting(entitySetId, EnumSet.of(Permission.READ, Permission.WRITE))
 
@@ -193,6 +206,28 @@ class CreateMissingEntitySetsForAppConfigs(
                 EnumSet.noneOf(EntitySetFlag::class.java))
         entitySet.setPartitions(org.partitions)
         return entitySet
+    }
+
+    private fun getOrCreateAppPrincipal( app: App, organizationId: UUID, adminPrincipal: Principal ): Principal {
+        val principal = Principal(PrincipalType.APP, "${app.id}|$organizationId")
+        try {
+            spm.lookup(principal)
+        } catch (e: Exception) {
+            logger.info("App principal did not exist for app ${app.id} in org $organizationId. Creating it now.")
+            spm.createSecurablePrincipalIfNotExists(adminPrincipal, SecurablePrincipal(
+                    AclKey(app.id, UUID.randomUUID()),
+                    principal,
+                     "${app.title} ($organizationId)",
+                    Optional.of("${app.description}\nInstalled for organization $organizationId")
+            ))
+        }
+
+        return principal
+    }
+
+    private fun getAppPrincipalAce( appId: UUID, organizationId: UUID ): Ace {
+        val principalId = "$appId|$organizationId"
+        return Ace(Principal(PrincipalType.APP, principalId), EnumSet.of(Permission.READ, Permission.WRITE))
     }
 
 }
