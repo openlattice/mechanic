@@ -26,14 +26,10 @@ val ALL_PARTITIONS = (0..256).toList()
 
 class RepartitionOrganizations(val toolbox: Toolbox) : Upgrade {
     override fun upgrade(): Boolean {
-        val orgs = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
-        val orgIds = orgs.keys.toSet()
 
-        val assignedPartitions = chooseNewPartitionsForOrganizations(orgIds)
+        val assignedPartitions = chooseNewPartitionsForOrganizations()
 
         updateOrgPartitions(assignedPartitions)
-
-        orgs.loadAll(true)
 
         return true
     }
@@ -68,7 +64,7 @@ class RepartitionOrganizations(val toolbox: Toolbox) : Upgrade {
         }
     }
 
-    private fun chooseNewPartitionsForOrganizations(orgIds: Set<UUID>): Map<UUID, List<Int>> {
+    private fun chooseNewPartitionsForOrganizations(): Map<UUID, List<Int>> {
 
         // entitiesPerAssignedPartition does not actually track the number of current entities in the system per
         // assigned partition as the data is currently living on random partitions and won't be moved by this migration,
@@ -77,12 +73,10 @@ class RepartitionOrganizations(val toolbox: Toolbox) : Upgrade {
         val entitiesPerAssignedPartition = ALL_PARTITIONS.associateWith { 0L }.toMutableMap()
         val assignedOrganizationPartitions = mutableMapOf<UUID, List<Int>>()
 
-        val entityCountsByOrg = getEntityCountByOrg()
-
-        orgIds.forEach { id ->
+        getEntityCountByOrg().entries.sortedByDescending { it.value }.forEach { (id, orgTotalCount) ->
 
             val numPartitions = getNumPartitionsForOrg(id)
-            val orgPartitionCount = entityCountsByOrg.getOrDefault(id, 0) / numPartitions
+            val orgPartitionCount = orgTotalCount / numPartitions
 
             val orgPartitions = entitiesPerAssignedPartition.entries
                     .sortedBy { it.value } // NOTE: this is not ideal but since we only have 150 orgs at the time of writing this, should be fine
@@ -124,5 +118,7 @@ class RepartitionOrganizations(val toolbox: Toolbox) : Upgrade {
 
             stmt.executeBatch()
         }
+
+        HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast).loadAll(true)
     }
 }
