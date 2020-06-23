@@ -275,4 +275,9 @@ class MechanicUpgradePod {
     fun fixAssociationTypeCatogories(): FixAssociationTypeCatogories {
         return FixAssociationTypeCatogories(toolbox)
     }
+
+    @Bean
+    fun repartitionOrganizations(): RepartitionOrganizations {
+        return RepartitionOrganizations(toolbox)
+    }
 }
