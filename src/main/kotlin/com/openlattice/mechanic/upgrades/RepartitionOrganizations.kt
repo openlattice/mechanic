@@ -1,7 +1,5 @@
 package com.openlattice.mechanic.upgrades
 
-import com.google.common.collect.Maps
-import com.openlattice.data.storage.PostgresEntitySetSizesInitializationTask
 import com.openlattice.data.storage.PostgresEntitySetSizesInitializationTask.Companion.ENTITY_SET_SIZES_VIEW
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
@@ -41,13 +39,11 @@ class RepartitionOrganizations(val toolbox: Toolbox) : Upgrade {
     /* Plan the repartitioning */
 
     private fun getEntityCountByOrg(): Map<UUID, Long> {
-        val entitySetCounts = BasePostgresIterable(StatementHolderSupplier(toolbox.hds, GET_ENTITY_SET_COUNTS_SQL)) {
-            ResultSetAdapters.entitySetId(it) to ResultSetAdapters.count(it)
-        }.toMap()
-
         val orgCounts = mutableMapOf<UUID, Long>()
 
-        entitySetCounts.forEach { (entitySetId, count) ->
+        BasePostgresIterable(StatementHolderSupplier(toolbox.hds, GET_ENTITY_SET_COUNTS_SQL)) {
+            ResultSetAdapters.entitySetId(it) to ResultSetAdapters.count(it)
+        }.forEach { (entitySetId, count) ->
             toolbox.entitySets[entitySetId]?.organizationId?.let { id ->
                 orgCounts[id] = orgCounts.getOrDefault(id, 0) + count
             }
