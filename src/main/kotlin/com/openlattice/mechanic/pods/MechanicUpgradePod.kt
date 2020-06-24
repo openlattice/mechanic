@@ -202,7 +202,7 @@ class MechanicUpgradePod {
 
     @Bean
     fun authorizationManager(): AuthorizationManager {
-        return HazelcastAuthorizationService(hazelcastInstance, authorizationQueryService(), eventBus)
+        return HazelcastAuthorizationService(hazelcastInstance, eventBus)
     }
 
     @Bean
