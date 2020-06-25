@@ -347,6 +347,7 @@ class MechanicUpgradePod {
                 authorizationManager(),
                 partitionManager(),
                 edmManager(),
+                hikariDataSource,
                 auditingConfiguration
         )
     }
