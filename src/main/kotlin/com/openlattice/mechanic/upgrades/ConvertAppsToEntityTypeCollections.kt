@@ -44,8 +44,7 @@ class ConvertAppsToEntityTypeCollections(
 
     val reservations = HazelcastAclKeyReservationService(hazelcast)
 
-    val authorizationQueryService = AuthorizationQueryService(toolbox.hds, hazelcast)
-    val authorizations = HazelcastAuthorizationService(hazelcast, authorizationQueryService, eventBus);
+    val authorizations = HazelcastAuthorizationService(hazelcast, eventBus);
 
     override fun upgrade(): Boolean {
         apps.values.forEach { migrateApp(it) }
