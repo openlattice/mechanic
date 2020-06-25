@@ -1,7 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
 import com.hazelcast.core.IMap
-import com.openlattice.data.storage.partitions.DEFAULT_PARTITION_COUNT
 import com.openlattice.data.storage.partitions.PartitionManager
 import com.openlattice.edm.EntitySet
 import com.openlattice.hazelcast.HazelcastMap
@@ -41,7 +40,7 @@ class AddPartitionsToOrgsAndEntitySets(private val toolbox: Toolbox) : Upgrade {
         organizations.values.filter { it.partitions.isEmpty() }.forEach {
 
             logger.info("Allocating partitions for organization {} [{}]", it.title, it.id)
-            val partitions = partitionManager.allocateDefaultPartitions(it.id, DEFAULT_PARTITION_COUNT)
+            val partitions = partitionManager.allocateDefaultOrganizationPartitions(it.id)
             logger.info("Organization {} assigned partitions {}", it.id, partitions)
         }
 
@@ -56,7 +55,7 @@ class AddPartitionsToOrgsAndEntitySets(private val toolbox: Toolbox) : Upgrade {
         toolbox.entitySets.values.filter { it.partitions.isEmpty() }.forEach {
 
             logger.info("Allocating partitions for entity set {} [{}]", it.name, it.id)
-            val entitySetWithAllocatedPartitions = partitionManager.allocatePartitions(it)
+            val entitySetWithAllocatedPartitions = partitionManager.allocateEntitySetPartitions(it)
             entitySets[entitySetWithAllocatedPartitions.id] = entitySetWithAllocatedPartitions
             logger.info("Entity set {} assigned partitions {}", it.id, entitySetWithAllocatedPartitions.partitions)
         }

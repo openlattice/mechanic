@@ -30,6 +30,7 @@ import com.kryptnostic.rhizome.core.RhizomeApplicationServer
 import com.kryptnostic.rhizome.hazelcast.serializers.RhizomeUtils
 import com.kryptnostic.rhizome.startup.Requirement
 import com.openlattice.assembler.pods.AssemblerConfigurationPod
+import com.openlattice.auditing.pods.AuditingConfigurationPod
 import com.openlattice.auth0.Auth0Pod
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.hazelcast.pods.SharedStreamSerializersPod
@@ -125,9 +126,10 @@ class Mechanic {
     private val mechanicPods = RhizomeUtils.Pods.concatenate(
             RhizomeApplicationServer.DEFAULT_PODS,
             arrayOf(
-                    AssemblerConfigurationPod::class.java, Auth0Pod::class.java, JdbcPod::class.java,
-                    MapstoresPod::class.java, MechanicIntegrityPod::class.java, MechanicRetireePod::class.java,
-                    MechanicUpgradePod::class.java, PostgresPod::class.java, SharedStreamSerializersPod::class.java
+                    AssemblerConfigurationPod::class.java, AuditingConfigurationPod::class.java, Auth0Pod::class.java,
+                    JdbcPod::class.java, MapstoresPod::class.java, MechanicIntegrityPod::class.java,
+                    MechanicRetireePod::class.java, MechanicUpgradePod::class.java, PostgresPod::class.java,
+                    SharedStreamSerializersPod::class.java
             )
     )
 

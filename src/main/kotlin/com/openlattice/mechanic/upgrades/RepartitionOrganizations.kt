@@ -33,7 +33,7 @@ class RepartitionOrganizations(val toolbox: Toolbox) : Upgrade {
     }
 
     override fun getSupportedVersion(): Long {
-        return Version.V2020_01_29.value
+        return Version.V2020_06_11.value
     }
 
     /* Plan the repartitioning */

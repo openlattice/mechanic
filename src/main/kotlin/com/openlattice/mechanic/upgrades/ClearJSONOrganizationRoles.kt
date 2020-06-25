@@ -20,10 +20,10 @@ class ClearJSONOrganizationRoles(private val toolbox: Toolbox) : Upgrade {
         val organizations = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
 
         logger.info("About to clear roles for organizations")
-
-        organizations.executeOnEntries(OrganizationEntryProcessor {
-            it.roles.clear()
-        })
+//
+//        organizations.executeOnEntries(OrganizationEntryProcessor {
+////            it.roles.clear()
+//        })
 
         logger.info("Finished clearing roles for organizations")
 
