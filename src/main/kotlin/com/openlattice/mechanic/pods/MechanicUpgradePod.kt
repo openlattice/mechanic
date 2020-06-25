@@ -24,7 +24,6 @@ import com.google.common.eventbus.EventBus
 import com.hazelcast.core.HazelcastInstance
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.authorization.AuthorizationManager
-import com.openlattice.authorization.AuthorizationQueryService
 import com.openlattice.authorization.HazelcastAclKeyReservationService
 import com.openlattice.authorization.HazelcastAuthorizationService
 import com.openlattice.hazelcast.pods.MapstoresPod
@@ -191,18 +190,13 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun authorizationQueryService(): AuthorizationQueryService {
-        return AuthorizationQueryService(hikariDataSource, hazelcastInstance)
-    }
-
-    @Bean
     fun aclKeyReservationService(): HazelcastAclKeyReservationService {
         return HazelcastAclKeyReservationService(hazelcastInstance)
     }
 
     @Bean
     fun authorizationManager(): AuthorizationManager {
-        return HazelcastAuthorizationService(hazelcastInstance, authorizationQueryService(), eventBus)
+        return HazelcastAuthorizationService(hazelcastInstance, eventBus)
     }
 
     @Bean
