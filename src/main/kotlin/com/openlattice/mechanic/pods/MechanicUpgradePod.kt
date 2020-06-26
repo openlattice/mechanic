@@ -326,7 +326,6 @@ class MechanicUpgradePod {
     @Bean
     fun edmManager(): EdmManager {
         return EdmService(
-                hikariDataSource,
                 hazelcastInstance,
                 aclKeyReservationService(),
                 authorizationManager(),
