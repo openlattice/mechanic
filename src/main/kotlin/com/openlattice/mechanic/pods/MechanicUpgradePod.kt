@@ -300,7 +300,7 @@ class MechanicUpgradePod {
 
     @Bean
     fun postgresEdmManager(): PostgresEdmManager {
-        return PostgresEdmManager(hikariDataSource, hazelcastInstance)
+        return PostgresEdmManager(hikariDataSource)
     }
 
     @Bean
@@ -329,7 +329,6 @@ class MechanicUpgradePod {
                 hazelcastInstance,
                 aclKeyReservationService(),
                 authorizationManager(),
-                postgresEdmManager(),
                 postgresTypeManager(),
                 schemaManager()
         )
@@ -341,7 +340,6 @@ class MechanicUpgradePod {
         return EntitySetService(
                 hazelcastInstance,
                 eventBus,
-                postgresEdmManager(),
                 aclKeyReservationService(),
                 authorizationManager(),
                 partitionManager(),
