@@ -301,7 +301,6 @@ class MechanicUpgradePod {
 
 
     /* SETUP FOR EntitySetManager */
-
     @Bean
     fun partitionManager(): PartitionManager {
         return PartitionManager(hazelcastInstance, hikariDataSource)
