@@ -1,6 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
-import com.hazelcast.core.IMap
+import com.hazelcast.map.IMap
 import com.openlattice.data.storage.partitions.PartitionManager
 import com.openlattice.edm.EntitySet
 import com.openlattice.hazelcast.HazelcastMap
