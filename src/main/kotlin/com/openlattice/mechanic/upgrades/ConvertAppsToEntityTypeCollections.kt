@@ -31,7 +31,7 @@ import java.util.*
 import java.util.stream.Collectors
 import kotlin.collections.LinkedHashSet
 
-/** This update should be run *after* the UpdateAppTables upgrade has run **/
+/** This update should be run *after* the [UpdateAppTables] upgrade has run **/
 
 @SuppressFBWarnings(value = ["NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"])
 class ConvertAppsToEntityTypeCollections(
