@@ -2,6 +2,7 @@ package com.openlattice.mechanic.upgrades
 
 import com.dataloom.mappers.ObjectMappers
 import com.google.common.collect.ImmutableSet
+import com.google.common.collect.Sets
 import com.google.common.eventbus.EventBus
 import com.openlattice.apps.App
 import com.openlattice.apps.AppConfigKey
@@ -98,15 +99,16 @@ class ConvertAppsToEntityTypeCollections(
      * 4) create new app configs
      *
      * **/
-    private fun migrateApp(app: LegacyApp, appTypes: Map<UUID, AppType>, appConfigs: List<Triple<UUID, UUID, UUID>>) {
+    private fun migrateApp(legacyApp: LegacyApp, appTypes: Map<UUID, AppType>, appConfigs: List<Triple<UUID, UUID, UUID>>) {
+        logger.info("About to migrate app {}", legacyApp.name)
 
-        val entityTypeCollection = createEntityTypeCollectionForApp(app, appTypes)
+        val entityTypeCollection = createEntityTypeCollectionForApp(legacyApp, appTypes)
 
-        val appRoles = createAppRolesAndEntityTypeCollectionId(app, entityTypeCollection)
+        val appRoles = createAppAndGetAppRoles(legacyApp, entityTypeCollection)
 
-        migrateAppConfigsToEntitySetCollections(app, appTypes, appRoles, appConfigs, entityTypeCollection)
+        migrateAppConfigsToEntitySetCollections(legacyApp, appTypes, appRoles, appConfigs, entityTypeCollection)
 
-        logger.info("Finished migrating apps!")
+        logger.info("Finished migrating app {}!", legacyApp.name)
 
     }
 
@@ -147,9 +149,9 @@ class ConvertAppsToEntityTypeCollections(
         return entityTypeCollection
     }
 
-    private fun createAppRolesAndEntityTypeCollectionId(app: LegacyApp, entityTypeCollection: EntityTypeCollection): List<AppRole> {
+    private fun createAppAndGetAppRoles(legacyApp: LegacyApp, entityTypeCollection: EntityTypeCollection): List<AppRole> {
 
-        logger.info("About to update entityTypeCollectionId and roles fields for app ${app.name}")
+        logger.info("About to update entityTypeCollectionId and roles fields for app ${legacyApp.name}")
 
         val entityTypesAndPropertyTypes = mutableMapOf<UUID, Optional<Set<UUID>>>()
         entityTypeCollection.template.forEach {
@@ -157,43 +159,43 @@ class ConvertAppsToEntityTypeCollections(
         }
 
         val roles = DEFAULT_ROLE_PERMISSIONS.map {
-            val roleTitle = "${app.title} - $it"
+            val roleTitle = "${legacyApp.title} - $it"
             AppRole(
                     UUID.randomUUID(),
                     roleTitle,
                     roleTitle,
-                    "$it permission for ${app.title} app",
+                    "$it permission for ${legacyApp.title} app",
                     mapOf(it to entityTypesAndPropertyTypes)
             )
         }
 
-        apps[app.id] = App(
-                app.id,
-                app.name,
-                app.title,
-                Optional.of(app.description),
-                app.url,
+        apps[legacyApp.id] = App(
+                legacyApp.id,
+                legacyApp.name,
+                legacyApp.title,
+                Optional.of(legacyApp.description),
+                legacyApp.url,
                 entityTypeCollection.id,
                 roles.toMutableSet(),
                 mutableMapOf()
         )
 
-        logger.info("Finished updating fields for app ${app.name}")
+        logger.info("Finished updating fields for app ${legacyApp.name}")
 
         return roles
     }
 
     private fun migrateAppConfigsToEntitySetCollections(
-            app: LegacyApp,
+            legacyApp: LegacyApp,
             appTypes: Map<UUID, AppType>,
             appRoles: List<AppRole>,
             appConfigsToMigrate: List<Triple<UUID, UUID, UUID>>,
             entityTypeCollection: EntityTypeCollection
     ) {
 
-        logger.info("Migrating app configs for app ${app.title}")
+        logger.info("Migrating app configs for app ${legacyApp.title}")
 
-        val appId = app.id
+        val appId = legacyApp.id
 
         val templateByFqn = entityTypeCollection.template.map { it.name to it.id }.toMap()
 
@@ -213,49 +215,60 @@ class ConvertAppsToEntityTypeCollections(
             templatesByOrg[orgId] = orgTemplates
         }
 
-        val orgs = organizations.getAll(templatesByOrg.keys)
-        val orgOwners = authorizations.getOwnersForSecurableObjects(templatesByOrg.keys.map { AclKey(it) })
+        val orgs = organizations.getAll(templatesByOrg.keys).filter { it.value != null }
+        val orgOwners = authorizations.getOwnersForSecurableObjects(orgs.keys.map { AclKey(it) })
 
+        // Skip migration for any deleted organizations that have left behind garbage
+        val missingOrgs = Sets.difference(templatesByOrg.keys, orgs.keys)
+        if (missingOrgs.isNotEmpty()) {
+            logger.info("Skipping migration for orgs {} as they do not exist", missingOrgs)
+            missingOrgs.forEach { templatesByOrg.remove(it) }
+        }
+
+        // Updates per organization
         templatesByOrg.forEach {
 
             val orgId = it.key
+            val template = it.value
+            val appPrincipal = Principal(PrincipalType.APP, "$appId|$orgId")
 
-            logger.info("Migrating app ${app.title} for organization $orgId")
+            logger.info("Migrating app ${legacyApp.name} for organization $orgId")
 
             val entitySetCollection = EntitySetCollection(
                     Optional.empty(),
-                    "${app.name}_$orgId",
-                    "${orgs.getValue(orgId).title} ${app.title} [$orgId]",
-                    Optional.of(app.description),
+                    "${legacyApp.name}_$orgId",
+                    "${orgs.getValue(orgId).title} ${legacyApp.title} [$orgId]",
+                    Optional.of(legacyApp.description),
                     entityTypeCollection.id,
-                    it.value,
+                    template,
                     setOf(),
                     orgId
             )
 
             /** map roles **/
-            val mappedRoles = appRoles.filter { appRole ->
-                reservations.isReserved("$orgId|${appRole.name}")
-            }.associate { appRole ->
-                val orgAppRoleName = "$orgId|${appRole.name}"
-                val roleId = reservations.getId(orgAppRoleName)
-
-                appRole.id!! to AclKey(orgId, roleId)
-            }.toMutableMap()
+            val mappedRoles = appRoles
+                    .map { appRole -> appRole to "$orgId|${appRole.name}" }
+                    .filter { (_, orgAppRoleName) -> reservations.isReserved(orgAppRoleName) }
+                    .associate { (appRole, orgAppRoleName) ->
+                        val roleId = reservations.getId(orgAppRoleName)
+                        appRole.id!! to AclKey(orgId, roleId)
+                    }.toMutableMap()
 
             /** create entity set collection **/
             reservations.reserveIdAndValidateType(entitySetCollection, entitySetCollection::name)
             entitySetCollections[entitySetCollection.id] = entitySetCollection
 
             /** create entity set collection mappings **/
-            entitySetCollectionsConfig.putAll(entitySetCollection.template.entries.associate { CollectionTemplateKey(entitySetCollection.id, it.key) to it.value })
+            entitySetCollectionsConfig.putAll(entitySetCollection.template.entries.associate { (templateTypeId, entitySetId) ->
+                CollectionTemplateKey(entitySetCollection.id, templateTypeId) to entitySetId
+            })
 
             /** grant permissions on entity set collection to organization owners **/
             authorizations.setSecurableObjectType(AclKey(entitySetCollection.id), SecurableObjectType.EntitySetCollection)
             authorizations.addPermissions(listOf(
                     Acl(
                             AclKey(entitySetCollection.id),
-                            orgOwners[AclKey(orgId)].map { Ace(it, EnumSet.allOf(Permission::class.java)) }.toList()
+                            (orgOwners[AclKey(orgId)] + appPrincipal).map { p -> Ace(p, EnumSet.allOf(Permission::class.java)) }
                     )
             ))
 
@@ -267,7 +280,7 @@ class ConvertAppsToEntityTypeCollections(
         }
 
 
-        logger.info("Finished migrating app configs for app ${app.title}")
+        logger.info("Finished migrating app configs for app ${legacyApp.title}")
     }
 
 
