@@ -50,10 +50,7 @@ class ConvertAppsToEntityTypeCollections(
     val entitySetCollectionsConfig = HazelcastMap.ENTITY_SET_COLLECTION_CONFIG.getMap(hazelcast)
 
     val reservations = HazelcastAclKeyReservationService(hazelcast)
-
-    val authorizationQueryService = AuthorizationQueryService(toolbox.hds, hazelcast)
-    val authorizations = HazelcastAuthorizationService(hazelcast, authorizationQueryService, eventBus)
-
+    val authorizations = HazelcastAuthorizationService(hazelcast, eventBus)
 
     companion object {
         private val logger = LoggerFactory.getLogger(ConvertAppsToEntityTypeCollections::class.java)
