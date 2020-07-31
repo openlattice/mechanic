@@ -60,7 +60,7 @@ class CreateMissingEntitySetsForAppConfigs(
             org.apps.forEach { appId ->
 
                 val app = apps.getValue(appId)
-                val orgAppRoles = getRoleAcesForApp(rolesByPrincipalId, org.id, app, userOwnerPrincipal)
+                val orgAppRoles = getOrCreateRoleAcesForApp(rolesByPrincipalId, org.id, app, userOwnerPrincipal)
                 roleAcesByApp[appId] = orgAppRoles
                 getOrCreateAppPrincipal(app, org.id, adminAceKeys.first().principal)
                 val appPrincipalAces = listOf(getAppPrincipalAce(appId, org.id))
@@ -120,7 +120,7 @@ class CreateMissingEntitySetsForAppConfigs(
         return spm.getAllRolesInOrganization(orgId).associateBy { it.principal.id }
     }
 
-    private fun getRoleAcesForApp(
+    private fun getOrCreateRoleAcesForApp(
             rolesByPrincipalId: Map<String, SecurablePrincipal>,
             orgId: UUID,
             app: App,
