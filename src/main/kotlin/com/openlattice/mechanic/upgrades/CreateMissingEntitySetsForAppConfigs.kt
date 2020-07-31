@@ -39,11 +39,8 @@ class CreateMissingEntitySetsForAppConfigs(
         val orgs = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast).toMap()
 
         val orgsToUserOwners = getUserOwnersOfOrgs(orgs.keys)
-
-        if (orgsToUserOwners.size != orgs.size || orgsToUserOwners.values.any { it == null }) {
-            val missingOrgs = (orgs.keys - orgsToUserOwners.keys) + orgsToUserOwners.filter { it.value == null }.map{ it.key }
-            logger.error("Aborting upgrade: organizations {} do not have any user owners", missingOrgs)
-            return false
+        val orgsToAdminRoles = orgs.values.associate {
+            it.id to getOrCreateAdminRole(it, orgsToUserOwners.getValue(it.id))
         }
 
         val newAppConfigEntries = mutableMapOf<AppConfigKey, AppTypeSetting>()
@@ -53,8 +50,8 @@ class CreateMissingEntitySetsForAppConfigs(
 
             val appConfigKeysToCreate = mutableSetOf<AppConfigKey>()
 
-            val userOwnerPrincipal = orgsToUserOwners[org.id]!!
-            val adminRole = getOrCreateAdminRole(org, userOwnerPrincipal)
+            val userOwnerPrincipal = orgsToUserOwners.getValue(org.id)
+            val adminRole = orgsToAdminRoles.getValue(org.id)
             val rolesByPrincipalId = getOrgRolesByPrincipalId(org.id)
             val adminAceKeys = listOf(Ace(adminRole, EnumSet.allOf(Permission::class.java)))
             val roleAcesByApp = mutableMapOf<UUID, Set<Ace>>()
@@ -213,11 +210,11 @@ class CreateMissingEntitySetsForAppConfigs(
     }
 
 
-    private fun getUserOwnersOfOrgs(orgIds: Set<UUID>): Map<UUID, Principal?> {
+    private fun getUserOwnersOfOrgs(orgIds: Set<UUID>): Map<UUID, Principal> {
         val orgAclKeys = orgIds.map { AclKey(it) }
         return authManager.getOwnersForSecurableObjects(orgAclKeys).asMap()
                 .mapKeys { it.key.first() }
-                .mapValues { it.value.firstOrNull { p -> p.type == PrincipalType.USER } }
+                .mapValues { it.value.first { p -> p.type == PrincipalType.USER } }
     }
 
     private fun getNextAvailableName(name: String): String {
