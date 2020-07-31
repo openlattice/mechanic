@@ -10,6 +10,7 @@ import com.openlattice.edm.EntitySet
 import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.organization.roles.Role
 import com.openlattice.organizations.Organization
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import org.apache.olingo.commons.api.edm.FullQualifiedName
@@ -39,6 +40,12 @@ class CreateMissingEntitySetsForAppConfigs(
 
         val orgsToUserOwners = getUserOwnersOfOrgs(orgs.keys)
 
+        if (orgsToUserOwners.size != orgs.size || orgsToUserOwners.values.any { it == null }) {
+            val missingOrgs = (orgs.keys - orgsToUserOwners.keys) + orgsToUserOwners.filter { it.value == null }.map{ it.key }
+            logger.error("Aborting upgrade: organizations {} do not have any user owners", missingOrgs)
+            return false
+        }
+
         val newAppConfigEntries = mutableMapOf<AppConfigKey, AppTypeSetting>()
         val aclsToGrant = mutableListOf<Acl>()
 
@@ -46,28 +53,19 @@ class CreateMissingEntitySetsForAppConfigs(
 
             val appConfigKeysToCreate = mutableSetOf<AppConfigKey>()
 
-            val adminRole = tryGetOrgAdminRole(org)
+            val userOwnerPrincipal = orgsToUserOwners[org.id]!!
+            val adminRole = getOrCreateAdminRole(org, userOwnerPrincipal)
             val rolesByPrincipalId = getOrgRolesByPrincipalId(org.id)
-            val adminAceKeys = adminRole?.let { listOf(Ace(it, EnumSet.allOf(Permission::class.java))) } ?: listOf()
+            val adminAceKeys = listOf(Ace(adminRole, EnumSet.allOf(Permission::class.java)))
             val roleAcesByApp = mutableMapOf<UUID, Set<Ace>>()
-
-            if (adminAceKeys.isEmpty()) {
-                logger.info("No admin ace keys found  for org ${org.id}, skipping creation")
-                return@forEach
-            }
 
             org.apps.forEach { appId ->
 
                 val app = apps.getValue(appId)
-                val orgAppRoles = getRoleAcesForApp(rolesByPrincipalId, org.id, app)
+                val orgAppRoles = getRoleAcesForApp(rolesByPrincipalId, org.id, app, userOwnerPrincipal)
                 roleAcesByApp[appId] = orgAppRoles
                 getOrCreateAppPrincipal(app, org.id, adminAceKeys.first().principal)
                 val appPrincipalAces = listOf(getAppPrincipalAce(appId, org.id))
-
-                if (orgAppRoles.size < 3) {
-                    logger.info("SKIPPING CREATION for org ${org.title} [${org.id}] on app ${app.name} [${app.id}] because corresponding app roles were not found.")
-                    return@forEach
-                }
 
                 app.appTypeIds.forEach { appTypeId ->
 
@@ -84,8 +82,6 @@ class CreateMissingEntitySetsForAppConfigs(
 
                 }
             }
-
-            val userOwnerPrincipal = orgsToUserOwners[org.id]
 
             if (userOwnerPrincipal == null) {
                 logger.error("ERROR: Unable to create missing entity sets for org ${org.id} because no user owner was found. AppConfigKeys missing: $appConfigKeysToCreate")
@@ -126,7 +122,12 @@ class CreateMissingEntitySetsForAppConfigs(
         return spm.getAllRolesInOrganization(orgId).associateBy { it.principal.id }
     }
 
-    private fun getRoleAcesForApp(rolesByPrincipalId: Map<String, SecurablePrincipal>, orgId: UUID, app: App): Set<Ace> {
+    private fun getRoleAcesForApp(
+            rolesByPrincipalId: Map<String, SecurablePrincipal>,
+            orgId: UUID,
+            app: App,
+            userOwnerPrincipal: Principal
+    ): Set<Ace> {
         val aces = mutableSetOf<Ace>()
         EnumSet.of(Permission.READ, Permission.WRITE, Permission.OWNER).forEach { permission ->
             val title = "${app.title} - ${permission.name}"
@@ -142,29 +143,75 @@ class CreateMissingEntitySetsForAppConfigs(
                 }
             }
 
-            if (principal != null) {
-                aces.add(Ace(principal, EnumSet.of(permission)))
-            } else {
+            if (principal == null) {
                 logger.info("Could not find $permission principal for app ${app.name} in org $orgId")
+                val description = "${permission.name} permission for the ${app.title} app"
+                createAppRole(userOwnerPrincipal, orgId, title, principalId, description )
             }
+
+            aces.add(Ace(principal, EnumSet.of(permission)))
         }
 
         return aces
     }
 
-    private fun tryGetOrgAdminRole(org: Organization): Principal? {
+    private fun createAppRole(
+            userOwnerPrincipal: Principal,
+            orgId: UUID,
+            title: String,
+            name: String,
+            description: String
+    ): Principal {
+        val rolePrincipal = Principal(PrincipalType.ROLE, name)
+        val role = Role( Optional.empty(),
+                orgId,
+                rolePrincipal,
+                title,
+                Optional.of( description ) )
+
+        spm.createSecurablePrincipalIfNotExists(userOwnerPrincipal, role)
+
+        return rolePrincipal
+    }
+
+    private fun getOrCreateAdminRole(org: Organization, userOwnerPrincipal: Principal): Principal {
         val principalId = "${org.securablePrincipal.id}|${org.securablePrincipal.name} - ADMIN"
-        val principal = Principal(PrincipalType.ROLE, principalId)
+        val adminRolePrincipal = Principal(PrincipalType.ROLE, principalId)
 
         try {
-            if (spm.lookup(principal) != null) {
-                return principal
+            if (spm.lookup(adminRolePrincipal) != null) {
+                return adminRolePrincipal
             }
         } catch (e: Exception) {
             logger.info("No AclKey found for admin role of org ${org.title} (${org.id})")
         }
-        return null
+
+
+        logger.info("About to create admin role for org ${org.title} (${org.id})")
+        val adminRole = Role(
+                Optional.empty(),
+                org.id,
+                adminRolePrincipal,
+                "${org.securablePrincipal.name} - ADMIN",
+                Optional.of("Administrators of this organization")
+        )
+
+        // create admin role
+        spm.createSecurablePrincipalIfNotExists(userOwnerPrincipal, adminRole)
+
+        // grant admin role permissions on org+roles
+        val adminRoleAce = listOf(Ace(adminRolePrincipal, EnumSet.allOf(Permission::class.java)))
+        val acls = org.roles.map { Acl(it.aclKey, adminRoleAce) } + Acl(AclKey(org.id), adminRoleAce)
+        authManager.addPermissions(acls)
+
+        // grant admin role to owner
+        val roleAclKey = AclKey(org.id, adminRole.id)
+        val userAclKey = spm.lookup(userOwnerPrincipal)
+        spm.addPrincipalToPrincipal(roleAclKey, userAclKey)
+
+        return adminRolePrincipal
     }
+
 
     private fun getUserOwnersOfOrgs(orgIds: Set<UUID>): Map<UUID, Principal?> {
         val orgAclKeys = orgIds.map { AclKey(it) }
