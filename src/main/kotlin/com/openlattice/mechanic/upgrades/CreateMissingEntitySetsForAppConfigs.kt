@@ -38,6 +38,7 @@ class CreateMissingEntitySetsForAppConfigs(
         val appTypes = HazelcastMap.APP_TYPES.getMap(toolbox.hazelcast).toMap()
         val orgs = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast).toMap()
 
+        // Assumption here that all orgs have user owners
         val orgsToUserOwners = getUserOwnersOfOrgs(orgs.keys)
         val orgsToAdminRoles = orgs.values.associate {
             it.id to getOrCreateAdminRole(it, orgsToUserOwners.getValue(it.id))
