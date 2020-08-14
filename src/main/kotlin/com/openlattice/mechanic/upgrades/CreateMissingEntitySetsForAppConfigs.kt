@@ -172,18 +172,33 @@ class CreateMissingEntitySetsForAppConfigs(
         return rolePrincipal
     }
 
-    private fun getOrCreateAdminRole(org: Organization, userOwnerPrincipal: Principal): Principal {
-        val principalId = "${org.securablePrincipal.id}|${org.securablePrincipal.name} - ADMIN"
-        val adminRolePrincipal = Principal(PrincipalType.ROLE, principalId)
-
+    private fun tryCreateRoleWithId(principalId: String): Principal? {
+        val principal = Principal(PrincipalType.ROLE, principalId)
         try {
-            if (spm.lookup(adminRolePrincipal) != null) {
-                return adminRolePrincipal
+            if (spm.lookup(principal) != null) {
+                return principal
             }
         } catch (e: Exception) {
-            logger.info("No AclKey found for admin role of org ${org.title} (${org.id})")
+            logger.info("No AclKey found for admin role with principal id $principalId")
         }
 
+        return null
+    }
+
+    private fun getOrCreateAdminRole(org: Organization, userOwnerPrincipal: Principal): Principal {
+        val principalId = "${org.securablePrincipal.id}|${org.securablePrincipal.name} - ADMIN"
+        var maybePrincipal = tryCreateRoleWithId(principalId)
+
+        if (maybePrincipal != null) {
+            return maybePrincipal
+        }
+
+        maybePrincipal = tryCreateRoleWithId("${org.securablePrincipal.id}|${org.securablePrincipal.name}ADMIN")
+        if (maybePrincipal != null) {
+            return maybePrincipal
+        }
+
+        val adminRolePrincipal = Principal(PrincipalType.ROLE, principalId)
 
         logger.info("About to create admin role for org ${org.title} (${org.id})")
         val adminRole = Role(
