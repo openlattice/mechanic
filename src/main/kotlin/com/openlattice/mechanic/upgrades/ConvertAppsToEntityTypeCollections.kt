@@ -4,9 +4,6 @@ import com.google.common.collect.ImmutableSet
 import com.google.common.eventbus.EventBus
 import com.hazelcast.query.Predicates
 import com.openlattice.apps.App
-import com.openlattice.apps.AppConfigKey
-import com.openlattice.apps.AppType
-import com.openlattice.apps.AppTypeSetting
 import com.openlattice.authorization.*
 import com.openlattice.authorization.securable.SecurableObjectType
 import com.openlattice.collections.CollectionTemplateKey
@@ -17,7 +14,6 @@ import com.openlattice.edm.events.EntitySetCollectionCreatedEvent
 import com.openlattice.edm.events.EntityTypeCollectionCreatedEvent
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.organizations.Organization
 import com.openlattice.postgres.mapstores.AppConfigMapstore
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.apache.olingo.commons.api.edm.FullQualifiedName

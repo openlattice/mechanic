@@ -114,6 +114,12 @@ dependencies {
     compile "org.ow2.asm:asm:$asm_version"
     compile "commons-cli:commons-cli:$commons_cli_version"
 
+    compileOnly "net.jcip:jcip-annotations:${jcip_version}"
+    compileOnly "com.github.spotbugs:spotbugs-annotations:${spotbugs_annotations_version}"
+    testCompileOnly "net.jcip:jcip-annotations:${jcip_version}"
+    testCompileOnly "com.github.spotbugs:spotbugs-annotations:${spotbugs_annotations_version}"
+
+    compileOnly "com.google.code.findbugs:findbugs:${findbugs_version}"
     if (project.hasProperty('developmentMode') && project.developmentMode) {
         logger.quiet(project.name + " using project dependencies.")
         compile project(":rhizome")
