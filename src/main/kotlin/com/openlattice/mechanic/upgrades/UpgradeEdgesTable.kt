@@ -309,8 +309,8 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
 
     fun migratedVersionSql(joinColumn: PostgresColumnDefinition, entitySetId: UUID, nonAuditEdgeEntitySetIds: Set<UUID>): String {
         val edgeEntitySetFilter = if (joinColumn == EDGE_ENTITY_SET_ID) " " else " AND ${EDGE_ENTITY_SET_ID.name} = ANY('{${nonAuditEdgeEntitySetIds.joinToString(",")}}') "
-        return "WITH for_migration AS ( UPDATE ${EDGES.name} SET migrated_version = abs(version) " +
-                "WHERE (id,edge_comp_1,edge_comp_2,${COMPONENT_TYPES.name}) in ( select id,edge_comp_1,edge_comp_2,${COMPONENT_TYPES.name} FROM ${EDGES.name} " +
+        return "WITH for_migration AS ( UPDATE edges SET migrated_version = abs(version) " +
+                "WHERE (id,edge_comp_1,edge_comp_2,${COMPONENT_TYPES.name}) in ( select id,edge_comp_1,edge_comp_2,${COMPONENT_TYPES.name} FROM edges " +
                 "WHERE ${COMPONENT_TYPES.name} = ${IdType.SRC.ordinal} AND ${joinColumn.name} = '$entitySetId' " +
                 "$edgeEntitySetFilter AND (migrated_version < abs(version)) " +
                 "LIMIT $BATCH_SIZE) RETURNING *) "
@@ -324,8 +324,8 @@ class UpgradeEdgesTable(val toolbox: Toolbox) : Upgrade {
             conn.createStatement().use {
                 it.execute(
                         "DO $$ BEGIN " +
-                                "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '${EDGES.name}' AND column_name = 'migrated_version') " +
-                                "THEN ALTER TABLE ${EDGES.name} ADD COLUMN migrated_version bigint NOT NULL DEFAULT 0 ; else raise NOTICE 'Column migrated_version already exists'; " +
+                                "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = 'edges' AND column_name = 'migrated_version') " +
+                                "THEN ALTER TABLE edges ADD COLUMN migrated_version bigint NOT NULL DEFAULT 0 ; else raise NOTICE 'Column migrated_version already exists'; " +
                                 "END IF; END $$"
                 )
             }
