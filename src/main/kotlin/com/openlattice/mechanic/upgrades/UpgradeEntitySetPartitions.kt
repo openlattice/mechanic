@@ -4,7 +4,6 @@ package com.openlattice.mechanic.upgrades
 import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn.*
-import com.openlattice.postgres.PostgresTable.ENTITY_KEY_IDS
 import com.openlattice.postgres.PostgresTable.ENTITY_SETS
 import com.openlattice.postgres.ResultSetAdapters
 import com.openlattice.postgres.streams.BasePostgresIterable
@@ -332,7 +331,7 @@ class UpgradeEntitySetPartitions(private val toolbox: Toolbox) : Upgrade {
 
 private data class EntitySetInfo(val count: Long, val flags: Set<EntitySetFlag>)
 
-private val SELECT_ENTITY_SET_COUNTS = "(SELECT ${ENTITY_SET_ID.name}, count(*) FROM ${ENTITY_KEY_IDS.name} GROUP BY ${ENTITY_SET_ID.name}) as entity_set_counts"
+private val SELECT_ENTITY_SET_COUNTS = "(SELECT ${ENTITY_SET_ID.name}, count(*) FROM entity_key_ids GROUP BY ${ENTITY_SET_ID.name}) as entity_set_counts"
 private val SELECT_ENTITY_SET_FLAGS = "(select id as ${ENTITY_SET_ID.name}, ${FLAGS.name} from ${ENTITY_SETS.name} WHERE ${PARTITIONS.name} = '{}') as entity_set_flags"
 
 private val GET_ENTITY_SET_COUNT = "SELECT ${ENTITY_SET_ID.name}, ${FLAGS.name}, CASE WHEN count IS NULL THEN 1 ELSE count END " +
