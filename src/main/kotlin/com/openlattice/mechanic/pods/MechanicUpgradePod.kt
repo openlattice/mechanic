@@ -346,4 +346,9 @@ class MechanicUpgradePod {
                 auditingConfiguration
         )
     }
+
+    @Bean
+    fun removeLinkingDataFromDataTable(): RemoveLinkingDataFromDataTable {
+        return RemoveLinkingDataFromDataTable(toolbox)
+    }
 }
