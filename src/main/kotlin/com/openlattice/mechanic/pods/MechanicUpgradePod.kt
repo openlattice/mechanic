@@ -252,7 +252,7 @@ class MechanicUpgradePod {
     fun convertAppsToEntityTypeCollections(): ConvertAppsToEntityTypeCollections {
         return ConvertAppsToEntityTypeCollections(toolbox, eventBus)
     }
-  
+
     @Bean
     fun updateAuditEntitySetPartitions(): UpdateAuditEntitySetPartitions {
         return UpdateAuditEntitySetPartitions(toolbox)
@@ -269,7 +269,7 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun clearJSONOrganizationRoles() : ClearJSONOrganizationRoles {
+    fun clearJSONOrganizationRoles(): ClearJSONOrganizationRoles {
         return ClearJSONOrganizationRoles(toolbox)
     }
 
@@ -292,18 +292,6 @@ class MechanicUpgradePod {
     fun repartitionOrganizations(): RepartitionOrganizations {
         return RepartitionOrganizations(toolbox)
     }
-
-    @Bean
-    fun createMissingEntitySetsForAppConfigs(): CreateMissingEntitySetsForAppConfigs {
-        return CreateMissingEntitySetsForAppConfigs(
-                toolbox,
-                securePrincipalsManager(),
-                authorizationManager(),
-                entitySetManager(),
-                aclKeyReservationService()
-        )
-    }
-
 
     /* SETUP FOR EntitySetManager */
     @Bean
@@ -339,7 +327,7 @@ class MechanicUpgradePod {
 
 
     @Bean
-    fun entitySetManager(): EntitySetManager  {
+    fun entitySetManager(): EntitySetManager {
         return EntitySetService(
                 hazelcastInstance,
                 eventBus,
