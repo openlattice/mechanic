@@ -65,6 +65,7 @@ class ConvertAppsToEntityTypeCollections(
 
         /** Load legacy appTypes from old app_types table **/
         val appTypes = getAppTypes()
+        releaseReservationsForAppTypeFqns(appTypes)
 
         /** Load legacy app configs, mapping appId -> List<(orgId, appTypeId, entitySetId)> **/
         val appConfigs = getLegacyAppConfigs()
@@ -281,6 +282,10 @@ class ConvertAppsToEntityTypeCollections(
 
 
         logger.info("Finished migrating app configs for app ${legacyApp.title}")
+    }
+
+    private fun releaseReservationsForAppTypeFqns(appTypes: Map<UUID, AppType>) {
+        appTypes.keys.forEach { reservations.release(it) }
     }
 
 
