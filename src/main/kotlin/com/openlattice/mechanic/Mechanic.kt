@@ -26,6 +26,7 @@ import com.google.common.collect.Maps
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.AWS_CONFIGURATION_PROFILE
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.LOCAL_CONFIGURATION_PROFILE
 import com.kryptnostic.rhizome.core.Rhizome
+
 import com.kryptnostic.rhizome.core.RhizomeApplicationServer
 import com.kryptnostic.rhizome.hazelcast.serializers.RhizomeUtils
 import com.kryptnostic.rhizome.startup.Requirement
