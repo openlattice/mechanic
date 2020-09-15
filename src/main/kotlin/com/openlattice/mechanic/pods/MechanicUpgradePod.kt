@@ -344,4 +344,9 @@ class MechanicUpgradePod {
     fun createStagingSchemaForExistingOrgs(): CreateStagingSchemaForExistingOrgs {
         return CreateStagingSchemaForExistingOrgs(toolbox, assemblerConfiguration)
     }
+
+    @Bean
+    fun grantAppRolesReadOnEntitySetCollections(): GrantAppRolesReadOnEntitySetCollections {
+        return GrantAppRolesReadOnEntitySetCollections(toolbox, eventBus)
+    }
 }
