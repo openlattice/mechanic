@@ -19,6 +19,7 @@ class AddDbCredUsernames(
 
     companion object {
         private val logger = LoggerFactory.getLogger(AddDbCredUsernames::class.java)
+        private val USER_PREFIX = "user"
     }
 
     override fun getSupportedVersion(): Long {
@@ -29,7 +30,7 @@ class AddDbCredUsernames(
         addColumnToTable()
 
         val userIdsToUsernames = HazelcastMap.DB_CREDS.getMap(toolbox.hazelcast).keys
-                .mapIndexed { index, userId -> userId to "user$index" }
+                .mapIndexed { index, userId -> userId to getUsername(userId, index) }
                 .toMap()
 
         addUsernamesToTable(userIdsToUsernames)
@@ -39,6 +40,15 @@ class AddDbCredUsernames(
         logger.info("Finished adding usernames to principal db creds")
 
         return true
+    }
+
+    private fun getUsername(userId: String, index: Int): String {
+        val unpaddedLength = (USER_PREFIX.length + index.toString().length)
+        return if (unpaddedLength < 8) {
+            "user" + ("0".repeat(8 - unpaddedLength)) + index
+        } else {
+            "user$index"
+        }
     }
 
     private fun addColumnToTable() {
