@@ -349,4 +349,10 @@ class MechanicUpgradePod {
     fun grantAppRolesReadOnEntitySetCollections(): GrantAppRolesReadOnEntitySetCollections {
         return GrantAppRolesReadOnEntitySetCollections(toolbox, eventBus)
     }
+
+    @Bean
+    fun addDbCredUsernames(): AddDbCredUsernames {
+        return AddDbCredUsernames(toolbox, assemblerConfiguration)
+    }
+
 }
