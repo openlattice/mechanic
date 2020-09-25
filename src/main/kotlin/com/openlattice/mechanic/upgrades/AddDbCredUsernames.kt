@@ -43,7 +43,7 @@ class AddDbCredUsernames(
     }
 
     private fun getUsername(userId: String, index: Int): String {
-        if(userId.contains("organization")) {
+        if(userId.startsWith("ol-internal|organization|")) {
             return userId
         }
         val unpaddedLength = (USER_PREFIX.length + index.toString().length)
@@ -102,7 +102,7 @@ class AddDbCredUsernames(
             conn.createStatement().use { stmt ->
 
                 userIdsToUsernames.map { (userId, username) ->
-                    if( !userId.contains("organization")) {
+                    if( !userId.startsWith("ol-internal|organization|")) {
                         stmt.executeUpdate(getUpdateRoleSql(userId, username))
                     }
                 }.sum()
