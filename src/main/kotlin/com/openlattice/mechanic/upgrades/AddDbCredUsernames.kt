@@ -21,7 +21,7 @@ class AddDbCredUsernames(
 
     companion object {
         private val logger = LoggerFactory.getLogger(AddDbCredUsernames::class.java)
-        private val USER_PREFIX = "user"
+        private const val USER_PREFIX = "user"
     }
 
     override fun getSupportedVersion(): Long {
@@ -35,6 +35,7 @@ class AddDbCredUsernames(
                 .mapIndexed { index, userId -> userId to getUsername(userId, index) }
                 .toMap()
 
+        logger.info("Loaded ${userIdsToUsernames.size} users to migrate.")
         addUsernamesToTable(userIdsToUsernames)
 
         updateExternalDatabaseUsernames(userIdsToUsernames)
@@ -48,6 +49,7 @@ class AddDbCredUsernames(
         if (userId.startsWith(ORGANIZATION_PREFIX)) {
             return userId
         }
+
         val unpaddedLength = (USER_PREFIX.length + index.toString().length)
         return if (unpaddedLength < 8) {
             "user" + ("0".repeat(8 - unpaddedLength)) + index
@@ -105,6 +107,7 @@ class AddDbCredUsernames(
 
                 userIdsToUsernames.map { (userId, username) ->
                     if (!userId.startsWith(ORGANIZATION_PREFIX)) {
+                        logger.info("Renaming $userId to $username")
                         stmt.executeUpdate(getUpdateRoleSql(userId, username))
                     } else {
                         0
