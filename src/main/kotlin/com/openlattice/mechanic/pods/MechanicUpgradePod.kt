@@ -355,4 +355,8 @@ class MechanicUpgradePod {
         return AddDbCredUsernames(toolbox, assemblerConfiguration)
     }
 
+    @Bean
+    fun setPasswordDbCredUsernames(): SetPasswordDbCredUsernames {
+        return SetPasswordDbCredUsernames(toolbox, assemblerConfiguration)
+    }
 }
