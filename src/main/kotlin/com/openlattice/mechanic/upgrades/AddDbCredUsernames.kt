@@ -124,9 +124,21 @@ class AddDbCredUsernames(
         logger.info("Finished updating $numUpdates usernames in external database")
     }
 
-    private fun dropRoleIfExists(username: String): String = """
-        DROP ROLE IF EXISTS $username;
-    """.trimIndent()
+    private fun dropRoleIfExists(username: String): String {
+        return "DO\n" +
+                "\$do\$\n" +
+                "BEGIN\n" +
+                "   IF EXISTS (\n" +
+                "      SELECT\n" +
+                "      FROM   pg_catalog.pg_roles\n" +
+                "      WHERE  rolname = '$username') THEN\n" +
+                "\n" +
+                "      ALTER ROLE ${quote(username)} RENAME TO bad_$username;\n" +
+                "   END IF;\n" +
+                "END\n" +
+                "\$do\$;"
+
+    }
 
     private fun alterRoleIfExistsSql(userId: String, username: String): String {
         return "DO\n" +
