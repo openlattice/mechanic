@@ -108,7 +108,11 @@ class AddDbCredUsernames(
                 userIdsToUsernames.map { (userId, username) ->
                     if (!userId.startsWith(ORGANIZATION_PREFIX)) {
                         logger.info("Renaming $userId to $username")
-                        stmt.executeUpdate(getUpdateRoleSql(userId, username))
+                        val dropped = stmt.executeUpdate(dropRoleIfExists(username));
+                        if (dropped > 0) {
+                            logger.info("Cleared out existing user role $username")
+                        }
+                        stmt.executeUpdate(alterRoleIfExistsSql(userId, username))
                     } else {
                         0
                     }
@@ -118,6 +122,25 @@ class AddDbCredUsernames(
         }
 
         logger.info("Finished updating $numUpdates usernames in external database")
+    }
+
+    private fun dropRoleIfExists(username: String): String = """
+        DROP ROLE IF EXISTS $username;
+    """.trimIndent()
+
+    private fun alterRoleIfExistsSql(userId: String, username: String): String {
+        return "DO\n" +
+                "\$do\$\n" +
+                "BEGIN\n" +
+                "   IF EXISTS (\n" +
+                "      SELECT\n" +
+                "      FROM   pg_catalog.pg_roles\n" +
+                "      WHERE  rolname = '$userId') THEN\n" +
+                "\n" +
+                "      ALTER ROLE ${quote(userId)} RENAME TO $username;\n" +
+                "   END IF;\n" +
+                "END\n" +
+                "\$do\$;"
     }
 
     private val addUsernameColumnSql = "ALTER TABLE ${DB_CREDS.name} ADD COLUMN IF NOT EXISTS ${USERNAME.sql()}"
@@ -130,7 +153,4 @@ class AddDbCredUsernames(
      */
     private val addUsernameValueSql = "UPDATE ${DB_CREDS.name} SET ${USERNAME.name} = ? WHERE ${PRINCIPAL_ID.name} = ?"
 
-    private fun getUpdateRoleSql(userId: String, username: String): String {
-        return "ALTER ROLE ${quote(userId)} RENAME TO $username"
-    }
 }
