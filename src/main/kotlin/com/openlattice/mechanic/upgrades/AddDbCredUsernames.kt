@@ -102,7 +102,9 @@ class AddDbCredUsernames(
             conn.createStatement().use { stmt ->
 
                 userIdsToUsernames.map { (userId, username) ->
-                    stmt.executeUpdate(getUpdateRoleSql(userId, username))
+                    if( !userId.contains("organization")) {
+                        stmt.executeUpdate(getUpdateRoleSql(userId, username))
+                    }
                 }.sum()
 
             }
