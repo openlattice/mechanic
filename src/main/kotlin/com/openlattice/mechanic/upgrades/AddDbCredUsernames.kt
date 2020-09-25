@@ -104,6 +104,8 @@ class AddDbCredUsernames(
                 userIdsToUsernames.map { (userId, username) ->
                     if( !userId.startsWith("ol-internal|organization|")) {
                         stmt.executeUpdate(getUpdateRoleSql(userId, username))
+                    } else {
+                        0
                     }
                 }.sum()
 
