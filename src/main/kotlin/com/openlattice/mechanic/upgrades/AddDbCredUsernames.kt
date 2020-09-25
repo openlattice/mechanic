@@ -12,6 +12,8 @@ import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 import java.util.*
 
+private const val ORGANIZATION_PREFIX = "ol-internal|organization|"
+
 class AddDbCredUsernames(
         private val toolbox: Toolbox,
         private val assemblerConfiguration: AssemblerConfiguration
@@ -43,7 +45,7 @@ class AddDbCredUsernames(
     }
 
     private fun getUsername(userId: String, index: Int): String {
-        if(userId.startsWith("ol-internal|organization|")) {
+        if (userId.startsWith(ORGANIZATION_PREFIX)) {
             return userId
         }
         val unpaddedLength = (USER_PREFIX.length + index.toString().length)
@@ -102,7 +104,7 @@ class AddDbCredUsernames(
             conn.createStatement().use { stmt ->
 
                 userIdsToUsernames.map { (userId, username) ->
-                    if( !userId.startsWith("ol-internal|organization|")) {
+                    if (!userId.startsWith(ORGANIZATION_PREFIX)) {
                         stmt.executeUpdate(getUpdateRoleSql(userId, username))
                     } else {
                         0
