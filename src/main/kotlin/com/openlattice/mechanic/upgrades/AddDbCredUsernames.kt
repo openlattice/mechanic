@@ -43,6 +43,9 @@ class AddDbCredUsernames(
     }
 
     private fun getUsername(userId: String, index: Int): String {
+        if(userId.startsWith("ol-internal|organization|")) {
+            return userId
+        }
         val unpaddedLength = (USER_PREFIX.length + index.toString().length)
         return if (unpaddedLength < 8) {
             "user" + ("0".repeat(8 - unpaddedLength)) + index
@@ -99,7 +102,9 @@ class AddDbCredUsernames(
             conn.createStatement().use { stmt ->
 
                 userIdsToUsernames.map { (userId, username) ->
-                    stmt.executeUpdate(getUdpateRoleSql(userId, username))
+                    if( !userId.startsWith("ol-internal|organization|")) {
+                        stmt.executeUpdate(getUpdateRoleSql(userId, username))
+                    }
                 }.sum()
 
             }
@@ -118,7 +123,7 @@ class AddDbCredUsernames(
      */
     private val addUsernameValueSql = "UPDATE ${DB_CREDS.name} SET ${USERNAME.name} = ? WHERE ${PRINCIPAL_ID.name} = ?"
 
-    private fun getUdpateRoleSql(userId: String, username: String): String {
+    private fun getUpdateRoleSql(userId: String, username: String): String {
         return "ALTER ROLE ${quote(userId)} RENAME TO $username"
     }
 }
