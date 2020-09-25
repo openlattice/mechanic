@@ -20,7 +20,7 @@ class AddDbCredUsernames(
 ) : Upgrade {
 
     companion object {
-        private val logger = LoggerFactory.getLogger(AddDbCredUsernames::class.java)
+        private val logger = LoggerFactory.getLogger(SetPasswordDbCredUsernames::class.java)
         private const val USER_PREFIX = "user"
     }
 
