@@ -1,7 +1,5 @@
 package com.openlattice.mechanic.upgrades
 
-import com.google.common.base.Preconditions
-import com.hazelcast.query.Predicate
 import com.hazelcast.query.Predicates
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.assembler.AssemblerConnectionManager
@@ -42,17 +40,17 @@ class CreateAtlasUsersAndSetPermissions(
         val dbCreds = HazelcastMap.DB_CREDS.getMap(toolbox.hazelcast).toMap()
         val orgs = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast).toMap()
 
-        val userPrincipalsToAccounts = HazelcastMap.PRINCIPALS.getMap(toolbox.hazelcast)
-                .values(Predicates.equal(PrincipalMapstore.PRINCIPAL_TYPE_INDEX, PrincipalType.USER))
+        val principalsToAccounts = HazelcastMap.PRINCIPALS.getMap(toolbox.hazelcast)
+                .values
                 .toSet()
                 .associate {
                     val dbUserId = buildPostgresUsername(it)
                     it.principal to dbCreds.getValue(dbUserId)
                 }
 
-        configureUsersInAtlas(userPrincipalsToAccounts.values)
+        configureUsersInAtlas(principalsToAccounts.filter { it.key.type == PrincipalType.USER }.values)
 
-        orgs.values.forEach { configureUsersInOrganization(it, userPrincipalsToAccounts) }
+        orgs.values.forEach { configureUsersInOrganization(it, principalsToAccounts) }
 
         return true
     }
@@ -157,16 +155,20 @@ class CreateAtlasUsersAndSetPermissions(
 
         val tablesMap = HazelcastMap.ORGANIZATION_EXTERNAL_DATABASE_TABLE.getMap(toolbox.hazelcast).toMap()
         val columnsMap = HazelcastMap.ORGANIZATION_EXTERNAL_DATABASE_COLUMN.getMap(toolbox.hazelcast).toMap()
+        val orgsMap = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
 
         val colsToUserPermissions = getColumnsToUserPermissions()
 
         columnsMap.values.groupBy { it.organizationId }.forEach { (orgId, columns) ->
             logger.info("Granting privileges for tables in org $orgId")
 
+            val orgUserAce = Ace(orgsMap.getValue(orgId).principal, EnumSet.allOf(Permission::class.java))
+
             val orgColumnsAcls = columns.map {
                 val columnAclKey = AclKey(it.tableId, it.id)
                 val userAces = colsToUserPermissions.getOrDefault(columnAclKey, mapOf())
                         .map { entry -> Ace(entry.key, entry.value) }
+                        .plus(orgUserAce)
                 Acl(columnAclKey, userAces)
             }
 
