@@ -1,5 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
+import com.google.common.base.Preconditions
 import com.hazelcast.query.Predicate
 import com.hazelcast.query.Predicates
 import com.openlattice.assembler.AssemblerConfiguration
@@ -14,8 +15,11 @@ import com.openlattice.authorization.securable.SecurableObjectType
 import com.openlattice.directory.MaterializedViewAccount
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.organization.OrganizationExternalDatabaseColumn
+import com.openlattice.organization.OrganizationExternalDatabaseTable
 import com.openlattice.organizations.Organization
 import com.openlattice.postgres.DataTables
+import com.openlattice.postgres.PostgresPrivileges
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -51,6 +55,19 @@ class CreateAtlasUsersAndSetPermissions(
         orgs.values.forEach { configureUsersInOrganization(it, userPrincipalsToAccounts) }
 
         return true
+    }
+
+    private fun getColumnsToUserPermissions(): Map<AclKey, Map<Principal, EnumSet<Permission>>> {
+        return HazelcastMap.PERMISSIONS.getMap(toolbox.hazelcast).entrySet(
+                Predicates.and(
+                        Predicates.equal<AceKey, AceValue>(PermissionMapstore.PRINCIPAL_TYPE_INDEX, PrincipalType.USER),
+                        Predicates.equal<AceKey, AceValue>(PermissionMapstore.SECURABLE_OBJECT_TYPE_INDEX, SecurableObjectType.OrganizationExternalDatabaseColumn)
+                )
+        ).groupBy { it.key.aclKey }.toMap().mapValues {
+            it.value.associate { entry ->
+                entry.key.principal to entry.value.permissions
+            }
+        }
     }
 
 
@@ -102,7 +119,7 @@ class CreateAtlasUsersAndSetPermissions(
                 statement.execute(grantOLSchemaPrivilegesSql)
                 statement.execute(grantStagingSchemaPrivilegesSql)
 
-                userIds.forEach { userId -> statement.addBatch(setSearchPathSql(userId)) }
+                userIds.forEach { userId -> statement.addBatch(setSearchPathSql(userId.username)) }
                 statement.executeBatch()
             }
         }
@@ -134,5 +151,110 @@ class CreateAtlasUsersAndSetPermissions(
                 "   END IF;\n" +
                 "END\n" +
                 "\$do\$;"
+    }
+
+    private fun grantPrivilegesBasedOnStoredPermissions(userPrincipalsToAccounts: Map<Principal, MaterializedViewAccount>) {
+
+        val tablesMap = HazelcastMap.ORGANIZATION_EXTERNAL_DATABASE_TABLE.getMap(toolbox.hazelcast).toMap()
+        val columnsMap = HazelcastMap.ORGANIZATION_EXTERNAL_DATABASE_COLUMN.getMap(toolbox.hazelcast).toMap()
+
+        val colsToUserPermissions = getColumnsToUserPermissions()
+
+        columnsMap.values.groupBy { it.organizationId }.forEach { (orgId, columns) ->
+            logger.info("Granting privileges for tables in org $orgId")
+
+            val orgColumnsAcls = columns.map {
+                val columnAclKey = AclKey(it.tableId, it.id)
+                val userAces = colsToUserPermissions.getOrDefault(columnAclKey, mapOf())
+                        .map { entry -> Ace(entry.key, entry.value) }
+                Acl(columnAclKey, userAces)
+            }
+
+            executePrivilegesUpdate(
+                    orgColumnsAcls,
+                    userPrincipalsToAccounts,
+                    tablesMap,
+                    columnsMap
+            )
+
+            logger.info("Completed privilege grants for tables in org $orgId")
+        }
+
+    }
+
+// taken + modified from ExternalDatabaseManagementService
+
+    private fun executePrivilegesUpdate(
+            columnAcls: List<Acl>,
+            userPrincipalsToAccounts: Map<Principal, MaterializedViewAccount>,
+            tablesMap: Map<UUID, OrganizationExternalDatabaseTable>,
+            columnsMap: Map<UUID, OrganizationExternalDatabaseColumn>
+    ) {
+        val columnIds = columnAcls.map { it.aclKey[1] }.toSet()
+        val columnsById = columnIds.associateWith { columnsMap[it] }
+        val columnAclsByOrg = columnAcls
+                .filter { columnsById[it.aclKey[1]] != null }
+                .groupBy { columnsById[it.aclKey[1]]!!.organizationId }
+
+        columnAclsByOrg.forEach { (orgId, columnAcls) ->
+            val dbName = PostgresDatabases.buildOrganizationDatabaseName(orgId)
+            connectToExternalDatabase(dbName).connection.use { conn ->
+                conn.autoCommit = false
+                val stmt = conn.createStatement()
+                columnAcls.forEach {
+                    val tableAndColumnNames = getTableAndColumnNames(AclKey(it.aclKey), tablesMap, columnsMap)
+                    val tableName = tableAndColumnNames.first
+                    val columnName = tableAndColumnNames.second
+                    it.aces.forEach { ace ->
+                        val dbUser = userPrincipalsToAccounts[ace.principal]
+
+                        if (dbUser == null) {
+                            logger.info("Could not load MV account for user ${ace.principal}. Skipping DB grant.")
+                            return@forEach
+                        }
+
+                        val privileges = getPrivilegesFromPermissions(ace.permissions)
+                        val grantSql = createPrivilegesUpdateSql(privileges, tableName, columnName, dbUser.username)
+                        stmt.addBatch(grantSql)
+                    }
+                    stmt.executeBatch()
+                    conn.commit()
+                }
+            }
+        }
+    }
+
+    private fun getTableAndColumnNames(
+            aclKey: AclKey,
+            tablesMap: Map<UUID, OrganizationExternalDatabaseTable>,
+            columnsMap: Map<UUID, OrganizationExternalDatabaseColumn>
+    ): Pair<String, String> {
+        val securableObjectId = aclKey[1]
+        val organizationAtlasColumn = columnsMap.getValue(securableObjectId)
+        val tableName = tablesMap.getValue(organizationAtlasColumn.tableId).name
+        val columnName = organizationAtlasColumn.name
+        return Pair(tableName, columnName)
+    }
+
+    private fun getPrivilegesFromPermissions(permissions: EnumSet<Permission>): List<String> {
+        val privileges = mutableListOf<String>()
+        if (permissions.contains(Permission.OWNER)) {
+            privileges.add(PostgresPrivileges.ALL.toString())
+        } else {
+            if (permissions.contains(Permission.WRITE)) {
+                privileges.addAll(listOf(
+                        PostgresPrivileges.INSERT.toString(),
+                        PostgresPrivileges.UPDATE.toString()))
+            }
+            if (permissions.contains(Permission.READ)) {
+                privileges.add(PostgresPrivileges.SELECT.toString())
+            }
+        }
+        return privileges
+    }
+
+    private fun createPrivilegesUpdateSql(privileges: List<String>, tableName: String, columnName: String, dbUser: String): String {
+        val privilegesAsString = privileges.joinToString(separator = ", ")
+        return "GRANT $privilegesAsString (${DataTables.quote(columnName)}) ON $tableName TO $dbUser"
     }
 }
