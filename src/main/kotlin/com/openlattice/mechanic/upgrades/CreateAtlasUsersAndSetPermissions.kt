@@ -51,6 +51,8 @@ class CreateAtlasUsersAndSetPermissions(
 
         orgs.values.forEach { configureUsersInOrganization(it, principalsToAccounts) }
 
+        grantPrivilegesBasedOnStoredPermissions(principalsToAccounts)
+
         return true
     }
 
