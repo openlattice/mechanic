@@ -8,7 +8,6 @@ import com.openlattice.assembler.PostgresDatabases
 import com.openlattice.assembler.PostgresRoles.Companion.buildPostgresUsername
 import com.openlattice.authorization.*
 import com.openlattice.authorization.mapstores.PermissionMapstore
-import com.openlattice.authorization.mapstores.PrincipalMapstore
 import com.openlattice.authorization.securable.SecurableObjectType
 import com.openlattice.directory.MaterializedViewAccount
 import com.openlattice.hazelcast.HazelcastMap
@@ -98,8 +97,8 @@ class CreateAtlasUsersAndSetPermissions(
         logger.info("Finished creating $numUpdates users in external database")
     }
 
-    private fun configureUsersInOrganization(organization: Organization, userPrincipalsToAccounts: Map<Principal, MaterializedViewAccount>) {
-        val userIds = organization.members.mapNotNull { userPrincipalsToAccounts[it] }
+    private fun configureUsersInOrganization(organization: Organization, principalsToAccounts: Map<Principal, MaterializedViewAccount>) {
+        val userIds = organization.members.mapNotNull { principalsToAccounts[it] }
         val userIdsSql = userIds.joinToString(", ")
 
         logger.info("Configuring users $userIds in organization ${organization.title}")
@@ -151,7 +150,7 @@ class CreateAtlasUsersAndSetPermissions(
                 "\$do\$;"
     }
 
-    private fun grantPrivilegesBasedOnStoredPermissions(userPrincipalsToAccounts: Map<Principal, MaterializedViewAccount>) {
+    private fun grantPrivilegesBasedOnStoredPermissions(principalsToAccounts: Map<Principal, MaterializedViewAccount>) {
 
         val tablesMap = HazelcastMap.ORGANIZATION_EXTERNAL_DATABASE_TABLE.getMap(toolbox.hazelcast).toMap()
         val columnsMap = HazelcastMap.ORGANIZATION_EXTERNAL_DATABASE_COLUMN.getMap(toolbox.hazelcast).toMap()
@@ -174,7 +173,7 @@ class CreateAtlasUsersAndSetPermissions(
 
             executePrivilegesUpdate(
                     orgColumnsAcls,
-                    userPrincipalsToAccounts,
+                    principalsToAccounts,
                     tablesMap,
                     columnsMap
             )
@@ -188,7 +187,7 @@ class CreateAtlasUsersAndSetPermissions(
 
     private fun executePrivilegesUpdate(
             columnAcls: List<Acl>,
-            userPrincipalsToAccounts: Map<Principal, MaterializedViewAccount>,
+            principalsToAccounts: Map<Principal, MaterializedViewAccount>,
             tablesMap: Map<UUID, OrganizationExternalDatabaseTable>,
             columnsMap: Map<UUID, OrganizationExternalDatabaseColumn>
     ) {
@@ -208,7 +207,7 @@ class CreateAtlasUsersAndSetPermissions(
                     val tableName = tableAndColumnNames.first
                     val columnName = tableAndColumnNames.second
                     it.aces.forEach { ace ->
-                        val dbUser = userPrincipalsToAccounts[ace.principal]
+                        val dbUser = principalsToAccounts[ace.principal]
 
                         if (dbUser == null) {
                             logger.info("Could not load MV account for user ${ace.principal}. Skipping DB grant.")
