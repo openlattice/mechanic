@@ -108,16 +108,16 @@ class CreateAtlasUsersAndSetPermissions(
     }
 
     private fun configureUsersInOrganization(organization: Organization, principalsToAccounts: Map<Principal, MaterializedViewAccount>) {
-        val userIds = organization.members.mapNotNull { principalsToAccounts[it] }
-        val userIdsSql = userIds.joinToString(", ")
+        val usernames = organization.members.mapNotNull { principalsToAccounts[it]?.username }
+        val usernamesSql = usernames.joinToString(", ")
 
-        logger.info("Configuring users $userIds in organization ${organization.title}")
+        logger.info("Configuring users $usernames in organization ${organization.title}")
 
         val dbName = PostgresDatabases.buildOrganizationDatabaseName(organization.id)
         val grantDefaultPermissionsOnDatabaseSql = "GRANT ${MEMBER_ORG_DATABASE_PERMISSIONS.joinToString(", ")} " +
-                "ON DATABASE ${DataTables.quote(dbName)} TO $userIdsSql"
-        val grantOLSchemaPrivilegesSql = "GRANT USAGE ON SCHEMA ${AssemblerConnectionManager.MATERIALIZED_VIEWS_SCHEMA} TO $userIdsSql"
-        val grantStagingSchemaPrivilegesSql = "GRANT USAGE, CREATE ON SCHEMA ${AssemblerConnectionManager.STAGING_SCHEMA} TO $userIdsSql"
+                "ON DATABASE ${DataTables.quote(dbName)} TO $usernamesSql"
+        val grantOLSchemaPrivilegesSql = "GRANT USAGE ON SCHEMA ${AssemblerConnectionManager.MATERIALIZED_VIEWS_SCHEMA} TO $usernamesSql"
+        val grantStagingSchemaPrivilegesSql = "GRANT USAGE, CREATE ON SCHEMA ${AssemblerConnectionManager.STAGING_SCHEMA} TO $usernamesSql"
 
         connectToOrgDatabase(organization).connection.use { connection ->
             connection.createStatement().use { statement ->
@@ -126,7 +126,7 @@ class CreateAtlasUsersAndSetPermissions(
                 statement.execute(grantOLSchemaPrivilegesSql)
                 statement.execute(grantStagingSchemaPrivilegesSql)
 
-                userIds.forEach { userId -> statement.addBatch(setSearchPathSql(userId.username)) }
+                usernames.forEach { userId -> statement.addBatch(setSearchPathSql(userId)) }
                 statement.executeBatch()
             }
         }
