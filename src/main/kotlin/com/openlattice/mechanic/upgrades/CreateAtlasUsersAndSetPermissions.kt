@@ -6,6 +6,7 @@ import com.openlattice.assembler.AssemblerConnectionManager
 import com.openlattice.assembler.MEMBER_ORG_DATABASE_PERMISSIONS
 import com.openlattice.assembler.PostgresDatabases
 import com.openlattice.assembler.PostgresRoles.Companion.buildOrganizationUserId
+import com.openlattice.assembler.PostgresRoles.Companion.buildPostgresRoleName
 import com.openlattice.assembler.PostgresRoles.Companion.buildPostgresUsername
 import com.openlattice.authorization.*
 import com.openlattice.authorization.mapstores.PermissionMapstore
@@ -15,6 +16,7 @@ import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.organization.OrganizationExternalDatabaseColumn
 import com.openlattice.organization.OrganizationExternalDatabaseTable
+import com.openlattice.organization.roles.Role
 import com.openlattice.organizations.Organization
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.PostgresPrivileges
@@ -46,6 +48,7 @@ class CreateAtlasUsersAndSetPermissions(
 
                     val mvAccount = when (it.principalType) {
                         PrincipalType.USER -> dbCreds.getValue(buildPostgresUsername(it))
+                        PrincipalType.ROLE -> dbCreds.getValue(buildPostgresRoleName(it as Role))
                         PrincipalType.ORGANIZATION -> dbCreds.getValue(buildOrganizationUserId(it.id))
                         else -> null
                     }
