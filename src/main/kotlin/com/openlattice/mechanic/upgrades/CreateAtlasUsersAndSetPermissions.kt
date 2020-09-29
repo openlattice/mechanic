@@ -23,8 +23,7 @@ import java.util.*
 
 class CreateAtlasUsersAndSetPermissions(
         private val toolbox: Toolbox,
-        private val assemblerConfiguration: AssemblerConfiguration,
-        private val authorizationManager: AuthorizationManager
+        private val assemblerConfiguration: AssemblerConfiguration
 ) : Upgrade {
 
     companion object {
