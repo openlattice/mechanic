@@ -355,4 +355,9 @@ class MechanicUpgradePod {
         return AddDbCredUsernames(toolbox, assemblerConfiguration)
     }
 
+    @Bean
+    fun createAtlasUsersAndSetPermissions(): CreateAtlasUsersAndSetPermissions {
+        return CreateAtlasUsersAndSetPermissions(toolbox, assemblerConfiguration)
+    }
+
 }
