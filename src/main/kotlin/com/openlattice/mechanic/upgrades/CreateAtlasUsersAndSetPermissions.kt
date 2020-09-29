@@ -111,7 +111,7 @@ class CreateAtlasUsersAndSetPermissions(
         val usernames = organization.members.mapNotNull { principalsToAccounts[it]?.username }
         val usernamesSql = usernames.joinToString(", ")
 
-        logger.info("Configuring users $usernames in organization ${organization.title}")
+        logger.info("Configuring users $usernames in organization ${organization.title} [${organization.id}]")
 
         val dbName = PostgresDatabases.buildOrganizationDatabaseName(organization.id)
         val grantDefaultPermissionsOnDatabaseSql = "GRANT ${MEMBER_ORG_DATABASE_PERMISSIONS.joinToString(", ")} " +
