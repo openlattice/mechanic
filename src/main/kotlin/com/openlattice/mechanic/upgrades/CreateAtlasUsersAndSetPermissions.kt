@@ -47,9 +47,9 @@ class CreateAtlasUsersAndSetPermissions(
                 .associate {
 
                     val mvAccount = when (it.principalType) {
-                        PrincipalType.USER -> dbCreds.getValue(buildPostgresUsername(it))
-                        PrincipalType.ROLE -> dbCreds.getValue(buildPostgresRoleName(it as Role))
-                        PrincipalType.ORGANIZATION -> dbCreds.getValue(buildOrganizationUserId(it.id))
+                        PrincipalType.USER -> dbCreds[buildPostgresUsername(it)]
+                        PrincipalType.ROLE -> dbCreds[buildPostgresRoleName(it as Role)]
+                        PrincipalType.ORGANIZATION -> dbCreds[buildOrganizationUserId(it.id)]
                         else -> null
                     }
                     it.principal to mvAccount
@@ -118,6 +118,10 @@ class CreateAtlasUsersAndSetPermissions(
                 "ON DATABASE ${DataTables.quote(dbName)} TO $usernamesSql"
         val grantOLSchemaPrivilegesSql = "GRANT USAGE ON SCHEMA ${AssemblerConnectionManager.MATERIALIZED_VIEWS_SCHEMA} TO $usernamesSql"
         val grantStagingSchemaPrivilegesSql = "GRANT USAGE, CREATE ON SCHEMA ${AssemblerConnectionManager.STAGING_SCHEMA} TO $usernamesSql"
+
+        logger.info("grantDefaultPermissionsOnDatabaseSql: $grantDefaultPermissionsOnDatabaseSql")
+        logger.info("grantOLSchemaPrivilegesSql: $grantOLSchemaPrivilegesSql")
+        logger.info("grantStagingSchemaPrivilegesSql: $grantStagingSchemaPrivilegesSql")
 
         connectToOrgDatabase(organization).connection.use { connection ->
             connection.createStatement().use { statement ->
