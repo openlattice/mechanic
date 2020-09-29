@@ -5,6 +5,7 @@ import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.assembler.AssemblerConnectionManager
 import com.openlattice.assembler.MEMBER_ORG_DATABASE_PERMISSIONS
 import com.openlattice.assembler.PostgresDatabases
+import com.openlattice.assembler.PostgresRoles.Companion.buildOrganizationUserId
 import com.openlattice.assembler.PostgresRoles.Companion.buildPostgresUsername
 import com.openlattice.authorization.*
 import com.openlattice.authorization.mapstores.PermissionMapstore
@@ -42,9 +43,14 @@ class CreateAtlasUsersAndSetPermissions(
                 .values
                 .toSet()
                 .associate {
-                    val dbUserId = buildPostgresUsername(it)
-                    it.principal to dbCreds.getValue(dbUserId)
-                }
+
+                    val mvAccount = when (it.principalType) {
+                        PrincipalType.USER -> dbCreds.getValue(buildPostgresUsername(it))
+                        PrincipalType.ORGANIZATION -> dbCreds.getValue(buildOrganizationUserId(it.id))
+                        else -> null
+                    }
+                    it.principal to mvAccount
+                }.filterValues { it != null }.mapValues { it.value!! }
 
         configureUsersInAtlas(principalsToAccounts.filter { it.key.type == PrincipalType.USER }.values)
 
