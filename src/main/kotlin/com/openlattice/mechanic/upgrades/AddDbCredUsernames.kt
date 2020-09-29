@@ -37,7 +37,7 @@ class AddDbCredUsernames(
 
         addUsernamesToTable(userIdsToUsernames)
 
-        updateExternalDatabaseUsernames(userIdsToUsernames)
+//        updateExternalDatabaseUsernames(userIdsToUsernames)
 
         logger.info("Finished adding usernames to principal db creds")
 
