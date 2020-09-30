@@ -176,7 +176,7 @@ class CreateAtlasUsersAndSetPermissions(
 
         val colsToUserPermissions = getColumnsToUserPermissions()
 
-        columnsMap.values.groupBy { it.organizationId }.forEach { (orgId, columns) ->
+        columnsMap.values.groupBy { it.organizationId }.filter { orgsMap.containsKey(it.key) }.forEach { (orgId, columns) ->
             logger.info("Granting privileges for tables in org $orgId")
 
             val orgUserAce = Ace(orgsMap.getValue(orgId).principal, EnumSet.allOf(Permission::class.java))
