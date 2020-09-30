@@ -53,9 +53,9 @@ class CreateAtlasUsersAndSetPermissions(
                     it.principal to mvAccount
                 }.filterValues { it != null }.mapValues { it.value!! }
 
-        configureUsersInAtlas(principalsToAccounts.filter { it.key.type == PrincipalType.USER }.values)
+//        configureUsersInAtlas(principalsToAccounts.filter { it.key.type == PrincipalType.USER }.values)
 
-        orgs.values.forEach { configureUsersInOrganization(it, principalsToAccounts) }
+//        orgs.values.forEach { configureUsersInOrganization(it, principalsToAccounts) }
 
         grantPrivilegesBasedOnStoredPermissions(principalsToAccounts)
 
