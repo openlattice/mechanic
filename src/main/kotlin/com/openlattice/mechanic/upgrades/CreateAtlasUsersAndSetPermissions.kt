@@ -37,29 +37,53 @@ class CreateAtlasUsersAndSetPermissions(
 
     override fun upgrade(): Boolean {
         val dbCreds = HazelcastMap.DB_CREDS.getMap(toolbox.hazelcast).toMap()
-        val orgs = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast).toMap()
 
-        val principalsToAccounts = HazelcastMap.PRINCIPALS.getMap(toolbox.hazelcast)
-                .values
-                .toSet()
-                .associate {
+        resetUserCredentials(dbCreds)
 
-                    val mvAccount = when (it.principalType) {
-                        PrincipalType.USER -> dbCreds[buildPostgresUsername(it)]
-                        PrincipalType.ROLE -> dbCreds[buildPostgresRoleName(it as Role)]
-                        PrincipalType.ORGANIZATION -> dbCreds[buildOrganizationUserId(it.id)]
-                        else -> null
-                    }
-                    it.principal to mvAccount
-                }.filterValues { it != null }.mapValues { it.value!! }
-
-        configureUsersInAtlas(principalsToAccounts.filter { it.key.type == PrincipalType.USER }.values)
-
-        orgs.values.forEach { configureUsersInOrganization(it, principalsToAccounts) }
-
-        grantPrivilegesBasedOnStoredPermissions(principalsToAccounts)
+//        val orgs = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast).toMap()
+//
+//        val principalsToAccounts = HazelcastMap.PRINCIPALS.getMap(toolbox.hazelcast)
+//                .values
+//                .toSet()
+//                .associate {
+//
+//                    val mvAccount = when (it.principalType) {
+//                        PrincipalType.USER -> dbCreds[buildPostgresUsername(it)]
+//                        PrincipalType.ROLE -> dbCreds[buildPostgresRoleName(it as Role)]
+//                        PrincipalType.ORGANIZATION -> dbCreds[buildOrganizationUserId(it.id)]
+//                        else -> null
+//                    }
+//                    it.principal to mvAccount
+//                }.filterValues { it != null }.mapValues { it.value!! }
+//
+//        configureUsersInAtlas(principalsToAccounts.filter { it.key.type == PrincipalType.USER }.values)
+//
+//        orgs.values.forEach { configureUsersInOrganization(it, principalsToAccounts) }
+//
+//        grantPrivilegesBasedOnStoredPermissions(principalsToAccounts)
 
         return true
+    }
+
+    private fun resetUserCredentials(dbCreds: Map<String, MaterializedViewAccount>) {
+        connectToExternalDatabase().connection.use { conn ->
+            conn.createStatement().use { stmt ->
+
+                dbCreds.values.forEach { mvAccount ->
+                    val sql = updateUserCredentialSql(mvAccount.username, mvAccount.credential)
+
+                    try {
+                        stmt.execute(sql)
+                    } catch (e: Exception) {
+                        logger.error("Unable to reset credential for user ${mvAccount.username} using sql $sql", e)
+                    }
+                }
+            }
+        }
+    }
+
+    internal fun updateUserCredentialSql(dbUser: String, credential: String): String {
+        return "ALTER ROLE $dbUser WITH ENCRYPTED PASSWORD '$credential'"
     }
 
     private fun getColumnsToUserPermissions(): Map<AclKey, Map<Principal, EnumSet<Permission>>> {
