@@ -53,9 +53,9 @@ class CreateAtlasUsersAndSetPermissions(
                     it.principal to mvAccount
                 }.filterValues { it != null }.mapValues { it.value!! }
 
-//        configureUsersInAtlas(principalsToAccounts.filter { it.key.type == PrincipalType.USER }.values)
+        configureUsersInAtlas(principalsToAccounts.filter { it.key.type == PrincipalType.USER }.values)
 
-//        orgs.values.forEach { configureUsersInOrganization(it, principalsToAccounts) }
+        orgs.values.forEach { configureUsersInOrganization(it, principalsToAccounts) }
 
         grantPrivilegesBasedOnStoredPermissions(principalsToAccounts)
 
@@ -97,6 +97,7 @@ class CreateAtlasUsersAndSetPermissions(
 
                 userMVAccounts.map {
                     stmt.executeUpdate(createUserIfNotExistsSql(it.username, it.credential))
+                    stmt.executeUpdate(revokePublicSchemaAccessSql(it.username))
                 }.sum()
 
             }
@@ -167,6 +168,11 @@ class CreateAtlasUsersAndSetPermissions(
                 "   END IF;\n" +
                 "END\n" +
                 "\$do\$;"
+    }
+
+    private fun revokePublicSchemaAccessSql(dbUser: String): String {
+        return "REVOKE USAGE ON SCHEMA ${AssemblerConnectionManager.PUBLIC_SCHEMA} FROM ${quote(dbUser)}"
+
     }
 
     private fun grantPrivilegesBasedOnStoredPermissions(principalsToAccounts: Map<Principal, MaterializedViewAccount>) {
