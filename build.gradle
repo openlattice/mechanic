@@ -33,7 +33,7 @@ plugins {
 }
 
 description = "Mechanic"
-group = "com.dataloom"
+group = "com.openlattice"
 
 ext.projectName = "mechanic"
 ext.scmUrl = 'scm:git:https://github.com/openlattice/mechanic.git'
