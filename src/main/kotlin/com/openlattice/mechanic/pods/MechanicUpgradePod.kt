@@ -341,6 +341,11 @@ class MechanicUpgradePod {
     }
 
     @Bean
+    fun removeLinkingDataFromDataTable(): RemoveLinkingDataFromDataTable {
+        return RemoveLinkingDataFromDataTable(toolbox)
+    }
+
+    @Bean
     fun createStagingSchemaForExistingOrgs(): CreateStagingSchemaForExistingOrgs {
         return CreateStagingSchemaForExistingOrgs(toolbox, assemblerConfiguration)
     }
