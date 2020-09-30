@@ -83,7 +83,7 @@ class CreateStagingSchemaForExistingOrgs(
     }
 
     private fun connectToDatabase(org: Organization): HikariDataSource {
-        val dbName = PostgresDatabases.buildOrganizationDatabaseName(org.id)
+        val dbName = PostgresDatabases.buildDefaultOrganizationDatabaseName(org.id)
         return AssemblerConnectionManager.createDataSource(
                 dbName,
                 assemblerConfiguration.server.clone() as Properties,

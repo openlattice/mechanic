@@ -51,7 +51,7 @@ class MaterializationForeignServer(
     }
 
     private fun updateForeignServerPort(organizationId: UUID) {
-        val organizationDbName = PostgresDatabases.buildOrganizationDatabaseName(organizationId)
+        val organizationDbName = PostgresDatabases.buildDefaultOrganizationDatabaseName(organizationId)
         connect(organizationDbName).use { dataSource ->
             dataSource.connection.use { connection ->
                 connection.createStatement().use { statement ->
