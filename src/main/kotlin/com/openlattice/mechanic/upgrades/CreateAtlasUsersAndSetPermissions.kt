@@ -16,6 +16,7 @@ import com.openlattice.organization.OrganizationExternalDatabaseTable
 import com.openlattice.organization.roles.Role
 import com.openlattice.organizations.Organization
 import com.openlattice.postgres.DataTables
+import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.PostgresPrivileges
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
@@ -235,7 +236,7 @@ class CreateAtlasUsersAndSetPermissions(
                             }
 
                             val privileges = getPrivilegesFromPermissions(ace.permissions)
-                            val grantSql = createPrivilegesUpdateSql(privileges, tableName, columnName, dbUser.username)
+                            val grantSql = createPrivilegesUpdateSql(privileges, tableName, columnName, quote(dbUser.username))
                             stmt.addBatch(grantSql)
                         }
                         stmt.executeBatch()
@@ -280,6 +281,6 @@ class CreateAtlasUsersAndSetPermissions(
 
     private fun createPrivilegesUpdateSql(privileges: List<String>, tableName: String, columnName: String, dbUser: String): String {
         val privilegesAsString = privileges.joinToString(separator = ", ")
-        return "GRANT $privilegesAsString (${DataTables.quote(columnName)}) ON $tableName TO $dbUser"
+        return "GRANT $privilegesAsString (${quote(columnName)}) ON $tableName TO $dbUser"
     }
 }
