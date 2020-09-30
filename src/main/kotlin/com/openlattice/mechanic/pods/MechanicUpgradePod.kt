@@ -365,4 +365,9 @@ class MechanicUpgradePod {
         return CreateAtlasUsersAndSetPermissions(toolbox, assemblerConfiguration)
     }
 
+    @Bean
+    fun createAndPopulateOrganizationDatabaseTable(): CreateAndPopulateOrganizationDatabaseTable {
+        return CreateAndPopulateOrganizationDatabaseTable(toolbox, assemblerConfiguration)
+    }
+
 }
