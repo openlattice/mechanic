@@ -1,10 +1,7 @@
 package com.openlattice.mechanic.upgrades
 
 import com.hazelcast.query.Predicates
-import com.openlattice.assembler.AssemblerConfiguration
-import com.openlattice.assembler.AssemblerConnectionManager
-import com.openlattice.assembler.MEMBER_ORG_DATABASE_PERMISSIONS
-import com.openlattice.assembler.PostgresDatabases
+import com.openlattice.assembler.*
 import com.openlattice.assembler.PostgresRoles.Companion.buildOrganizationUserId
 import com.openlattice.assembler.PostgresRoles.Companion.buildPostgresRoleName
 import com.openlattice.assembler.PostgresRoles.Companion.buildPostgresUsername
@@ -108,31 +105,38 @@ class CreateAtlasUsersAndSetPermissions(
     }
 
     private fun configureUsersInOrganization(organization: Organization, principalsToAccounts: Map<Principal, MaterializedViewAccount>) {
-        val usernames = organization.members.mapNotNull { principalsToAccounts[it]?.username }
-        val usernamesSql = usernames.joinToString(", ")
 
-        logger.info("Configuring users $usernames in organization ${organization.title} [${organization.id}]")
+        try {
 
-        val dbName = PostgresDatabases.buildOrganizationDatabaseName(organization.id)
-        val grantDefaultPermissionsOnDatabaseSql = "GRANT ${MEMBER_ORG_DATABASE_PERMISSIONS.joinToString(", ")} " +
-                "ON DATABASE ${DataTables.quote(dbName)} TO $usernamesSql"
-        val grantOLSchemaPrivilegesSql = "GRANT USAGE ON SCHEMA ${AssemblerConnectionManager.MATERIALIZED_VIEWS_SCHEMA} TO $usernamesSql"
-        val grantStagingSchemaPrivilegesSql = "GRANT USAGE, CREATE ON SCHEMA ${AssemblerConnectionManager.STAGING_SCHEMA} TO $usernamesSql"
+            val usernames = organization.members.mapNotNull { principalsToAccounts[it]?.username }
+            val usernamesSql = usernames.joinToString(", ")
 
-        logger.info("grantDefaultPermissionsOnDatabaseSql: $grantDefaultPermissionsOnDatabaseSql")
-        logger.info("grantOLSchemaPrivilegesSql: $grantOLSchemaPrivilegesSql")
-        logger.info("grantStagingSchemaPrivilegesSql: $grantStagingSchemaPrivilegesSql")
+            logger.info("Configuring users $usernames in organization ${organization.title} [${organization.id}]")
 
-        connectToOrgDatabase(organization).connection.use { connection ->
-            connection.createStatement().use { statement ->
+            val dbName = PostgresDatabases.buildOrganizationDatabaseName(organization.id)
+            val grantDefaultPermissionsOnDatabaseSql = "GRANT ${MEMBER_ORG_DATABASE_PERMISSIONS.joinToString(", ")} " +
+                    "ON DATABASE ${DataTables.quote(dbName)} TO $usernamesSql"
+            val grantOLSchemaPrivilegesSql = "GRANT USAGE ON SCHEMA ${AssemblerConnectionManager.MATERIALIZED_VIEWS_SCHEMA} TO $usernamesSql"
+            val grantStagingSchemaPrivilegesSql = "GRANT USAGE, CREATE ON SCHEMA ${AssemblerConnectionManager.STAGING_SCHEMA} TO $usernamesSql"
 
-                statement.execute(grantDefaultPermissionsOnDatabaseSql)
-                statement.execute(grantOLSchemaPrivilegesSql)
-                statement.execute(grantStagingSchemaPrivilegesSql)
+            logger.info("grantDefaultPermissionsOnDatabaseSql: $grantDefaultPermissionsOnDatabaseSql")
+            logger.info("grantOLSchemaPrivilegesSql: $grantOLSchemaPrivilegesSql")
+            logger.info("grantStagingSchemaPrivilegesSql: $grantStagingSchemaPrivilegesSql")
 
-                usernames.forEach { userId -> statement.addBatch(setSearchPathSql(userId)) }
-                statement.executeBatch()
+            connectToOrgDatabase(organization).connection.use { connection ->
+                connection.createStatement().use { statement ->
+
+                    statement.execute(grantDefaultPermissionsOnDatabaseSql)
+                    statement.execute(grantOLSchemaPrivilegesSql)
+                    statement.execute(grantStagingSchemaPrivilegesSql)
+
+                    usernames.forEach { userId -> statement.addBatch(setSearchPathSql(userId)) }
+                    statement.executeBatch()
+                }
             }
+
+        } catch (e: Exception) {
+            logger.error("Unable to configure users in organization ${organization.title} [${organization.id}]: ", e)
         }
     }
 
@@ -165,7 +169,6 @@ class CreateAtlasUsersAndSetPermissions(
     }
 
     private fun grantPrivilegesBasedOnStoredPermissions(principalsToAccounts: Map<Principal, MaterializedViewAccount>) {
-
         val tablesMap = HazelcastMap.ORGANIZATION_EXTERNAL_DATABASE_TABLE.getMap(toolbox.hazelcast).toMap()
         val columnsMap = HazelcastMap.ORGANIZATION_EXTERNAL_DATABASE_COLUMN.getMap(toolbox.hazelcast).toMap()
         val orgsMap = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
@@ -186,6 +189,7 @@ class CreateAtlasUsersAndSetPermissions(
             }
 
             executePrivilegesUpdate(
+                    orgId,
                     orgColumnsAcls,
                     principalsToAccounts,
                     tablesMap,
@@ -200,42 +204,48 @@ class CreateAtlasUsersAndSetPermissions(
 // taken + modified from ExternalDatabaseManagementService
 
     private fun executePrivilegesUpdate(
+            organizationId: UUID,
             columnAcls: List<Acl>,
             principalsToAccounts: Map<Principal, MaterializedViewAccount>,
             tablesMap: Map<UUID, OrganizationExternalDatabaseTable>,
             columnsMap: Map<UUID, OrganizationExternalDatabaseColumn>
     ) {
-        val columnIds = columnAcls.map { it.aclKey[1] }.toSet()
-        val columnsById = columnIds.associateWith { columnsMap[it] }
-        val columnAclsByOrg = columnAcls
-                .filter { columnsById[it.aclKey[1]] != null }
-                .groupBy { columnsById[it.aclKey[1]]!!.organizationId }
+        try {
+            val columnIds = columnAcls.map { it.aclKey[1] }.toSet()
+            val columnsById = columnIds.associateWith { columnsMap[it] }
+            val columnAclsByOrg = columnAcls
+                    .filter { columnsById[it.aclKey[1]] != null }
+                    .groupBy { columnsById[it.aclKey[1]]!!.organizationId }
 
-        columnAclsByOrg.forEach { (orgId, columnAcls) ->
-            val dbName = PostgresDatabases.buildOrganizationDatabaseName(orgId)
-            connectToExternalDatabase(dbName).connection.use { conn ->
-                conn.autoCommit = false
-                val stmt = conn.createStatement()
-                columnAcls.forEach {
-                    val tableAndColumnNames = getTableAndColumnNames(AclKey(it.aclKey), tablesMap, columnsMap)
-                    val tableName = tableAndColumnNames.first
-                    val columnName = tableAndColumnNames.second
-                    it.aces.forEach { ace ->
-                        val dbUser = principalsToAccounts[ace.principal]
+            columnAclsByOrg.forEach { (orgId, columnAcls) ->
+                val dbName = PostgresDatabases.buildOrganizationDatabaseName(orgId)
+                connectToExternalDatabase(dbName).connection.use { conn ->
+                    conn.autoCommit = false
+                    val stmt = conn.createStatement()
+                    columnAcls.forEach {
+                        val tableAndColumnNames = getTableAndColumnNames(AclKey(it.aclKey), tablesMap, columnsMap)
+                        val tableName = tableAndColumnNames.first
+                        val columnName = tableAndColumnNames.second
+                        it.aces.forEach { ace ->
+                            val dbUser = principalsToAccounts[ace.principal]
 
-                        if (dbUser == null) {
-                            logger.info("Could not load MV account for user ${ace.principal}. Skipping DB grant.")
-                            return@forEach
+                            if (dbUser == null) {
+                                logger.info("Could not load MV account for user ${ace.principal}. Skipping DB grant.")
+                                return@forEach
+                            }
+
+                            val privileges = getPrivilegesFromPermissions(ace.permissions)
+                            val grantSql = createPrivilegesUpdateSql(privileges, tableName, columnName, dbUser.username)
+                            stmt.addBatch(grantSql)
                         }
-
-                        val privileges = getPrivilegesFromPermissions(ace.permissions)
-                        val grantSql = createPrivilegesUpdateSql(privileges, tableName, columnName, dbUser.username)
-                        stmt.addBatch(grantSql)
+                        stmt.executeBatch()
+                        conn.commit()
                     }
-                    stmt.executeBatch()
-                    conn.commit()
                 }
             }
+        } catch (e: Exception) {
+            logger.error("Unable to assign ${columnAcls.size} privileges for users in organization $organizationId : ", e)
+
         }
     }
 
