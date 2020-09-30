@@ -237,9 +237,12 @@ class CreateAtlasUsersAndSetPermissions(
 
                             val privileges = getPrivilegesFromPermissions(ace.permissions)
                             val grantSql = createPrivilegesUpdateSql(privileges, tableName, columnName, quote(dbUser.username))
-                            stmt.addBatch(grantSql)
+                            try {
+                                stmt.execute(grantSql)
+                            } catch (e: Exception) {
+                                logger.error("Unable to execute privilege grant using sql: $grantSql ", e)
+                            }
                         }
-                        stmt.executeBatch()
                         conn.commit()
                     }
                 }
