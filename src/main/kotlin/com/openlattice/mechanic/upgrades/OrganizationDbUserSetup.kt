@@ -40,7 +40,7 @@ class OrganizationDbUserSetup(
     }
 
     private fun setupOrganizationDbUser(organizationId: UUID) {
-        val organizationDbName = PostgresDatabases.buildOrganizationDatabaseName(organizationId)
+        val organizationDbName = PostgresDatabases.buildDefaultOrganizationDatabaseName(organizationId)
         val dbOrgUser = DataTables.quote(PostgresRoles.buildOrganizationUserId(organizationId))
         val connectionConfig = assemblerConfiguration.server.clone() as Properties
 

@@ -6,7 +6,6 @@ import com.openlattice.assembler.PostgresDatabases
 import com.openlattice.assembler.PostgresRoles
 import com.openlattice.authorization.Principal
 import com.openlattice.authorization.PrincipalType
-import com.openlattice.organizations.PrincipalSet
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.DataTables
@@ -45,7 +44,7 @@ class GrantPublicSchemaAccessToOrgs(
     }
 
     private fun grantUsageOnPublicSchema(orgId: UUID, principals: Set<Principal>) {
-        val dbName = PostgresDatabases.buildOrganizationDatabaseName(orgId)
+        val dbName = PostgresDatabases.buildDefaultOrganizationDatabaseName(orgId)
         val userNames = getUserNames(principals)
         if (userNames.isEmpty()) {
             logger.info("no members in org with id $orgId")
