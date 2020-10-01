@@ -26,13 +26,16 @@ import com.openlattice.assembler.AssemblerConnectionManager
 import com.openlattice.assembler.PostgresDatabases
 import com.openlattice.assembler.PostgresRoles
 import com.openlattice.postgres.DataTables
+import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
 import java.util.*
 
 class OrganizationDbUserSetup(
         private val organizationAssemblyMapstore: OrganizationAssemblyMapstore,
-        private val assemblerConfiguration: AssemblerConfiguration
+        private val assemblerConfiguration: AssemblerConfiguration,
+        private val externalDatabaseConnectionManager: ExternalDatabaseConnectionManager
 ) : Upgrade {
+
     override fun upgrade(): Boolean {
         organizationAssemblyMapstore.loadAllKeys().forEach(::setupOrganizationDbUser)
 
@@ -44,7 +47,7 @@ class OrganizationDbUserSetup(
         val dbOrgUser = DataTables.quote(PostgresRoles.buildOrganizationUserId(organizationId))
         val connectionConfig = assemblerConfiguration.server.clone() as Properties
 
-        AssemblerConnectionManager.createDataSource(organizationDbName, connectionConfig, assemblerConfiguration.ssl).use { dataSource ->
+        externalDatabaseConnectionManager.createDataSource(organizationDbName, connectionConfig, assemblerConfiguration.ssl).use { dataSource ->
             dataSource.connection.use { connection ->
                 connection.createStatement()
                         .use { statement ->

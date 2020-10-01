@@ -19,7 +19,8 @@ private val logger = LoggerFactory.getLogger(GrantPublicSchemaAccessToOrgs::clas
 class GrantPublicSchemaAccessToOrgs(
         private val organizationsMapstore: OrganizationsMapstore,
         private val securePrincipalsManager: SecurePrincipalsManager,
-        private val acmConfig: AssemblerConfiguration) : Upgrade {
+        private val acmConfig: AssemblerConfiguration
+) : Upgrade {
 
     companion object {
         private const val BATCH_SIZE = 1000

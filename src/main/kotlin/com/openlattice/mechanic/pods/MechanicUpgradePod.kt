@@ -44,6 +44,7 @@ import com.openlattice.mechanic.upgrades.*
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
+import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
 import com.zaxxer.hikari.HikariDataSource
 import org.springframework.context.annotation.Bean
@@ -77,6 +78,9 @@ class MechanicUpgradePod {
 
     @Inject
     private lateinit var auditingConfiguration: AuditingConfiguration
+
+    @Inject
+    private lateinit var externalDatabaseConnectionManager: ExternalDatabaseConnectionManager
 
     @Bean
     fun linking(): Linking {
@@ -121,7 +125,9 @@ class MechanicUpgradePod {
     fun materializationForeignServer(): MaterializationForeignServer {
         return MaterializationForeignServer(
                 mapstoresPod.organizationAssemblies() as OrganizationAssemblyMapstore,
-                assemblerConfiguration)
+                assemblerConfiguration,
+                externalDatabaseConnectionManager
+        )
     }
 
     @Bean
@@ -133,7 +139,8 @@ class MechanicUpgradePod {
     fun organizationDbUserSetup(): OrganizationDbUserSetup {
         return OrganizationDbUserSetup(
                 mapstoresPod.organizationAssemblies() as OrganizationAssemblyMapstore,
-                assemblerConfiguration
+                assemblerConfiguration,
+                externalDatabaseConnectionManager
         )
     }
 
