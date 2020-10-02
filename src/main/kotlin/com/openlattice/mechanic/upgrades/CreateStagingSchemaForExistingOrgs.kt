@@ -2,20 +2,20 @@ package com.openlattice.mechanic.upgrades
 
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.assembler.AssemblerConnectionManager
-import com.openlattice.assembler.PostgresDatabases
 import com.openlattice.assembler.PostgresRoles
 import com.openlattice.authorization.Principal
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.organizations.Organization
 import com.openlattice.postgres.DataTables
+import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
-import java.util.*
 
 class CreateStagingSchemaForExistingOrgs(
         private val toolbox: Toolbox,
-        private val assemblerConfiguration: AssemblerConfiguration
+        private val assemblerConfiguration: AssemblerConfiguration,
+        private val externalDatabaseConnectionManager: ExternalDatabaseConnectionManager
 ) : Upgrade {
 
     companion object {
@@ -37,7 +37,7 @@ class CreateStagingSchemaForExistingOrgs(
 
     private fun getAllUserPrincipals(): Map<Principal, String> {
         return HazelcastMap.PRINCIPALS.getMap(toolbox.hazelcast).values.associate {
-            it.principal to DataTables.quote(PostgresRoles.buildPostgresUsername(it))
+            it.principal to DataTables.quote("ol-internal|user|${it.id}")
         }
     }
 
@@ -83,11 +83,8 @@ class CreateStagingSchemaForExistingOrgs(
     }
 
     private fun connectToDatabase(org: Organization): HikariDataSource {
-        val dbName = PostgresDatabases.buildDefaultOrganizationDatabaseName(org.id)
-        return AssemblerConnectionManager.createDataSource(
-                dbName,
-                assemblerConfiguration.server.clone() as Properties,
-                assemblerConfiguration.ssl
+        return externalDatabaseConnectionManager.connect(
+                ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(org.id)
         )
     }
 

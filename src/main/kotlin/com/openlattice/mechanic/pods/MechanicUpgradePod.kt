@@ -354,7 +354,7 @@ class MechanicUpgradePod {
 
     @Bean
     fun createStagingSchemaForExistingOrgs(): CreateStagingSchemaForExistingOrgs {
-        return CreateStagingSchemaForExistingOrgs(toolbox, assemblerConfiguration)
+        return CreateStagingSchemaForExistingOrgs(toolbox, assemblerConfiguration, externalDatabaseConnectionManager)
     }
 
     @Bean
@@ -369,12 +369,12 @@ class MechanicUpgradePod {
 
     @Bean
     fun createAtlasUsersAndSetPermissions(): CreateAtlasUsersAndSetPermissions {
-        return CreateAtlasUsersAndSetPermissions(toolbox, assemblerConfiguration)
+        return CreateAtlasUsersAndSetPermissions(toolbox, externalDatabaseConnectionManager)
     }
 
     @Bean
     fun createAndPopulateOrganizationDatabaseTable(): CreateAndPopulateOrganizationDatabaseTable {
-        return CreateAndPopulateOrganizationDatabaseTable(toolbox, assemblerConfiguration)
+        return CreateAndPopulateOrganizationDatabaseTable(toolbox, externalDatabaseConnectionManager)
     }
 
 }

@@ -23,7 +23,6 @@ package com.openlattice.mechanic.upgrades
 
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.assembler.AssemblerConnectionManager
-import com.openlattice.assembler.PostgresDatabases
 import com.openlattice.assembler.PostgresRoles
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
@@ -43,7 +42,7 @@ class OrganizationDbUserSetup(
     }
 
     private fun setupOrganizationDbUser(organizationId: UUID) {
-        val organizationDbName = PostgresDatabases.buildDefaultOrganizationDatabaseName(organizationId)
+        val organizationDbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(organizationId)
         val dbOrgUser = DataTables.quote(PostgresRoles.buildOrganizationUserId(organizationId))
         val connectionConfig = assemblerConfiguration.server.clone() as Properties
 

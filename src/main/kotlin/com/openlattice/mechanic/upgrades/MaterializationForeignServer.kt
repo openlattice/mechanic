@@ -21,7 +21,6 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.assembler.AssemblerConfiguration
-import com.openlattice.assembler.PostgresDatabases
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
 import com.zaxxer.hikari.HikariDataSource
@@ -53,7 +52,7 @@ class MaterializationForeignServer(
     }
 
     private fun updateForeignServerPort(organizationId: UUID) {
-        val organizationDbName = PostgresDatabases.buildDefaultOrganizationDatabaseName(organizationId)
+        val organizationDbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(organizationId)
         connect(organizationDbName).use { dataSource ->
             dataSource.connection.use { connection ->
                 connection.createStatement().use { statement ->
