@@ -1,7 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.assembler.AssemblerConfiguration
-import com.openlattice.assembler.AssemblerConnectionManager
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.quote
@@ -9,10 +8,7 @@ import com.openlattice.postgres.PostgresColumn.PRINCIPAL_ID
 import com.openlattice.postgres.PostgresColumn.USERNAME
 import com.openlattice.postgres.PostgresTable.DB_CREDS
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
-import com.openlattice.postgres.pods.ExternalDatabaseConnectionManagerPod
-import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
-import java.util.*
 
 private const val ORGANIZATION_PREFIX = "ol-internal|organization|"
 
