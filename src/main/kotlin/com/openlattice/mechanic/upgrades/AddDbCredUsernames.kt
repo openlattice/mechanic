@@ -8,6 +8,8 @@ import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.PostgresColumn.PRINCIPAL_ID
 import com.openlattice.postgres.PostgresColumn.USERNAME
 import com.openlattice.postgres.PostgresTable.DB_CREDS
+import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
+import com.openlattice.postgres.pods.ExternalDatabaseConnectionManagerPod
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -16,7 +18,8 @@ private const val ORGANIZATION_PREFIX = "ol-internal|organization|"
 
 class AddDbCredUsernames(
         private val toolbox: Toolbox,
-        private val assemblerConfiguration: AssemblerConfiguration
+        assemblerConfiguration: AssemblerConfiguration,
+        private val externalDbConMan: ExternalDatabaseConnectionManager = ExternalDatabaseConnectionManager(assemblerConfiguration, toolbox.hazelcast)
 ) : Upgrade {
 
     companion object {
@@ -87,20 +90,10 @@ class AddDbCredUsernames(
         logger.info("Finished adding $numUpdates usernames to db_creds table")
     }
 
-
-    private fun connectToExternalDatabase(): HikariDataSource {
-        return AssemblerConnectionManager.createDataSource(
-                "postgres",
-                assemblerConfiguration.server.clone() as Properties,
-                assemblerConfiguration.ssl
-        )
-    }
-
-
     private fun updateExternalDatabaseUsernames(userIdsToUsernames: Map<String, String>) {
         logger.info("About to update usernames in external database")
 
-        val numUpdates = connectToExternalDatabase().connection.use { conn ->
+        val numUpdates = externalDbConMan.connect("postgres").connection.use { conn ->
             conn.createStatement().use { stmt ->
 
                 userIdsToUsernames.map { (userId, username) ->
