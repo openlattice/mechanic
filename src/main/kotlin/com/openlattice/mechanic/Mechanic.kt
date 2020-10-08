@@ -50,6 +50,7 @@ import com.openlattice.mechanic.pods.MechanicUpgradePod
 import com.openlattice.mechanic.reindex.Reindexer
 import com.openlattice.mechanic.upgrades.Upgrade
 import com.openlattice.postgres.PostgresPod
+import com.openlattice.postgres.pods.ExternalDatabaseConnectionManagerPod
 import org.apache.commons.lang3.StringUtils
 import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
@@ -127,9 +128,16 @@ class Mechanic {
     private val mechanicPods = RhizomeUtils.Pods.concatenate(
             RhizomeApplicationServer.DEFAULT_PODS,
             arrayOf(
-                    AssemblerConfigurationPod::class.java, AuditingConfigurationPod::class.java, Auth0Pod::class.java,
-                    JdbcPod::class.java, MapstoresPod::class.java, MechanicIntegrityPod::class.java,
-                    MechanicRetireePod::class.java, MechanicUpgradePod::class.java, PostgresPod::class.java,
+                    AssemblerConfigurationPod::class.java,
+                    AuditingConfigurationPod::class.java,
+                    Auth0Pod::class.java,
+                    JdbcPod::class.java,
+                    MapstoresPod::class.java,
+                    MechanicIntegrityPod::class.java,
+                    MechanicRetireePod::class.java,
+                    MechanicUpgradePod::class.java,
+                    ExternalDatabaseConnectionManagerPod::class.java,
+                    PostgresPod::class.java,
                     SharedStreamSerializersPod::class.java
             )
     )

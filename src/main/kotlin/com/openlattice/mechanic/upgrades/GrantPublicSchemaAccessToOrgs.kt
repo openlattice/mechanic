@@ -2,13 +2,13 @@ package com.openlattice.mechanic.upgrades
 
 import com.openlattice.IdConstants
 import com.openlattice.assembler.AssemblerConfiguration
-import com.openlattice.assembler.PostgresDatabases
 import com.openlattice.assembler.PostgresRoles
 import com.openlattice.authorization.Principal
 import com.openlattice.authorization.PrincipalType
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.DataTables
+import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
@@ -19,7 +19,8 @@ private val logger = LoggerFactory.getLogger(GrantPublicSchemaAccessToOrgs::clas
 class GrantPublicSchemaAccessToOrgs(
         private val organizationsMapstore: OrganizationsMapstore,
         private val securePrincipalsManager: SecurePrincipalsManager,
-        private val acmConfig: AssemblerConfiguration) : Upgrade {
+        private val acmConfig: AssemblerConfiguration
+) : Upgrade {
 
     companion object {
         private const val BATCH_SIZE = 1000
@@ -44,7 +45,7 @@ class GrantPublicSchemaAccessToOrgs(
     }
 
     private fun grantUsageOnPublicSchema(orgId: UUID, principals: Set<Principal>) {
-        val dbName = PostgresDatabases.buildDefaultOrganizationDatabaseName(orgId)
+        val dbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(orgId)
         val userNames = getUserNames(principals)
         if (userNames.isEmpty()) {
             logger.info("no members in org with id $orgId")
@@ -71,7 +72,7 @@ class GrantPublicSchemaAccessToOrgs(
             }
         }.filterNotNull().filter {
             it.principalType == PrincipalType.USER
-        }.map { DataTables.quote(PostgresRoles.buildPostgresUsername(it)) }.toSet()
+        }.map { DataTables.quote("ol-internal|user|${it.id}") }.toSet()
     }
 
     private fun getGrantOnPublicSchemaQuery(userIds: Collection<String>): String {

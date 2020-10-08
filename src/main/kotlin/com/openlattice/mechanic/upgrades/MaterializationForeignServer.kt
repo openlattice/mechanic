@@ -21,8 +21,7 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.assembler.AssemblerConfiguration
-import com.openlattice.assembler.AssemblerConnectionManager
-import com.openlattice.assembler.PostgresDatabases
+import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
@@ -30,7 +29,9 @@ import java.util.*
 
 class MaterializationForeignServer(
         private val organizationAssemblyMapstore: OrganizationAssemblyMapstore,
-        private val assemblerConfiguration: AssemblerConfiguration) : Upgrade {
+        private val assemblerConfiguration: AssemblerConfiguration,
+        private val externalDatabaseConnectionManager: ExternalDatabaseConnectionManager
+) : Upgrade {
 
     companion object {
         private val logger = LoggerFactory.getLogger(MaterializationForeignServer::class.java)
@@ -51,7 +52,7 @@ class MaterializationForeignServer(
     }
 
     private fun updateForeignServerPort(organizationId: UUID) {
-        val organizationDbName = PostgresDatabases.buildDefaultOrganizationDatabaseName(organizationId)
+        val organizationDbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(organizationId)
         connect(organizationDbName).use { dataSource ->
             dataSource.connection.use { connection ->
                 connection.createStatement().use { statement ->
@@ -65,11 +66,11 @@ class MaterializationForeignServer(
 
     private fun connect(organizationDbName: String): HikariDataSource {
         val connectionConfig = assemblerConfiguration.server.clone() as Properties
-        return AssemblerConnectionManager.createDataSource(organizationDbName, connectionConfig, assemblerConfiguration.ssl)
+        return externalDatabaseConnectionManager.createDataSource(organizationDbName, connectionConfig, assemblerConfiguration.ssl)
     }
 
     private val PRODUCTION_SERVER = "prod"
 
     private val ALTER_FOREIGN_SERVER_PORT_SQL = "ALTER SERVER $PRODUCTION_SERVER " +
-                    "OPTIONS (SET port '${assemblerConfiguration.foreignPort}')"
+                    "OPTIONS (SET port 'historicPortValue')"
 }

@@ -1,21 +1,20 @@
 package com.openlattice.mechanic.upgrades
 
-import com.openlattice.assembler.AssemblerConfiguration
-import com.openlattice.assembler.AssemblerConnectionManager
-import com.openlattice.assembler.PostgresDatabases
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.PostgresColumn.*
+import com.openlattice.postgres.PostgresColumn.ID
+import com.openlattice.postgres.PostgresColumn.NAME
+import com.openlattice.postgres.PostgresColumn.OID
 import com.openlattice.postgres.PostgresTable.ORGANIZATION_DATABASES
+import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.streams.BasePostgresIterable
 import com.openlattice.postgres.streams.StatementHolderSupplier
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
-import java.util.*
 
 class CreateAndPopulateOrganizationDatabaseTable(
         private val toolbox: Toolbox,
-        private val assemblerConfiguration: AssemblerConfiguration
+        private val externalDatabaseConnectionManager: ExternalDatabaseConnectionManager
 ) : Upgrade {
 
     companion object {
@@ -49,11 +48,7 @@ class CreateAndPopulateOrganizationDatabaseTable(
     }
 
     private fun connectToExternalDatabase(): HikariDataSource {
-        return AssemblerConnectionManager.createDataSource(
-                "postgres",
-                assemblerConfiguration.server.clone() as Properties,
-                assemblerConfiguration.ssl
-        )
+        return externalDatabaseConnectionManager.connect("postgres")
     }
 
     private fun getDatabasesToOid(): Map<String, Int> {
@@ -84,7 +79,7 @@ class CreateAndPopulateOrganizationDatabaseTable(
             conn.prepareStatement(insertSql).use { ps ->
 
                 orgIds.forEach { orgId ->
-                    val dbName = PostgresDatabases.buildDefaultOrganizationDatabaseName(orgId)
+                    val dbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(orgId)
                     val oid = databaseNamesToOids.getOrDefault(dbName, -1)
 
                     ps.setObject(1, orgId)

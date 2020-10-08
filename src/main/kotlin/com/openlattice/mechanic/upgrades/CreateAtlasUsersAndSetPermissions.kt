@@ -1,7 +1,9 @@
 package com.openlattice.mechanic.upgrades
 
 import com.hazelcast.query.Predicates
-import com.openlattice.assembler.*
+import com.openlattice.assembler.AssemblerConfiguration
+import com.openlattice.assembler.AssemblerConnectionManager
+import com.openlattice.assembler.MEMBER_ORG_DATABASE_PERMISSIONS
 import com.openlattice.authorization.*
 import com.openlattice.authorization.mapstores.PermissionMapstore
 import com.openlattice.authorization.securable.SecurableObjectType
@@ -14,13 +16,14 @@ import com.openlattice.organizations.Organization
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.PostgresPrivileges
+import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 import java.util.*
 
 class CreateAtlasUsersAndSetPermissions(
         private val toolbox: Toolbox,
-        private val assemblerConfiguration: AssemblerConfiguration
+        private val externalDatabaseConnectionManager: ExternalDatabaseConnectionManager
 ) : Upgrade {
 
     companion object {
@@ -97,16 +100,12 @@ class CreateAtlasUsersAndSetPermissions(
 
 
     private fun connectToOrgDatabase(org: Organization): HikariDataSource {
-        val dbName = PostgresDatabases.buildDefaultOrganizationDatabaseName(org.id)
+        val dbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(org.id)
         return connectToExternalDatabase(dbName)
     }
 
     private fun connectToExternalDatabase(dbName: String = "postgres"): HikariDataSource {
-        return AssemblerConnectionManager.createDataSource(
-                dbName,
-                assemblerConfiguration.server.clone() as Properties,
-                assemblerConfiguration.ssl
-        )
+        return externalDatabaseConnectionManager.connect(dbName)
     }
 
     private fun configureUsersInAtlas(userMVAccounts: Collection<MaterializedViewAccount>) {
@@ -135,7 +134,7 @@ class CreateAtlasUsersAndSetPermissions(
 
             logger.info("Configuring users $usernames in organization ${organization.title} [${organization.id}]")
 
-            val dbName = PostgresDatabases.buildDefaultOrganizationDatabaseName(organization.id)
+            val dbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(organization.id)
             val grantDefaultPermissionsOnDatabaseSql = "GRANT ${MEMBER_ORG_DATABASE_PERMISSIONS.joinToString(", ")} " +
                     "ON DATABASE ${DataTables.quote(dbName)} TO $usernamesSql"
             val grantOLSchemaPrivilegesSql = "GRANT USAGE ON SCHEMA ${AssemblerConnectionManager.MATERIALIZED_VIEWS_SCHEMA} TO $usernamesSql"
@@ -245,7 +244,7 @@ class CreateAtlasUsersAndSetPermissions(
                     .groupBy { columnsById[it.aclKey[1]]!!.organizationId }
 
             columnAclsByOrg.forEach { (orgId, columnAcls) ->
-                val dbName = PostgresDatabases.buildDefaultOrganizationDatabaseName(orgId)
+                val dbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(orgId)
                 connectToExternalDatabase(dbName).connection.use { conn ->
                     conn.autoCommit = false
                     val stmt = conn.createStatement()
