@@ -3,13 +3,9 @@ package com.openlattice.mechanic.retired
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.Upgrade
 import com.openlattice.mechanic.upgrades.Version
-import com.openlattice.postgres.streams.PostgresIterable
-import com.openlattice.postgres.streams.StatementHolder
-import java.lang.Exception
-import java.sql.ResultSet
+import com.openlattice.postgres.streams.BasePostgresIterable
+import com.openlattice.postgres.streams.StatementHolderSupplier
 import java.util.*
-import java.util.function.Function
-import java.util.function.Supplier
 
 /**
  *
@@ -18,21 +14,14 @@ import java.util.function.Supplier
 
 class RemoveEntitySetTables(val toolbox: Toolbox) : Upgrade {
     override fun upgrade(): Boolean {
-        val tables = PostgresIterable<String>(
-                Supplier {
-                    val conn = toolbox.hds.connection
-                    val stmt = conn.createStatement()
-                    val rs = stmt.executeQuery(
-                            "SELECT table_name\n" +
-                                    "  FROM information_schema.tables\n" +
-                                    " WHERE table_schema='public'\n" +
-                                    "   AND table_type='BASE TABLE' AND table_name LIKE 'es_%'"
-                    )
-                    StatementHolder(conn, stmt, rs)
-                },
-                Function<ResultSet, String> { rs ->
-                    rs.getString("table_name")
-                }).toSet()
+        val sql = "SELECT table_name\n" +
+                "  FROM information_schema.tables\n" +
+                " WHERE table_schema='public'\n" +
+                "   AND table_type='BASE TABLE' AND table_name LIKE 'es_%'"
+
+        val tables = BasePostgresIterable<String>(StatementHolderSupplier(toolbox.hds, sql)) { rs ->
+            rs.getString("table_name")
+        }.toSet()
         tables.parallelStream()
                 .map { table -> table.removePrefix("es_") }
                 .filter { table ->

@@ -27,8 +27,8 @@ import com.google.common.collect.Lists
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.openlattice.data.EntityDataKey
 import com.openlattice.ids.HazelcastIdGenerationService.Companion.NUM_PARTITIONS
-import com.openlattice.ids.IdsGeneratingEntryProcessor
 import com.openlattice.ids.IdGenerationMapstore
+import com.openlattice.ids.IdsGeneratingEntryProcessor
 import com.openlattice.ids.Range
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
@@ -36,25 +36,22 @@ import com.openlattice.postgres.ResultSetAdapters
 import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.postgres.mapstores.EntityTypeMapstore
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore
-import com.openlattice.postgres.streams.PostgresIterable
-import com.openlattice.postgres.streams.StatementHolder
+import com.openlattice.postgres.streams.BasePostgresIterable
+import com.openlattice.postgres.streams.StatementHolderSupplier
 import com.zaxxer.hikari.HikariDataSource
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.slf4j.LoggerFactory
-import java.sql.ResultSet
 import java.util.*
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
-import java.util.function.Function
-import java.util.function.Supplier
 
 /**
  *
  */
 
-@SuppressFBWarnings( value = ["SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"] )
+@SuppressFBWarnings(value = ["SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"])
 class Organizations(
         private val hds: HikariDataSource,
         private val ptms: PropertyTypeMapstore,
@@ -215,34 +212,18 @@ class Organizations(
         return assignedCount.get()
     }
 
-    private fun getUnassignedEntries(fetchSize: Int): PostgresIterable<EntityDataKey> {
-        return PostgresIterable(
-                Supplier<StatementHolder> {
-                    val connection = hds.connection
-                    val stmt = connection.createStatement()
-                    val rs = stmt.executeQuery(
-                            "SELECT id, entity_set_id FROM id_migration WHERE new_id IS NULL LIMIT $fetchSize"
-                    )
-                    StatementHolder(connection, stmt, rs)
-                },
-                Function<ResultSet, EntityDataKey> {
-                    ResultSetAdapters.entityDataKey(it)
-                }
-        )
+    private fun getUnassignedEntries(fetchSize: Int): BasePostgresIterable<EntityDataKey> {
+        val sql = "SELECT id, entity_set_id FROM id_migration WHERE new_id IS NULL LIMIT $fetchSize"
+        return BasePostgresIterable(StatementHolderSupplier(hds, sql)) {
+            ResultSetAdapters.entityDataKey(it)
+        }
     }
 
-    private fun getEntityKeyIdStream(): PostgresIterable<EntityDataKey> {
-        return PostgresIterable(
-                Supplier<StatementHolder> {
-                    val connection = hds.connection
-                    val stmt = connection.createStatement()
-                    val rs = stmt.executeQuery("SELECT id, entity_set_id FROM id_migration")
-                    StatementHolder(connection, stmt, rs)
-                },
-                Function<ResultSet, EntityDataKey> {
-                    ResultSetAdapters.entityDataKey(it)
-                }
-        )
+    private fun getEntityKeyIdStream(): BasePostgresIterable<EntityDataKey> {
+        val sql = "SELECT id, entity_set_id FROM id_migration"
+        return BasePostgresIterable(StatementHolderSupplier(hds, sql)) {
+            ResultSetAdapters.entityDataKey(it)
+        }
     }
 
     private fun getNextId(): UUID {
