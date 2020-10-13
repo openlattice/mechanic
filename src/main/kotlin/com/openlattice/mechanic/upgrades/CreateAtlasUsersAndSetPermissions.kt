@@ -1,7 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
 import com.hazelcast.query.Predicates
-import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.assembler.AssemblerConnectionManager
 import com.openlattice.assembler.MEMBER_ORG_DATABASE_PERMISSIONS
 import com.openlattice.authorization.*
@@ -137,7 +136,7 @@ class CreateAtlasUsersAndSetPermissions(
             val dbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(organization.id)
             val grantDefaultPermissionsOnDatabaseSql = "GRANT ${MEMBER_ORG_DATABASE_PERMISSIONS.joinToString(", ")} " +
                     "ON DATABASE ${DataTables.quote(dbName)} TO $usernamesSql"
-            val grantOLSchemaPrivilegesSql = "GRANT USAGE ON SCHEMA ${AssemblerConnectionManager.MATERIALIZED_VIEWS_SCHEMA} TO $usernamesSql"
+            val grantOLSchemaPrivilegesSql = "GRANT USAGE ON SCHEMA ${AssemblerConnectionManager.OPENLATTICE_SCHEMA} TO $usernamesSql"
             val grantStagingSchemaPrivilegesSql = "GRANT USAGE, CREATE ON SCHEMA ${AssemblerConnectionManager.STAGING_SCHEMA} TO $usernamesSql"
 
             logger.info("grantDefaultPermissionsOnDatabaseSql: $grantDefaultPermissionsOnDatabaseSql")
@@ -163,7 +162,7 @@ class CreateAtlasUsersAndSetPermissions(
 
     private fun setSearchPathSql(granteeId: String): String {
         val searchPathSchemas = listOf(
-                AssemblerConnectionManager.MATERIALIZED_VIEWS_SCHEMA,
+                AssemblerConnectionManager.OPENLATTICE_SCHEMA,
                 AssemblerConnectionManager.STAGING_SCHEMA
         )
         return "ALTER USER $granteeId SET search_path TO ${searchPathSchemas.joinToString()}"

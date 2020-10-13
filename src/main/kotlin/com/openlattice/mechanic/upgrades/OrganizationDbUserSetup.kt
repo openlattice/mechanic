@@ -50,8 +50,8 @@ class OrganizationDbUserSetup(
             dataSource.connection.use { connection ->
                 connection.createStatement()
                         .use { statement ->
-                            statement.execute("GRANT USAGE, CREATE ON SCHEMA ${AssemblerConnectionManager.MATERIALIZED_VIEWS_SCHEMA} TO $dbOrgUser")
-                            statement.execute("ALTER USER $dbOrgUser SET search_path TO ${AssemblerConnectionManager.MATERIALIZED_VIEWS_SCHEMA}")
+                            statement.execute("GRANT USAGE, CREATE ON SCHEMA ${AssemblerConnectionManager.OPENLATTICE_SCHEMA} TO $dbOrgUser")
+                            statement.execute("ALTER USER $dbOrgUser SET search_path TO ${AssemblerConnectionManager.OPENLATTICE_SCHEMA}")
                         }
             }
         }
