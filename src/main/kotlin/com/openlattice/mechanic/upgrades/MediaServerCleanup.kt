@@ -27,14 +27,11 @@ import com.openlattice.datastore.configuration.DatastoreConfiguration
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
-import com.openlattice.postgres.streams.PostgresIterable
-import com.openlattice.postgres.streams.StatementHolder
+import com.openlattice.postgres.streams.BasePostgresIterable
+import com.openlattice.postgres.streams.StatementHolderSupplier
 import org.postgresql.util.PSQLException
 import org.slf4j.LoggerFactory
-import java.sql.ResultSet
 import java.util.*
-import java.util.function.Function
-import java.util.function.Supplier
 
 //Migration for media server
 
@@ -51,20 +48,14 @@ class MediaServerCleanup(private val toolbox: Toolbox) : Upgrade {
 
     private val byteBlobDataManager: ByteBlobDataManager
     private val binaryProperties =
-            PostgresIterable(Supplier {
-                val connection = toolbox.hds.connection
-                val ps = connection.prepareStatement(binaryPropertyTypesQuery())
-                val rs = ps.executeQuery()
-                StatementHolder(connection, ps, rs)
-            },
-                             Function<ResultSet, Pair<UUID, String>> { rs ->
-                                 val id = rs.getObject(1) as UUID
-                                 val namespace = rs.getString(2)
-                                 val name = rs.getString(3)
-                                 val fqn = "$namespace.$name"
+            BasePostgresIterable(StatementHolderSupplier(toolbox.hds, binaryPropertyTypesQuery())) { rs ->
+                val id = rs.getObject(1) as UUID
+                val namespace = rs.getString(2)
+                val name = rs.getString(3)
+                val fqn = "$namespace.$name"
 
-                                 id to fqn
-                             }).toMap()
+                id to fqn
+            }.toMap()
 
     init {
         val config = toolbox.configurationLoader.load(DatastoreConfiguration::class.java)
