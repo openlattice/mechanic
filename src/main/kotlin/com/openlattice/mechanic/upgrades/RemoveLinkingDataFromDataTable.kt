@@ -173,6 +173,16 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
             ADD CONSTRAINT $DATA_PKEY_NAME PRIMARY KEY 
             USING INDEX ${DATA_PKEY_NAME}_idx;
         """.trimIndent()
+
+        /** Step 5: update origin_id to be nullable, and null by default **/
+
+        private val REMOVE_NOT_NULL_ORIGIN_ID_CONSTRAINT_SQL = """
+            ALTER TABLE ${DATA.name} ALTER COLUMN ${ORIGIN_ID.name} DROP NOT NULL
+        """.trimIndent()
+
+        private val SET_ORIGIN_ID_DEFAULT_TO_NULL_SQL = """
+            ALTER TABLE ${DATA.name} ALTER COLUMN ${ORIGIN_ID.name} SET DEFAULT NULL
+        """.trimIndent()
     }
 
     override fun upgrade(): Boolean {
@@ -184,6 +194,8 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
         hardResetLinkingIdForUpdatedEntities()
 
         updatePrimaryKeyOnData()
+
+        dropNotNullConstraint()
 
         return true
     }
@@ -251,6 +263,24 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
         }
 
         logger.info("Finished updating primary key of data table.")
+    }
+
+    private fun dropNotNullConstraint() {
+        logger.info("About to drop the non-null constraint on origin_id and set default to null.")
+
+        toolbox.hds.connection.use { conn ->
+            conn.createStatement().use { stmt ->
+
+                logger.info("About to drop non-null constraint using sql: $REMOVE_NOT_NULL_ORIGIN_ID_CONSTRAINT_SQL")
+                stmt.execute(REMOVE_NOT_NULL_ORIGIN_ID_CONSTRAINT_SQL)
+
+                logger.info("About to set origin_id default to null using sql: $SET_ORIGIN_ID_DEFAULT_TO_NULL_SQL")
+                stmt.execute(SET_ORIGIN_ID_DEFAULT_TO_NULL_SQL)
+
+            }
+
+            logger.info("Finished updating origin_id column.")
+        }
     }
 
     override fun getSupportedVersion(): Long {
