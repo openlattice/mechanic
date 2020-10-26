@@ -84,7 +84,7 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
 
         private val CREATE_NEEDS_CLEANUP_TABLE_SQL = """
             CREATE TABLE $CLEANUP_TABLE_NAME AS 
-              SELECT ( $NEW_DATA_PKEY_COLS )
+              SELECT $NEW_DATA_PKEY_COLS
               FROM ${DATA.name}
               WHERE ${ENTITY_SET_ID.name} = ANY( ${ENTITY_SET_IDS_NEEDING_CLEANUP.joinToString { "'$it'" }} )
               GROUP BY $NEW_DATA_PKEY_COLS
