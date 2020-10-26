@@ -24,7 +24,7 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
                 PARTITION,
                 PROPERTY_TYPE_ID,
                 HASH
-        ).map { it.name }
+        ).joinToString { it.name }
 
         private val ENTITY_PKEY_COLS = listOf(PARTITION, ID, ENTITY_SET_ID).joinToString { it.name }
 
@@ -61,10 +61,10 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
 
         private val CREATE_NEEDS_CLEANUP_TABLE_SQL = """
             CREATE TABLE $CLEANUP_TABLE_NAME AS 
-              SELECT ( ${NEW_DATA_PKEY_COLS.joinToString()} )
+              SELECT ( $NEW_DATA_PKEY_COLS )
               FROM ${DATA.name}
               WHERE ${ENTITY_SET_ID.name} = ANY( ${ENTITY_SET_IDS_NEEDING_CLEANUP.joinToString { "'$it'" }} )
-              GROUP BY ${NEW_DATA_PKEY_COLS.joinToString()}
+              GROUP BY $NEW_DATA_PKEY_COLS
               HAVING COUNT(*) > 1
         """.trimIndent()
 
@@ -72,7 +72,11 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
         /** Step 2: merge + remove dups queries **/
 
         private val MERGE_AND_REMOVE_DUPS_SQL = """
-            TODO
+            WITH deleted_rows AS (
+              DELETE FROM ${DATA.name} WHERE ( $NEW_DATA_PKEY_COLS ) IN (
+                SELECT DISTINCT $NEW_DATA_PKEY_COLS FROM $CLEANUP_TABLE_NAME
+              ) RETURNING *
+            ) ... TODO
         """.trimIndent()
 
 
@@ -98,7 +102,7 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
 
         private val CREATE_NEW_INDEX_ON_DATA_SQL = """
             CREATE UNIQUE INDEX CONCURRENTLY ${DATA_PKEY_NAME}_idx 
-            ON ${DATA.name} (${NEW_DATA_PKEY_COLS.joinToString()})
+            ON ${DATA.name} ( $NEW_DATA_PKEY_COLS )
         """.trimIndent()
 
         private val DROP_OLD_PKEY_SQL = """
