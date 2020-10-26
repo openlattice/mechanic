@@ -6,11 +6,13 @@ import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.transporter.types.TransporterDatastore
 import com.zaxxer.hikari.HikariDataSource
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.slf4j.LoggerFactory
 
 /**
  * @author Drew Bailey &lt;drew@openlattice.com&gt;
  */
+@SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE")
 class RectifyOrganizationsUpgrade(
         private val toolbox: Toolbox,
         private val assembler: Assembler
