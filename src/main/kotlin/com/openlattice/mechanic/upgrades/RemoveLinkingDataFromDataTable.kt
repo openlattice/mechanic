@@ -111,10 +111,13 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
         """.trimIndent()
 
         private val maxAbsVersion = """
-            SELECT 1
-            FROM UNNEST(array_agg(${VERSION.name}))
-              AS foo( v )
-            ORDER BY abs(v) DESC
+            (
+              SELECT version 
+              FROM UNNEST(array_agg(${VERSION.name}))
+                AS foo( ${VERSION.name} )
+              ORDER BY abs(foo.${VERSION.name}) DESC
+              LIMIT 1
+            )
         """.trimIndent()
 
         private val MERGE_AND_REMOVE_DUPS_SQL = """
