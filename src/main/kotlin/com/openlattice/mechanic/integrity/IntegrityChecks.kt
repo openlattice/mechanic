@@ -22,28 +22,21 @@
 package com.openlattice.mechanic.integrity
 
 import com.google.common.base.Stopwatch
-import com.openlattice.data.EntityDataKey
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
-import com.openlattice.postgres.ResultSetAdapters
-import com.openlattice.postgres.streams.PostgresIterable
-import com.openlattice.postgres.streams.StatementHolder
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.slf4j.LoggerFactory
-import java.sql.ResultSet
 import java.util.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import java.util.function.Function
-import java.util.function.Supplier
 
 /**
  *
  */
 private val logger = LoggerFactory.getLogger(IntegrityChecks::class.java)
 
-@SuppressFBWarnings( value = ["SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"] )
+@SuppressFBWarnings(value = ["SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"])
 class IntegrityChecks(private val toolbox: Toolbox) : Check {
     override fun check(): Boolean {
         logger.info("Integrity checks aren't fully implemented.")
@@ -133,40 +126,6 @@ class IntegrityChecks(private val toolbox: Toolbox) : Check {
         latches.forEach(CountDownLatch::await)
     }
 
-    private fun addMissingEntityDataKeys(dataKeys: PostgresIterable<EntityDataKey>): Long {
-        //Add data key to processing queue
-        val queued = toolbox.hds.connection.use {
-            val ps = it.prepareStatement("INSERT INTO id_migration (id, entity_set_id) VALUES (?,?)")
-            ps.use {
-                dataKeys.forEach {
-                    ps.setObject(1, it.entitySetId)
-                    ps.setObject(2, it.entityKeyId)
-                    ps.addBatch()
-                }
-                ps.executeBatch().sum()
-            }
-        }
-
-        //Add data key to entity_key_ids table
-        val added = toolbox.hds.connection.use {
-            val ps = it.prepareStatement("INSERT INTO entity_key_ids (entity_set_id, entity_id, id) VALUES (?,?,?)")
-            ps.use {
-                dataKeys.forEach {
-                    ps.setObject(1, it.entitySetId)
-                    ps.setString(2, it.entityKeyId.toString())
-                    ps.setObject(3, it.entityKeyId)
-                    ps.addBatch()
-                }
-                ps.executeBatch().sum()
-            }
-        }
-        if (queued != added) {
-            logger.warn("Number queued is not equal to number added... something is going wrong.")
-        }
-
-        return queued.toLong()
-    }
-
     private fun countEntityKeysInEntityTable(entitySetId: UUID): Long {
         val esTableName = quote(DataTables.entityTableName(entitySetId))
         toolbox.hds.connection.use {
@@ -203,21 +162,4 @@ class IntegrityChecks(private val toolbox: Toolbox) : Check {
         return idsTableCount > esTableCount
     }
 
-    private fun getCorruptEntityKeyIdStream(entitySetId: UUID): PostgresIterable<EntityDataKey> {
-        val esTableName = quote(DataTables.entityTableName(entitySetId))
-        return PostgresIterable(
-                Supplier<StatementHolder> {
-                    val connection = toolbox.hds.connection
-                    val stmt = connection.createStatement()
-                    val sql = "SELECT id FROM $esTableName " +
-                            "WHERE id NOT IN (SELECT id FROM entity_key_ids)"
-                    val rs = stmt.executeQuery(sql)
-                    StatementHolder(connection, stmt, rs)
-                },
-                Function<ResultSet, EntityDataKey> {
-                    val id = ResultSetAdapters.id(it)
-                    EntityDataKey(entitySetId, id)
-                }
-        )
-    }
 }
