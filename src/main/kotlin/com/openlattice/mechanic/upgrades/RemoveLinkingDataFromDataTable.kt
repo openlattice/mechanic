@@ -149,7 +149,7 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
 
         private val UPDATE_LINKING_ID_IN_DATA_SQL = """
             UPDATE ${DATA.name} 
-            SET ${LINKING_ID.name} = '${IdConstants.EMPTY_ORIGIN_ID.id}' 
+            SET ${ORIGIN_ID.name} = '${IdConstants.EMPTY_ORIGIN_ID.id}' 
             WHERE ($ENTITY_PKEY_COLS) IN (SELECT DISTINCT $ENTITY_PKEY_COLS FROM $CREATE_NEEDS_CLEANUP_TABLE_SQL)
         """.trimIndent()
 
