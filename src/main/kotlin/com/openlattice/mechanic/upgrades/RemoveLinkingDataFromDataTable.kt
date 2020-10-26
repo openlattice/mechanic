@@ -56,7 +56,8 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
                 "b4a33df2-b8ee-4af5-ba6b-bc2dee4b3918"
         ).map { UUID.fromString(it) }
 
-        /* create cleanup table queries */
+
+        /** Step 1: create cleanup table queries **/
 
         private val CREATE_NEEDS_CLEANUP_TABLE_SQL = """
             CREATE TABLE $CLEANUP_TABLE_NAME AS 
@@ -67,13 +68,15 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
               HAVING COUNT(*) > 1
         """.trimIndent()
 
-        /* merge + remove dups queries */
+
+        /** Step 2: merge + remove dups queries **/
 
         private val MERGE_AND_REMOVE_DUPS_SQL = """
             TODO
         """.trimIndent()
 
-        /* reset linking ids queries */
+
+        /** Step 3: reset linking ids queries **/
 
         private val UPDATE_LINKING_ID_IN_IDS_SQL = """
             UPDATE ${IDS.name} 
@@ -91,7 +94,7 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
         """.trimIndent()
 
 
-        /* recreate pkey queries*/
+        /** Step 4: recreate pkey queries **/
 
         private val CREATE_NEW_INDEX_ON_DATA_SQL = """
             CREATE UNIQUE INDEX CONCURRENTLY ${DATA_PKEY_NAME}_idx 
@@ -122,6 +125,7 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
         return true
     }
 
+    /** Step 1 **/
     private fun createNeedsCleanupTable() {
         logger.info("About to create $CLEANUP_TABLE_NAME table using sql: $CREATE_NEEDS_CLEANUP_TABLE_SQL")
 
@@ -134,6 +138,7 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
         logger.info("Finished creating $CLEANUP_TABLE_NAME table.")
     }
 
+    /** Step 2 **/
     private fun removeDupsFromDataTable() {
         logger.info("About to merge duplicates from data table using sql: $MERGE_AND_REMOVE_DUPS_SQL")
 
@@ -146,6 +151,7 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
         logger.info("Finished merging duplicates from data table.")
     }
 
+    /** Step 3 **/
     private fun hardResetLinkingIdForUpdatedEntities() {
         logger.info("About to reset linking ids in ids and data table.")
 
@@ -163,6 +169,7 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
         logger.info("Finished updating linking id in ids and data table.")
     }
 
+    /** Step 4 **/
     private fun updatePrimaryKeyOnData() {
         logger.info("About to update primary key of data table.")
 
