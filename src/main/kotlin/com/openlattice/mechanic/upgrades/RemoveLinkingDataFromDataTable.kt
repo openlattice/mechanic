@@ -57,6 +57,33 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
                 "b4a33df2-b8ee-4af5-ba6b-bc2dee4b3918"
         ).map { UUID.fromString(it) }
 
+        private val DATA_COLUMNS_NAMES = listOf(
+                "b_text",
+                "b_uuid",
+                "b_smallint",
+                "b_integer",
+                "b_bigint",
+                "b_date",
+                "b_timestamptz",
+                "b_double",
+                "b_boolean",
+                "b_timetz",
+                "n_text",
+                "n_uuid",
+                "n_smallint",
+                "n_integer",
+                "n_bigint",
+                "n_date",
+                "n_timestamptz",
+                "n_double",
+                "n_boolean",
+                "n_timetz"
+        )
+
+        private fun firstNonNullAgg(colName: String): String {
+            return "ARRAY_AGG( $colName ) FILTER (WHERE $colName IS NOT NULL)[ 1 ]"
+        }
+
 
         /** Step 1: create cleanup table queries **/
 
@@ -83,7 +110,8 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
                MAX(${LAST_WRITE.name}) AS ${LAST_WRITE.name},
                MAX(${LAST_PROPAGATE.name}) AS ${LAST_PROPAGATE.name},
                MAX(${LAST_TRANSPORT.name}) AS ${LAST_TRANSPORT.name},
-               TODO: version, versions, data columns
+               ${DATA_COLUMNS_NAMES.joinToString { firstNonNullAgg(it) }},
+               TODO: version, versions
             ) FROM deleted_rows
               GROUP BY $NEW_DATA_PKEY_COLS
         """.trimIndent()
