@@ -80,11 +80,6 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
                 "n_timetz"
         )
 
-        private fun firstNonNullAgg(colName: String): String {
-            return "ARRAY_AGG( $colName ) FILTER (WHERE $colName IS NOT NULL)[ 1 ]"
-        }
-
-
         /** Step 1: create cleanup table queries **/
 
         private val CREATE_NEEDS_CLEANUP_TABLE_SQL = """
@@ -99,6 +94,22 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
 
         /** Step 2: merge + remove dups queries **/
 
+        private fun firstNonNullAgg(colName: String): String {
+            return "ARRAY_AGG( $colName ) FILTER (WHERE $colName IS NOT NULL)[ 1 ]"
+        }
+
+        private val sortVersions = """
+            ARRAY(
+              SELECT DISTINCT ${VERSION.name}
+              FROM (
+                SELECT ${VERSION.name}
+                FROM UNNEST(array_cat_agg(${VERSIONS.name}))
+                AS foo(${VERSION.name})
+                ORDER BY abs(foo.${VERSION.name})
+              ) AS bar
+            )
+        """.trimIndent()
+
         private val MERGE_AND_REMOVE_DUPS_SQL = """
             WITH deleted_rows AS (
               DELETE FROM ${DATA.name} WHERE ( $NEW_DATA_PKEY_COLS ) IN (
@@ -111,7 +122,8 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
                MAX(${LAST_PROPAGATE.name}) AS ${LAST_PROPAGATE.name},
                MAX(${LAST_TRANSPORT.name}) AS ${LAST_TRANSPORT.name},
                ${DATA_COLUMNS_NAMES.joinToString { firstNonNullAgg(it) }},
-               TODO: version, versions
+               $sortVersions AS ${VERSIONS.name},
+               TODO: version
             ) FROM deleted_rows
               GROUP BY $NEW_DATA_PKEY_COLS
         """.trimIndent()
