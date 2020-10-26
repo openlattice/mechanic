@@ -76,7 +76,11 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
               DELETE FROM ${DATA.name} WHERE ( $NEW_DATA_PKEY_COLS ) IN (
                 SELECT DISTINCT $NEW_DATA_PKEY_COLS FROM $CLEANUP_TABLE_NAME
               ) RETURNING *
-            ) ... TODO
+            ) INSERT INTO ${DATA.name} SELECT (
+              $NEW_DATA_PKEY_COLS,
+              
+            ) FROM deleted_rows
+              GROUP BY $NEW_DATA_PKEY_COLS
         """.trimIndent()
 
 
