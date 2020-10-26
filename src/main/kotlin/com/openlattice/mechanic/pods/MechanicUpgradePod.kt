@@ -20,12 +20,16 @@
  */
 package com.openlattice.mechanic.pods
 
+import com.codahale.metrics.MetricRegistry
+import com.geekbeast.hazelcast.HazelcastClientProvider
 import com.google.common.eventbus.EventBus
 import com.hazelcast.core.HazelcastInstance
+import com.openlattice.assembler.Assembler
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditingConfiguration
 import com.openlattice.auditing.pods.AuditingConfigurationPod
 import com.openlattice.authorization.AuthorizationManager
+import com.openlattice.authorization.DbCredentialService
 import com.openlattice.authorization.HazelcastAclKeyReservationService
 import com.openlattice.authorization.HazelcastAuthorizationService
 import com.openlattice.data.storage.partitions.PartitionManager
@@ -38,6 +42,7 @@ import com.openlattice.edm.schemas.SchemaQueryService
 import com.openlattice.edm.schemas.manager.HazelcastSchemaManager
 import com.openlattice.edm.schemas.postgres.PostgresSchemaQueryService
 import com.openlattice.hazelcast.pods.MapstoresPod
+import com.openlattice.ids.HazelcastLongIdService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.*
@@ -47,6 +52,7 @@ import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
 import com.zaxxer.hikari.HikariDataSource
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
@@ -56,6 +62,7 @@ import javax.inject.Inject
 @Configuration
 @Import(MechanicToolboxPod::class, AuditingConfigurationPod::class)
 @Profile(UPGRADE)
+@SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE")
 class MechanicUpgradePod {
 
     @Inject
@@ -81,6 +88,9 @@ class MechanicUpgradePod {
 
     @Inject
     private lateinit var externalDatabaseConnectionManager: ExternalDatabaseConnectionManager
+
+    @Inject
+    private lateinit var hazelcastClientProvider: HazelcastClientProvider
 
     @Bean
     fun linking(): Linking {
@@ -225,6 +235,27 @@ class MechanicUpgradePod {
                 aclKeyReservationService(),
                 authorizationManager(),
                 eventBus)
+    }
+
+    @Bean
+    fun rectifyOrganizationsUpgrade(): RectifyOrganizationsUpgrade {
+        val dbCredService = DbCredentialService(
+                toolbox.hazelcast,
+                HazelcastLongIdService(hazelcastClientProvider)
+        )
+        val assembler = Assembler(
+                dbCredService,
+                toolbox.hds,
+                authorizationManager(),
+                securePrincipalsManager(),
+                MetricRegistry(),
+                toolbox.hazelcast,
+                eventBus
+        )
+        return RectifyOrganizationsUpgrade(
+                toolbox,
+                assembler
+        )
     }
 
     @Bean

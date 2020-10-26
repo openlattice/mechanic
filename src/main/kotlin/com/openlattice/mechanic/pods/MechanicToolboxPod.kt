@@ -6,6 +6,7 @@ import com.kryptnostic.rhizome.pods.ConfigurationLoader
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresTableManager
+import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.postgres.mapstores.EntityTypeMapstore
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore
@@ -45,6 +46,8 @@ class MechanicToolboxPod {
     @Inject
     private lateinit var configurationLoader: ConfigurationLoader
 
+    @Inject
+    private lateinit var exDbConMan: ExternalDatabaseConnectionManager
 
     @Bean
     fun toolbox(): Toolbox {
@@ -56,7 +59,8 @@ class MechanicToolboxPod {
                 mapstoresPod.entitySetMapstore() as EntitySetMapstore,
                 executor,
                 hazelcastInstance,
-                configurationLoader
+                configurationLoader,
+                exDbConMan
         )
     }
 }

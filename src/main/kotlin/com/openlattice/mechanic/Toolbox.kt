@@ -28,6 +28,7 @@ import com.kryptnostic.rhizome.pods.ConfigurationLoader
 import com.openlattice.postgres.CitusDistributedTableDefinition
 import com.openlattice.postgres.PostgresTableDefinition
 import com.openlattice.postgres.PostgresTableManager
+import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.postgres.mapstores.EntityTypeMapstore
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore
@@ -49,7 +50,8 @@ class Toolbox(
         internal val esms: EntitySetMapstore,
         val executor: ListeningExecutorService,
         val hazelcast: HazelcastInstance,
-        val configurationLoader: ConfigurationLoader
+        val configurationLoader: ConfigurationLoader,
+        val extDbConMan: ExternalDatabaseConnectionManager
 ) {
     companion object {
         private val logger = LoggerFactory.getLogger(Toolbox::class.java)
@@ -83,16 +85,16 @@ class Toolbox(
         }
     }
 
-    fun rateLimitedQuery( rate: Int, query: String, upgradeLogger: Logger ): Boolean {
-        val limiter = Semaphore( rate )
+    fun rateLimitedQuery(rate: Int, query: String, upgradeLogger: Logger): Boolean {
+        val limiter = Semaphore(rate)
 
         try {
             limiter.acquire()
             var insertCounter = 0
-            var insertCount : Int
+            var insertCount: Int
             val swTotal = Stopwatch.createStarted()
             hds.connection.use { conn ->
-                conn.prepareStatement( query ).use { ps ->
+                conn.prepareStatement(query).use { ps ->
                     val sw = Stopwatch.createStarted()
                     insertCount = ps.executeUpdate(query)
                     insertCounter += insertCount
