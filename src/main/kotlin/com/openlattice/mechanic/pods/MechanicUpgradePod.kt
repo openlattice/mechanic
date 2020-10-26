@@ -52,6 +52,7 @@ import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
 import com.zaxxer.hikari.HikariDataSource
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
@@ -61,6 +62,7 @@ import javax.inject.Inject
 @Configuration
 @Import(MechanicToolboxPod::class, AuditingConfigurationPod::class)
 @Profile(UPGRADE)
+@SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE")
 class MechanicUpgradePod {
 
     @Inject
