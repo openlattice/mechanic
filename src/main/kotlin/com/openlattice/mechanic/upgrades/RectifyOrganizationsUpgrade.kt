@@ -21,7 +21,7 @@ class RectifyOrganizationsUpgrade(
     private val connMan = toolbox.extDbConMan
 
     private val allSchemas = arrayOf(
-            AssemblerConnectionManager.MATERIALIZED_VIEWS_SCHEMA,
+            AssemblerConnectionManager.OPENLATTICE_SCHEMA,
             AssemblerConnectionManager.INTEGRATIONS_SCHEMA,
             AssemblerConnectionManager.STAGING_SCHEMA,
             TransporterDatastore.ORG_FOREIGN_TABLES_SCHEMA,
