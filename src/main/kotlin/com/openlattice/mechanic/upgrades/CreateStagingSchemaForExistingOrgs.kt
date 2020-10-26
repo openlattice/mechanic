@@ -61,7 +61,7 @@ class CreateStagingSchemaForExistingOrgs(
                         stmt.execute(setSearchPathSql(
                                 it,
                                 true,
-                                AssemblerConnectionManager.MATERIALIZED_VIEWS_SCHEMA,
+                                AssemblerConnectionManager.OPENLATTICE_SCHEMA,
                                 STAGING_SCHEMA
                         ))
                     }
@@ -71,7 +71,7 @@ class CreateStagingSchemaForExistingOrgs(
                             assemblerConfiguration.server["username"].toString(),
                             false,
                             AssemblerConnectionManager.INTEGRATIONS_SCHEMA,
-                            AssemblerConnectionManager.MATERIALIZED_VIEWS_SCHEMA,
+                            AssemblerConnectionManager.OPENLATTICE_SCHEMA,
                             AssemblerConnectionManager.PUBLIC_SCHEMA,
                             STAGING_SCHEMA
                     ))
