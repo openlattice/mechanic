@@ -3,6 +3,7 @@ package com.openlattice.mechanic.upgrades
 import com.openlattice.IdConstants
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.LAST_LINK
+import com.openlattice.postgres.DataTables.LAST_WRITE
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresTable.DATA
 import com.openlattice.postgres.PostgresTable.IDS
@@ -78,7 +79,11 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
               ) RETURNING *
             ) INSERT INTO ${DATA.name} SELECT (
               $NEW_DATA_PKEY_COLS,
-              
+              '${IdConstants.EMPTY_ORIGIN_ID.id}' AS ${ORIGIN_ID.name},
+               MAX(${LAST_WRITE.name}) AS ${LAST_WRITE.name},
+               MAX(${LAST_PROPAGATE.name}) AS ${LAST_PROPAGATE.name},
+               MAX(${LAST_TRANSPORT.name}) AS ${LAST_TRANSPORT.name},
+               TODO: version, versions, data columns
             ) FROM deleted_rows
               GROUP BY $NEW_DATA_PKEY_COLS
         """.trimIndent()
