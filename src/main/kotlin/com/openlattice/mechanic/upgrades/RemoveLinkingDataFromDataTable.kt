@@ -104,10 +104,17 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
               FROM (
                 SELECT ${VERSION.name}
                 FROM UNNEST(array_cat_agg(${VERSIONS.name}))
-                AS foo(${VERSION.name})
+                  AS foo(${VERSION.name})
                 ORDER BY abs(foo.${VERSION.name})
               ) AS bar
             )
+        """.trimIndent()
+
+        private val maxAbsVersion = """
+            SELECT 1
+            FROM UNNEST(array_agg(${VERSION.name}))
+              AS foo( v )
+            ORDER BY abs(v) DESC
         """.trimIndent()
 
         private val MERGE_AND_REMOVE_DUPS_SQL = """
@@ -123,7 +130,7 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
                MAX(${LAST_TRANSPORT.name}) AS ${LAST_TRANSPORT.name},
                ${DATA_COLUMNS_NAMES.joinToString { firstNonNullAgg(it) }},
                $sortVersions AS ${VERSIONS.name},
-               TODO: version
+               $maxAbsVersion AS ${VERSION.name}
             ) FROM deleted_rows
               GROUP BY $NEW_DATA_PKEY_COLS
         """.trimIndent()
