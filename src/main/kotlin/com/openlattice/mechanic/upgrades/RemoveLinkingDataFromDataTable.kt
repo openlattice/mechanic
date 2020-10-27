@@ -86,7 +86,7 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
             CREATE TABLE $CLEANUP_TABLE_NAME AS 
               SELECT $NEW_DATA_PKEY_COLS
               FROM ${DATA.name}
-              WHERE ${ENTITY_SET_ID.name} = ANY( ${ENTITY_SET_IDS_NEEDING_CLEANUP.joinToString { "'$it'" }} )
+              WHERE ${ENTITY_SET_ID.name} = ANY('{${ENTITY_SET_IDS_NEEDING_CLEANUP.joinToString()}}' )
               GROUP BY $NEW_DATA_PKEY_COLS
               HAVING COUNT(*) > 1
         """.trimIndent()
@@ -95,7 +95,7 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
         /** Step 2: merge + remove dups queries **/
 
         private fun firstNonNullAgg(colName: String): String {
-            return "ARRAY_AGG( $colName ) FILTER (WHERE $colName IS NOT NULL)[ 1 ]"
+            return "(ARRAY_AGG( $colName ) FILTER (WHERE $colName IS NOT NULL))[ 1 ]"
         }
 
         private val sortVersions = """
@@ -125,7 +125,7 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
               DELETE FROM ${DATA.name} WHERE ( $NEW_DATA_PKEY_COLS ) IN (
                 SELECT DISTINCT $NEW_DATA_PKEY_COLS FROM $CLEANUP_TABLE_NAME
               ) RETURNING *
-            ) INSERT INTO ${DATA.name} SELECT (
+            ) INSERT INTO ${DATA.name} SELECT
               $NEW_DATA_PKEY_COLS,
               '${IdConstants.EMPTY_ORIGIN_ID.id}' AS ${ORIGIN_ID.name},
                MAX(${LAST_WRITE.name}) AS ${LAST_WRITE.name},
@@ -134,7 +134,7 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
                ${DATA_COLUMNS_NAMES.joinToString { firstNonNullAgg(it) }},
                $sortVersions AS ${VERSIONS.name},
                $maxAbsVersion AS ${VERSION.name}
-            ) FROM deleted_rows
+            FROM deleted_rows
               GROUP BY $NEW_DATA_PKEY_COLS
         """.trimIndent()
 
