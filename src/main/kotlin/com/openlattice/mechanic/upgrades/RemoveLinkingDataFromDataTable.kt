@@ -95,7 +95,7 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
         /** Step 2: merge + remove dups queries **/
 
         private fun firstNonNullAgg(colName: String): String {
-            return "(ARRAY_AGG( $colName ) FILTER (WHERE $colName IS NOT NULL))[ 1 ]"
+            return "(ARRAY_AGG( $colName ) FILTER (WHERE $colName IS NOT NULL))[ 1 ] AS $colName"
         }
 
         private val sortVersions = """
@@ -125,9 +125,18 @@ class RemoveLinkingDataFromDataTable(val toolbox: Toolbox) : Upgrade {
               DELETE FROM ${DATA.name} WHERE ( $NEW_DATA_PKEY_COLS ) IN (
                 SELECT DISTINCT $NEW_DATA_PKEY_COLS FROM $CLEANUP_TABLE_NAME
               ) RETURNING *
-            ) INSERT INTO ${DATA.name} SELECT
+            ) INSERT INTO ${DATA.name} (
               $NEW_DATA_PKEY_COLS,
-              '${IdConstants.EMPTY_ORIGIN_ID.id}' AS ${ORIGIN_ID.name},
+              ${ORIGIN_ID.name},
+              ${LAST_WRITE.name},
+              ${LAST_PROPAGATE.name},
+              ${LAST_TRANSPORT.name},
+              ${DATA_COLUMNS_NAMES.joinToString()},
+              ${VERSIONS.name},
+              ${VERSION.name}
+            ) SELECT
+              $NEW_DATA_PKEY_COLS,
+              '${IdConstants.EMPTY_ORIGIN_ID.id}'::uuid AS ${ORIGIN_ID.name},
                MAX(${LAST_WRITE.name}) AS ${LAST_WRITE.name},
                MAX(${LAST_PROPAGATE.name}) AS ${LAST_PROPAGATE.name},
                MAX(${LAST_TRANSPORT.name}) AS ${LAST_TRANSPORT.name},
