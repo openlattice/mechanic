@@ -12,6 +12,7 @@ import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 
+//No longer safe t run
 class CreateStagingSchemaForExistingOrgs(
         private val toolbox: Toolbox,
         private val assemblerConfiguration: AssemblerConfiguration,

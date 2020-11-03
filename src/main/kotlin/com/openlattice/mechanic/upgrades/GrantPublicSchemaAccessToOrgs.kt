@@ -16,6 +16,7 @@ import java.util.*
 
 private val logger = LoggerFactory.getLogger(GrantPublicSchemaAccessToOrgs::class.java)
 
+//This is no longer safe to run
 class GrantPublicSchemaAccessToOrgs(
         private val organizationsMapstore: OrganizationsMapstore,
         private val securePrincipalsManager: SecurePrincipalsManager,

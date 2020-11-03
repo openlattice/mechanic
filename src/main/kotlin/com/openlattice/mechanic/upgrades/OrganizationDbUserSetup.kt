@@ -29,6 +29,7 @@ import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
 import java.util.*
 
+//No longer safe to run
 class OrganizationDbUserSetup(
         private val organizationAssemblyMapstore: OrganizationAssemblyMapstore,
         private val assemblerConfiguration: AssemblerConfiguration,

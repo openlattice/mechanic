@@ -41,6 +41,7 @@ import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.*
+import com.openlattice.organizations.OrganizationMetadataEntitySetsService
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
@@ -343,6 +344,7 @@ class MechanicUpgradePod {
                 partitionManager(),
                 edmManager(),
                 hikariDataSource,
+                OrganizationMetadataEntitySetsService(edmManager()),
                 auditingConfiguration
         )
     }
