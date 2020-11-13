@@ -46,6 +46,7 @@ import com.openlattice.ids.HazelcastLongIdService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.*
+import com.openlattice.organizations.OrganizationMetadataEntitySetsService
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
@@ -363,6 +364,11 @@ class MechanicUpgradePod {
         )
     }
 
+    @Bean
+    fun organizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
+        return OrganizationMetadataEntitySetsService(edmManager())
+    }
+
 
     @Bean
     fun entitySetManager(): EntitySetManager {
@@ -374,6 +380,7 @@ class MechanicUpgradePod {
                 partitionManager(),
                 edmManager(),
                 hikariDataSource,
+                organizationMetadataEntitySetsService(),
                 auditingConfiguration
         )
     }
@@ -406,6 +413,11 @@ class MechanicUpgradePod {
     @Bean
     fun createAndPopulateOrganizationDatabaseTable(): CreateAndPopulateOrganizationDatabaseTable {
         return CreateAndPopulateOrganizationDatabaseTable(toolbox, externalDatabaseConnectionManager)
+    }
+
+    @Bean
+    fun grantAllOnStagingSchemaToOrgUser(): GrantAllOnStagingSchemaToOrgUser {
+        return GrantAllOnStagingSchemaToOrgUser(toolbox, externalDatabaseConnectionManager)
     }
 
 }
