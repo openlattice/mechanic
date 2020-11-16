@@ -3,9 +3,11 @@ package com.openlattice.mechanic.upgrades
 import com.dataloom.mappers.ObjectMappers
 import com.hazelcast.query.Predicates
 import com.openlattice.IdConstants
-import com.openlattice.authorization.*
+import com.openlattice.authorization.AclKey
+import com.openlattice.authorization.Principal
+import com.openlattice.authorization.PrincipalType
+import com.openlattice.authorization.SystemRole
 import com.openlattice.authorization.initializers.AuthorizationInitializationTask
-import com.openlattice.authorization.mapstores.PrincipalMapstore
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.organization.OrganizationPrincipal
@@ -104,6 +106,7 @@ class MigrateOrganizationsToJsonb(private val toolbox: Toolbox) : Upgrade {
 
             Organization(
                     orgPrincipal,
+                    AclKey(id, UUID.randomUUID()),
                     allowedEmailDomains,
                     memberPrincipals,
                     roles,

@@ -408,4 +408,8 @@ class MechanicUpgradePod {
         return CreateAndPopulateOrganizationDatabaseTable(toolbox, externalDatabaseConnectionManager)
     }
 
+    @Bean
+    fun cleanOutOrgMembersAndRoles(): CleanOutOrgMembersAndRoles {
+        return CleanOutOrgMembersAndRoles(toolbox, securePrincipalsManager())
+    }
 }
