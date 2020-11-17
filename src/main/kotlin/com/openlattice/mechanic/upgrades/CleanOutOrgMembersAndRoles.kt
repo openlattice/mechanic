@@ -39,12 +39,9 @@ class CleanOutOrgMembersAndRoles(
                     )
             ))
 
-            organizationsMapstore.executeOnKey(it.id) { entry ->
-                val org = entry.value
-                org.members.clear()
-                org.roles.clear()
-                entry.setValue(org)
-            }
+            it.members.clear()
+            it.roles.clear()
+            organizationsMapstore[it.id] = it
 
             logger.info("Finished cleaning out {} members for org {} [{}]", memberAclKeys.size, it.title, it.id)
         }
