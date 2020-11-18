@@ -52,7 +52,7 @@ class GrantAllOnStagingSchemaToOrgUser(
         val lookupKey = "ol-internal|organization|$orgId"
         val username = dbCreds[lookupKey]?.username ?: return ""
 
-        return "GRANT ALL PRIVILEGES ON SCHEMA staging TO ${quote(username)}"
+        return "ALTER DEFAULT PRIVILEGES IN SCHEMA staging GRANT ALL PRIVILEGES ON TABLES TO ${quote(username)}"
     }
 
     override fun getSupportedVersion(): Long {
