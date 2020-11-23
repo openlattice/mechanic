@@ -40,7 +40,6 @@ import com.openlattice.datastore.services.EntitySetService
 import com.openlattice.edm.properties.PostgresTypeManager
 import com.openlattice.edm.schemas.SchemaQueryService
 import com.openlattice.edm.schemas.manager.HazelcastSchemaManager
-import com.openlattice.edm.schemas.postgres.PostgresSchemaQueryService
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.ids.HazelcastLongIdService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
@@ -340,12 +339,12 @@ class MechanicUpgradePod {
 
     @Bean
     fun postgresTypeManager(): PostgresTypeManager {
-        return PostgresTypeManager(hikariDataSource)
+        return PostgresTypeManager(hikariDataSource, hazelcastInstance)
     }
 
     @Bean
     fun schemaQueryService(): SchemaQueryService {
-        return PostgresSchemaQueryService(hikariDataSource)
+        return postgresTypeManager()
     }
 
     @Bean
@@ -368,7 +367,6 @@ class MechanicUpgradePod {
     fun organizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
         return OrganizationMetadataEntitySetsService(edmManager())
     }
-
 
     @Bean
     fun entitySetManager(): EntitySetManager {
@@ -423,6 +421,16 @@ class MechanicUpgradePod {
                 securePrincipalsManager(),
                 authorizationManager()
         )
+    }
+
+    @Bean
+    fun cleanOutOrgMembersAndRoles(): CleanOutOrgMembersAndRoles {
+        return CleanOutOrgMembersAndRoles(toolbox, securePrincipalsManager(), authorizationManager())
+    }
+
+    @Bean
+    fun grantAllOnStagingSchemaToOrgUser(): GrantAllOnStagingSchemaToOrgUser {
+        return GrantAllOnStagingSchemaToOrgUser(toolbox, externalDatabaseConnectionManager)
     }
 
 }
