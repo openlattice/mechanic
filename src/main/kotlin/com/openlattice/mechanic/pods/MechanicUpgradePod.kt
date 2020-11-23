@@ -414,6 +414,16 @@ class MechanicUpgradePod {
     }
 
     @Bean
+    fun createAllOrgMetadataEntitySets(): CreateAllOrgMetadataEntitySets {
+        return CreateAllOrgMetadataEntitySets(
+                toolbox,
+                organizationMetadataEntitySetsService(),
+                securePrincipalsManager(),
+                authorizationManager()
+        )
+    }
+
+    @Bean
     fun cleanOutOrgMembersAndRoles(): CleanOutOrgMembersAndRoles {
         return CleanOutOrgMembersAndRoles(toolbox, securePrincipalsManager(), authorizationManager())
     }
