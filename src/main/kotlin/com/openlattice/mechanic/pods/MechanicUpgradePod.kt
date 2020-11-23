@@ -368,7 +368,6 @@ class MechanicUpgradePod {
         return OrganizationMetadataEntitySetsService(edmManager())
     }
 
-
     @Bean
     fun entitySetManager(): EntitySetManager {
         return EntitySetService(
@@ -412,6 +411,11 @@ class MechanicUpgradePod {
     @Bean
     fun createAndPopulateOrganizationDatabaseTable(): CreateAndPopulateOrganizationDatabaseTable {
         return CreateAndPopulateOrganizationDatabaseTable(toolbox, externalDatabaseConnectionManager)
+    }
+
+    @Bean
+    fun cleanOutOrgMembersAndRoles(): CleanOutOrgMembersAndRoles {
+        return CleanOutOrgMembersAndRoles(toolbox, securePrincipalsManager(), authorizationManager())
     }
 
     @Bean
