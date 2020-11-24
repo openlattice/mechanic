@@ -433,4 +433,9 @@ class MechanicUpgradePod {
         return GrantAllOnStagingSchemaToOrgUser(toolbox, externalDatabaseConnectionManager)
     }
 
+    @Bean
+    fun cleanUpDeletedUsers(): CleanUpDeletedUsers {
+        return CleanUpDeletedUsers(toolbox)
+    }
+
 }
