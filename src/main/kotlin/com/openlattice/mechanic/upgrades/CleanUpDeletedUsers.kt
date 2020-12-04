@@ -37,7 +37,7 @@ class CleanUpDeletedUsers(private val toolbox: Toolbox): Upgrade {
             permissions.removeAll(Predicates.equal(PermissionMapstore.ACL_KEY_INDEX, sp.aclKey))
             permissions.removeAll(Predicates.equal(PermissionMapstore.PRINCIPAL_INDEX, sp.principal))
             principalTrees.remove(sp.aclKey)
-            dbCreds.remove("ol-internal|user|${sp.id}")
+            dbCreds.remove(sp.aclKey)
             principals.remove(sp.aclKey)
             aclKeys.remove(sp.principal.id)
             names.remove(sp.id)
