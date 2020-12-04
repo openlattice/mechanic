@@ -438,4 +438,9 @@ class MechanicUpgradePod {
         return CleanUpDeletedUsers(toolbox)
     }
 
+    @Bean
+    fun migrateDbCredsKeyToAclKey(): MigrateDbCredsKeyToAclKey {
+        return MigrateDbCredsKeyToAclKey(toolbox)
+    }
+
 }

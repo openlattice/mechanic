@@ -30,11 +30,11 @@ class AddDbCredUsernames(
     override fun upgrade(): Boolean {
         addColumnToTable()
 
-        val userIdsToUsernames = HazelcastMap.DB_CREDS.getMap(toolbox.hazelcast).keys
-                .mapIndexed { index, userId -> userId to getUsername(userId, index) }
-                .toMap()
+//        val userIdsToUsernames = HazelcastMap.DB_CREDS.getMap(toolbox.hazelcast).keys
+//                .mapIndexed { index, userId -> userId to getUsername(userId, index) }
+//                .toMap()
 
-        addUsernamesToTable(userIdsToUsernames)
+//        addUsernamesToTable(userIdsToUsernames)
 
 //        updateExternalDatabaseUsernames(userIdsToUsernames)
 
