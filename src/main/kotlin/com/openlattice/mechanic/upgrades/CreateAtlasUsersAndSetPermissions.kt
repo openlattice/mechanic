@@ -64,7 +64,7 @@ class CreateAtlasUsersAndSetPermissions(
         return true
     }
 
-    private fun resetUserCredentials(dbCreds: Map<String, MaterializedViewAccount>) {
+    private fun resetUserCredentials(dbCreds: Map<AclKey, MaterializedViewAccount>) {
         connectToExternalDatabase().connection.use { conn ->
             conn.createStatement().use { stmt ->
 
