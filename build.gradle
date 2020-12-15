@@ -40,7 +40,7 @@ ext.scmUrl = 'scm:git:https://github.com/openlattice/mechanic.git'
 ext.connectionUrl = 'scm:git:https://github.com/openlattice/mechanic.git'
 ext.developerConnectionUrl = 'scm:git:https://github.com/openlattice/mechanic.git'
 
-apply from: "https://raw.githubusercontent.com/openlattice/gradles/master/openlattice.gradle"
+apply from: "https://raw.githubusercontent.com/openlattice/openlattice/fix/build/gradles/openlattice.gradle"
 
 def MECHANIC_ARGS = "$System.env.MECHANIC_ARGS"
 def MECHANIC_XMS = "$System.env.MECHANIC_XMS"
