@@ -25,6 +25,7 @@ plugins {
     id 'eclipse'
     id 'idea'
     id 'jacoco'
+    id 'checkstyle'
     id 'maven-publish'
     id 'signing'
     id 'com.github.spotbugs' version '4.5.1'
@@ -99,6 +100,18 @@ sourceSets {
     test.runtimeClasspath += configurations.provided
 }
 
+checkstyle {
+    toolVersion = '7.4'
+    showViolations = false
+    config project.resources.text.fromUri('https://raw.githubusercontent.com/openlattice/openlattice/develop/gradles/checkstyle.xml')
+}
+
+tasks.withType(Checkstyle) {
+    reports {
+        xml.enabled = false
+        html.enabled = true
+    }
+}
 spotbugs {
     reportLevel = 'high'
     toolVersion = "${spotbugs_annotations_version}"
