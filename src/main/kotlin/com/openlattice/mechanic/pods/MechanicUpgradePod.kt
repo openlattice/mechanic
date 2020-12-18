@@ -576,5 +576,8 @@ class MechanicUpgradePod {
         )
     }
 
-
+    @Bean
+    fun deleteDuplicateDataFromAtlasTables(): DeleteDuplicateDataFromAtlasTables {
+        return DeleteDuplicateDataFromAtlasTables(externalDatabaseConnectionManager)
+    }
 }
