@@ -365,7 +365,7 @@ class MechanicUpgradePod {
 
     @Bean
     fun organizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
-        return OrganizationMetadataEntitySetsService(edmManager())
+        return OrganizationMetadataEntitySetsService(edmManager(), authorizationManager())
     }
 
     @Bean
@@ -442,7 +442,7 @@ class MechanicUpgradePod {
     fun migrateDbCredsKeyToAclKey(): MigrateDbCredsKeyToAclKey {
         return MigrateDbCredsKeyToAclKey(toolbox)
     }
-    
+
     @Bean
     fun deleteDuplicateDataFromAtlasTables(): DeleteDuplicateDataFromAtlasTables {
         return DeleteDuplicateDataFromAtlasTables(externalDatabaseConnectionManager)
