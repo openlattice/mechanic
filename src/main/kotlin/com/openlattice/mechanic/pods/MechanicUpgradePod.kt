@@ -442,5 +442,9 @@ class MechanicUpgradePod {
     fun migrateDbCredsKeyToAclKey(): MigrateDbCredsKeyToAclKey {
         return MigrateDbCredsKeyToAclKey(toolbox)
     }
-
+    
+    @Bean
+    fun deleteDuplicateDataFromAtlasTables(): DeleteDuplicateDataFromAtlasTables {
+        return DeleteDuplicateDataFromAtlasTables(externalDatabaseConnectionManager)
+    }
 }
