@@ -365,7 +365,7 @@ class MechanicUpgradePod {
 
     @Bean
     fun organizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
-        return OrganizationMetadataEntitySetsService(edmManager(), authorizationManager())
+        return OrganizationMetadataEntitySetsService(edmManager())
     }
 
     @Bean
