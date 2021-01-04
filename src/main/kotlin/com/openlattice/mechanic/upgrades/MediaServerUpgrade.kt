@@ -84,8 +84,9 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
                 val key = rs.getString(1) + "/" + rs.getString(2) + "/" + entry.key + "/" + hashString
                 byteBlobDataManager.putObject(key, data, "png")
                 val conn2 = toolbox.hds.connection
-                val ps2 = conn2.prepareStatement(storeS3Key(key, propertyTable, fqn))
-                ps2.setBytes(1, hash)
+                val ps2 = conn2.prepareStatement("UPDATE $propertyTable SET ${quote(fqn + "_new")} = ? where $HASH = ?")
+                ps2.setString(1, key)
+                ps2.setBytes(2, hash)
                 ps2.executeUpdate()
                 ps2.close()
                 conn2.close()

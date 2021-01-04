@@ -389,7 +389,7 @@ class MechanicUpgradePod {
 
     @Bean
     fun organizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
-        val service = OrganizationMetadataEntitySetsService(edmManager())
+        val service = OrganizationMetadataEntitySetsService(edmManager(), authorizationManager())
         service.organizationService = organizationService()
         service.entitySetsManager = entitySetManager()
         service.dataGraphManager = dataGraphManager()

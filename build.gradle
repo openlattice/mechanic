@@ -25,11 +25,12 @@ plugins {
     id 'eclipse'
     id 'idea'
     id 'jacoco'
+    id 'checkstyle'
     id 'maven-publish'
     id 'signing'
-    id 'com.github.spotbugs' version '4.5.1'
-    id 'org.jetbrains.kotlin.jvm' version '1.3.61'
-    id 'org.jetbrains.kotlin.plugin.spring' version '1.3.61'
+    id 'com.github.spotbugs' version '4.6.0'
+    id 'org.jetbrains.kotlin.jvm' version '1.3.72'
+    id 'org.jetbrains.kotlin.plugin.spring' version '1.3.72'
 }
 
 description = "Mechanic"
@@ -40,7 +41,7 @@ ext.scmUrl = 'scm:git:https://github.com/openlattice/mechanic.git'
 ext.connectionUrl = 'scm:git:https://github.com/openlattice/mechanic.git'
 ext.developerConnectionUrl = 'scm:git:https://github.com/openlattice/mechanic.git'
 
-apply from: "https://raw.githubusercontent.com/openlattice/gradles/master/openlattice.gradle"
+apply from: "https://raw.githubusercontent.com/openlattice/openlattice/develop/gradles/openlattice.gradle"
 
 def MECHANIC_ARGS = "$System.env.MECHANIC_ARGS"
 def MECHANIC_XMS = "$System.env.MECHANIC_XMS"
@@ -99,6 +100,18 @@ sourceSets {
     test.runtimeClasspath += configurations.provided
 }
 
+checkstyle {
+    toolVersion = '7.4'
+    showViolations = false
+    config project.resources.text.fromUri('https://raw.githubusercontent.com/openlattice/openlattice/develop/gradles/checkstyle.xml')
+}
+
+tasks.withType(Checkstyle) {
+    reports {
+        xml.enabled = false
+        html.enabled = true
+    }
+}
 spotbugs {
     reportLevel = 'high'
     toolVersion = "${spotbugs_annotations_version}"
@@ -123,13 +136,13 @@ dependencies {
 
     compileOnly "com.google.code.findbugs:findbugs:${findbugs_version}"
     if (project.hasProperty('developmentMode') && project.developmentMode) {
-        logger.quiet(project.name + " using project dependencies.")
+        logger.info(project.name + " using project dependencies.")
         compile project(":rhizome")
         compile project(":conductor-client")
         compile project(":scrunchie")
         compile project(":courier")
     } else {
-        logger.quiet(project.name + " using jar dependencies.")
+        logger.info(project.name + " using jar dependencies.")
         compile "com.openlattice:scrunchie:$scrunchie_version"
         compile "com.openlattice:courier:$courier_version"
 
@@ -140,8 +153,8 @@ dependencies {
     /*
      * TESTING
      */
-    testCompile "junit:junit:$junit_version"
-    testCompile "org.mockito:mockito-all:$mockito_version"
+    testImplementation "junit:junit:$junit_version"
+    testImplementation "org.mockito:mockito-all:$mockito_version"
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 }
 
