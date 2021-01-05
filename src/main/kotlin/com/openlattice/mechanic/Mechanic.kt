@@ -29,6 +29,7 @@ import com.kryptnostic.rhizome.core.Rhizome
 
 import com.kryptnostic.rhizome.core.RhizomeApplicationServer
 import com.kryptnostic.rhizome.hazelcast.serializers.RhizomeUtils
+import com.kryptnostic.rhizome.pods.MetricsPod
 import com.kryptnostic.rhizome.startup.Requirement
 import com.openlattice.assembler.pods.AssemblerConfigurationPod
 import com.openlattice.auditing.pods.AuditingConfigurationPod
@@ -138,6 +139,7 @@ class Mechanic {
                     MechanicIntegrityPod::class.java,
                     MechanicRetireePod::class.java,
                     MechanicUpgradePod::class.java,
+                    MetricsPod::class.java,
                     ExternalDatabaseConnectionManagerPod::class.java,
                     PostgresPod::class.java,
                     SharedStreamSerializersPod::class.java

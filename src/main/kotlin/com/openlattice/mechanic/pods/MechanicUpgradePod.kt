@@ -51,7 +51,6 @@ import com.openlattice.edm.properties.PostgresTypeManager
 import com.openlattice.edm.schemas.SchemaQueryService
 import com.openlattice.edm.schemas.manager.HazelcastSchemaManager
 import com.openlattice.graph.Graph
-import com.openlattice.graph.core.GraphService
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.ids.HazelcastIdGenerationService
 import com.openlattice.ids.HazelcastLongIdService
@@ -272,7 +271,7 @@ class MechanicUpgradePod {
                 toolbox.hds,
                 authorizationManager(),
                 securePrincipalsManager(),
-                MetricRegistry(),
+                metricRegistry,
                 toolbox.hazelcast,
                 eventBus
         )
@@ -387,17 +386,21 @@ class MechanicUpgradePod {
         )
     }
 
-    @Bean
-    fun organizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
+    fun uninitializedOrganizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
         val service = OrganizationMetadataEntitySetsService(edmManager(), authorizationManager())
-        service.organizationService = organizationService()
-        service.entitySetsManager = entitySetManager()
-        service.dataGraphManager = dataGraphManager()
         return service
     }
 
-    @Bean
-    fun entitySetManager(): EntitySetManager {
+    fun organizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
+        val service = uninitializedOrganizationMetadataEntitySetsService()
+        val entitySetService = uninitializedEntitySetManager(service)
+        service.organizationService = uninitializedOrganizationService(service)
+        service.entitySetsManager = entitySetService
+        service.dataGraphManager = dataGraphManager(entitySetService)
+        return service
+    }
+
+    fun uninitializedEntitySetManager(metadataService: OrganizationMetadataEntitySetsService): EntitySetManager {
         return EntitySetService(
                 hazelcastInstance,
                 eventBus,
@@ -406,7 +409,7 @@ class MechanicUpgradePod {
                 partitionManager(),
                 edmManager(),
                 hikariDataSource,
-                organizationMetadataEntitySetsService(),
+                metadataService,
                 auditingConfiguration
         )
     }
@@ -466,9 +469,7 @@ class MechanicUpgradePod {
         return CleanUpDeletedUsers(toolbox)
     }
 
-    @Bean
-    fun organizationService(): HazelcastOrganizationService {
-
+    fun uninitializedOrganizationService(metadataService: OrganizationMetadataEntitySetsService): HazelcastOrganizationService {
         val dbCredService = DbCredentialService(
                 toolbox.hazelcast,
                 HazelcastLongIdService(hazelcastClientProvider)
@@ -478,7 +479,7 @@ class MechanicUpgradePod {
                 toolbox.hds,
                 authorizationManager(),
                 securePrincipalsManager(),
-                MetricRegistry(),
+                metricRegistry,
                 toolbox.hazelcast,
                 eventBus
         )
@@ -491,7 +492,7 @@ class MechanicUpgradePod {
                 PhoneNumberService(hazelcastInstance),
                 partitionManager(),
                 assembler,
-                organizationMetadataEntitySetsService()
+                metadataService
         )
     }
 
@@ -515,12 +516,11 @@ class MechanicUpgradePod {
         return PostgresLinkingQueryService(hikariDataSource, partitionManager())
     }
 
-    @Bean
-    fun entityDatastore(): EntityDatastore {
+    fun entityDatastore(entitySetManager: EntitySetManager): EntityDatastore {
         return PostgresEntityDatastore(
                 dataQueryService(),
                 edmManager(),
-                entitySetManager(),
+                entitySetManager,
                 metricRegistry,
                 eventBus,
                 postgresLinkingFeedbackQueryService(),
@@ -542,28 +542,24 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun graphService(): GraphService {
-        return Graph(hikariDataSource,
-                hikariDataSource,
-                entitySetManager(),
-                partitionManager(),
-                dataQueryService(),
-                idService(),
-                metricRegistry)
-    }
-
-    @Bean
     fun jobService(): HazelcastJobService {
         return HazelcastJobService(hazelcastInstance)
     }
 
 
-    @Bean
-    fun dataGraphManager(): DataGraphManager {
-        return DataGraphService(
-                graphService(),
+    fun dataGraphManager(entitySetManager: EntitySetManager): DataGraphManager {
+        val graphService = Graph(hikariDataSource,
+                hikariDataSource,
+                entitySetManager,
+                partitionManager(),
+                dataQueryService(),
                 idService(),
-                entityDatastore(),
+                MetricRegistry())
+
+        return DataGraphService(
+                graphService,
+                idService(),
+                entityDatastore(entitySetManager),
                 jobService()
         )
     }
@@ -576,8 +572,4 @@ class MechanicUpgradePod {
         )
     }
 
-    @Bean
-    fun deleteDuplicateDataFromAtlasTables(): DeleteDuplicateDataFromAtlasTables {
-        return DeleteDuplicateDataFromAtlasTables(externalDatabaseConnectionManager)
-    }
 }
