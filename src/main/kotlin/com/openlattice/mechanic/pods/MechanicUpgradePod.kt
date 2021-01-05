@@ -22,6 +22,7 @@ package com.openlattice.mechanic.pods
 
 import com.codahale.metrics.MetricRegistry
 import com.geekbeast.hazelcast.HazelcastClientProvider
+import com.geekbeast.rhizome.jobs.HazelcastJobService
 import com.google.common.eventbus.EventBus
 import com.hazelcast.core.HazelcastInstance
 import com.openlattice.assembler.Assembler
@@ -32,7 +33,16 @@ import com.openlattice.authorization.AuthorizationManager
 import com.openlattice.authorization.DbCredentialService
 import com.openlattice.authorization.HazelcastAclKeyReservationService
 import com.openlattice.authorization.HazelcastAuthorizationService
+import com.openlattice.data.DataGraphManager
+import com.openlattice.data.DataGraphService
+import com.openlattice.data.EntityKeyIdService
+import com.openlattice.data.ids.PostgresEntityKeyIdService
+import com.openlattice.data.storage.ByteBlobDataManager
+import com.openlattice.data.storage.EntityDatastore
+import com.openlattice.data.storage.PostgresEntityDataQueryService
+import com.openlattice.data.storage.PostgresEntityDatastore
 import com.openlattice.data.storage.partitions.PartitionManager
+import com.openlattice.datastore.pods.ByteBlobServicePod
 import com.openlattice.datastore.services.EdmManager
 import com.openlattice.datastore.services.EdmService
 import com.openlattice.datastore.services.EntitySetManager
@@ -40,11 +50,19 @@ import com.openlattice.datastore.services.EntitySetService
 import com.openlattice.edm.properties.PostgresTypeManager
 import com.openlattice.edm.schemas.SchemaQueryService
 import com.openlattice.edm.schemas.manager.HazelcastSchemaManager
+import com.openlattice.graph.Graph
+import com.openlattice.graph.core.GraphService
 import com.openlattice.hazelcast.pods.MapstoresPod
+import com.openlattice.ids.HazelcastIdGenerationService
 import com.openlattice.ids.HazelcastLongIdService
+import com.openlattice.linking.LinkingQueryService
+import com.openlattice.linking.PostgresLinkingFeedbackService
+import com.openlattice.linking.graph.PostgresLinkingQueryService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.*
+import com.openlattice.notifications.sms.PhoneNumberService
+import com.openlattice.organizations.HazelcastOrganizationService
 import com.openlattice.organizations.OrganizationMetadataEntitySetsService
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.HazelcastPrincipalService
@@ -60,7 +78,7 @@ import org.springframework.context.annotation.Profile
 import javax.inject.Inject
 
 @Configuration
-@Import(MechanicToolboxPod::class, AuditingConfigurationPod::class)
+@Import(MechanicToolboxPod::class, AuditingConfigurationPod::class, ByteBlobServicePod::class)
 @Profile(UPGRADE)
 @SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE")
 class MechanicUpgradePod {
@@ -91,6 +109,12 @@ class MechanicUpgradePod {
 
     @Inject
     private lateinit var hazelcastClientProvider: HazelcastClientProvider
+
+    @Inject
+    private lateinit var metricRegistry: MetricRegistry
+
+    @Inject
+    private lateinit var byteBlobDataManager: ByteBlobDataManager
 
     @Bean
     fun linking(): Linking {
@@ -365,7 +389,11 @@ class MechanicUpgradePod {
 
     @Bean
     fun organizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
-        return OrganizationMetadataEntitySetsService(edmManager(), authorizationManager())
+        val service = OrganizationMetadataEntitySetsService(edmManager(), authorizationManager())
+        service.organizationService = organizationService()
+        service.entitySetsManager = entitySetManager()
+        service.dataGraphManager = dataGraphManager()
+        return service
     }
 
     @Bean
@@ -438,6 +466,115 @@ class MechanicUpgradePod {
         return CleanUpDeletedUsers(toolbox)
     }
 
+    @Bean
+    fun organizationService(): HazelcastOrganizationService {
+
+        val dbCredService = DbCredentialService(
+                toolbox.hazelcast,
+                HazelcastLongIdService(hazelcastClientProvider)
+        )
+        val assembler = Assembler(
+                dbCredService,
+                toolbox.hds,
+                authorizationManager(),
+                securePrincipalsManager(),
+                MetricRegistry(),
+                toolbox.hazelcast,
+                eventBus
+        )
+
+        return HazelcastOrganizationService(
+                hazelcastInstance,
+                aclKeyReservationService(),
+                authorizationManager(),
+                securePrincipalsManager(),
+                PhoneNumberService(hazelcastInstance),
+                partitionManager(),
+                assembler,
+                organizationMetadataEntitySetsService()
+        )
+    }
+
+    @Bean
+    fun dataQueryService(): PostgresEntityDataQueryService {
+        return PostgresEntityDataQueryService(
+                hikariDataSource,
+                hikariDataSource,
+                byteBlobDataManager,
+                partitionManager()
+        )
+    }
+
+    @Bean
+    fun postgresLinkingFeedbackQueryService(): PostgresLinkingFeedbackService {
+        return PostgresLinkingFeedbackService(hikariDataSource, hazelcastInstance)
+    }
+
+    @Bean
+    fun lqs(): LinkingQueryService {
+        return PostgresLinkingQueryService(hikariDataSource, partitionManager())
+    }
+
+    @Bean
+    fun entityDatastore(): EntityDatastore {
+        return PostgresEntityDatastore(
+                dataQueryService(),
+                edmManager(),
+                entitySetManager(),
+                metricRegistry,
+                eventBus,
+                postgresLinkingFeedbackQueryService(),
+                lqs()
+        )
+    }
+
+    @Bean
+    fun idGenerationService(): HazelcastIdGenerationService {
+        return HazelcastIdGenerationService(hazelcastClientProvider)
+    }
+
+    @Bean
+    fun idService(): EntityKeyIdService {
+        return PostgresEntityKeyIdService(
+                hikariDataSource,
+                idGenerationService(),
+                partitionManager())
+    }
+
+    @Bean
+    fun graphService(): GraphService {
+        return Graph(hikariDataSource,
+                hikariDataSource,
+                entitySetManager(),
+                partitionManager(),
+                dataQueryService(),
+                idService(),
+                metricRegistry)
+    }
+
+    @Bean
+    fun jobService(): HazelcastJobService {
+        return HazelcastJobService(hazelcastInstance)
+    }
+
+
+    @Bean
+    fun dataGraphManager(): DataGraphManager {
+        return DataGraphService(
+                graphService(),
+                idService(),
+                entityDatastore(),
+                jobService()
+        )
+    }
+
+    @Bean
+    fun populateOrgMetadataEntitySets(): PopulateOrgMetadataEntitySets {
+        return PopulateOrgMetadataEntitySets(
+                toolbox,
+                organizationMetadataEntitySetsService()
+        )
+    }
 
     @Bean
     fun deleteDuplicateDataFromAtlasTables(): DeleteDuplicateDataFromAtlasTables {
