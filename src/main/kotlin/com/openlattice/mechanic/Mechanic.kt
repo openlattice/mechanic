@@ -29,10 +29,12 @@ import com.kryptnostic.rhizome.core.Rhizome
 
 import com.kryptnostic.rhizome.core.RhizomeApplicationServer
 import com.kryptnostic.rhizome.hazelcast.serializers.RhizomeUtils
+import com.kryptnostic.rhizome.pods.MetricsPod
 import com.kryptnostic.rhizome.startup.Requirement
 import com.openlattice.assembler.pods.AssemblerConfigurationPod
 import com.openlattice.auditing.pods.AuditingConfigurationPod
 import com.openlattice.auth0.Auth0Pod
+import com.openlattice.datastore.pods.ByteBlobServicePod
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.hazelcast.pods.SharedStreamSerializersPod
 import com.openlattice.jdbc.JdbcPod
@@ -131,11 +133,13 @@ class Mechanic {
                     AssemblerConfigurationPod::class.java,
                     AuditingConfigurationPod::class.java,
                     Auth0Pod::class.java,
+                    ByteBlobServicePod::class.java,
                     JdbcPod::class.java,
                     MapstoresPod::class.java,
                     MechanicIntegrityPod::class.java,
                     MechanicRetireePod::class.java,
                     MechanicUpgradePod::class.java,
+                    MetricsPod::class.java,
                     ExternalDatabaseConnectionManagerPod::class.java,
                     PostgresPod::class.java,
                     SharedStreamSerializersPod::class.java
