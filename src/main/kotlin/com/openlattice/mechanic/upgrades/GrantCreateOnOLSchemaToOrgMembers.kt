@@ -24,28 +24,28 @@ class GrantCreateOnOLSchemaToOrgMembers(
             it.value.mapNotNull { sp -> dbCreds["ol-internal|user|${sp.id}"]?.username }
         }
 
-        orgs.values.forEach {
-            logger.info("About to grant create to members of org ${it.title} [${it.id}]")
+        orgs.forEach { (id, org) ->
+            logger.info("About to grant create to members of org ${org.title} [$id]")
 
-            val members = memberUsernamesByOrg[it.id] ?: listOf()
+            val members = memberUsernamesByOrg[id] ?: listOf()
 
             if (members.isEmpty()) {
-                logger.info("No members for org ${it.id}, continuing.")
+                logger.info("No members for org $id, continuing.")
                 return@forEach
             }
 
             try {
-                externalDbConnMan.connectToOrg(it.id).connection.use { conn ->
+                externalDbConnMan.connectToOrg(id).connection.use { conn ->
                     conn.createStatement().use { stmt ->
                         stmt.execute(grantSql(members))
                     }
                 }
             } catch (e: Exception) {
-                logger.error("ERROR: unable to connect to org ${it.id}")
+                logger.error("ERROR: unable to connect to org $id")
                 return@forEach
             }
 
-            logger.info("Finished org ${it.title} [${it.id}]")
+            logger.info("Finished org ${org.title} [$id]")
         }
 
         return true
