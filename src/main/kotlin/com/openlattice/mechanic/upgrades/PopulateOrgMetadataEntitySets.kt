@@ -22,20 +22,20 @@ class PopulateOrgMetadataEntitySets(
         organizations.forEach { organization ->
             val orgId = organization.id
 
-            entitySetsByOrg[orgId]?.let { entitySets ->
-                entitySets.forEach {
-                    metadataEntitySetService.addDataset(it)
-                    metadataEntitySetService.addDatasetColumns(it, entitySetsToPropertyTypes.getValue(it.id))
-                }
-            }
-
-            externalTablesByOrg[orgId]?.let { tables ->
-                tables.forEach {
-                    metadataEntitySetService.addDataset(orgId, it)
-                    metadataEntitySetService.addDatasetColumns(orgId, it, externalColumnsByTable.getValue(it.id))
-
-                }
-            }
+//            entitySetsByOrg[orgId]?.let { entitySets ->
+//                entitySets.forEach {
+//                    metadataEntitySetService.addDataset(it)
+//                    metadataEntitySetService.addDatasetColumns(it, entitySetsToPropertyTypes.getValue(it.id))
+//                }
+//            }
+//
+//            externalTablesByOrg[orgId]?.let { tables ->
+//                tables.forEach {
+//                    metadataEntitySetService.addDataset(orgId, it)
+//                    metadataEntitySetService.addDatasetColumns(orgId, it, externalColumnsByTable.getValue(it.id))
+//
+//                }
+//            }
 
         }
 
