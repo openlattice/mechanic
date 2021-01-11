@@ -578,4 +578,9 @@ class MechanicUpgradePod {
         )
     }
 
+    @Bean
+    fun grantCreateOnOLSchemaToOrgMembers(): GrantCreateOnOLSchemaToOrgMembers {
+        return GrantCreateOnOLSchemaToOrgMembers(toolbox, externalDatabaseConnectionManager, securePrincipalsManager())
+    }
+
 }
