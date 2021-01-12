@@ -21,7 +21,7 @@ class GrantCreateOnOLSchemaToOrgMembers(
         val dbCreds = HazelcastMap.DB_CREDS.getMap(toolbox.hazelcast).toMap()
 
         val memberUsernamesByOrg = securePrincipalsManager.getOrganizationMembers(orgs.keys).mapValues {
-            it.value.mapNotNull { sp -> dbCreds["ol-internal|user|${sp.id}"]?.username }
+            it.value.mapNotNull { sp -> dbCreds[sp.aclKey]?.username }
         }
 
         orgs.forEach { (id, org) ->
