@@ -1,5 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
+import com.openlattice.authorization.AclKey
 import com.openlattice.directory.MaterializedViewAccount
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
@@ -48,9 +49,8 @@ class GrantAllOnStagingSchemaToOrgUser(
         return true
     }
 
-    private fun grantAllSql(orgId: UUID, dbCreds: Map<String, MaterializedViewAccount>): String {
-        val lookupKey = "ol-internal|organization|$orgId"
-        val username = dbCreds[lookupKey]?.username ?: return ""
+    private fun grantAllSql(orgId: UUID, dbCreds: Map<AclKey, MaterializedViewAccount>): String {
+        val username = dbCreds[AclKey(orgId)]?.username ?: return ""
 
         return "ALTER DEFAULT PRIVILEGES IN SCHEMA staging GRANT ALL PRIVILEGES ON TABLES TO ${quote(username)}"
     }

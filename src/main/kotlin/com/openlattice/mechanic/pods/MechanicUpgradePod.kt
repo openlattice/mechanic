@@ -469,6 +469,12 @@ class MechanicUpgradePod {
         return CleanUpDeletedUsers(toolbox)
     }
 
+    @Bean
+    fun migrateDbCredsKeyToAclKey(): MigrateDbCredsKeyToAclKey {
+        return MigrateDbCredsKeyToAclKey(toolbox)
+
+    }
+
     fun uninitializedOrganizationService(metadataService: OrganizationMetadataEntitySetsService): HazelcastOrganizationService {
         val dbCredService = DbCredentialService(
                 toolbox.hazelcast,
