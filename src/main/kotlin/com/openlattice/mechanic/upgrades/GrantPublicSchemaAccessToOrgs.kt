@@ -2,7 +2,6 @@ package com.openlattice.mechanic.upgrades
 
 import com.openlattice.IdConstants
 import com.openlattice.assembler.AssemblerConfiguration
-import com.openlattice.assembler.PostgresRoles
 import com.openlattice.authorization.Principal
 import com.openlattice.authorization.PrincipalType
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
@@ -65,7 +64,7 @@ class GrantPublicSchemaAccessToOrgs(
             it.id != "openlatticeRole"
         }.map {
             try {
-                securePrincipalsManager.getPrincipal(it.id)
+                securePrincipalsManager.getSecurablePrincipal(it.id)
             } catch ( ex: Exception ) {
                 logger.info("Principal $it does not map to a Securable Principal")
                 return@map null
