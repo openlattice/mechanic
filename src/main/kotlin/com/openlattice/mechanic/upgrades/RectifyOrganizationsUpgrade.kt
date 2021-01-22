@@ -4,6 +4,7 @@ import com.openlattice.assembler.Assembler
 import com.openlattice.assembler.AssemblerConnectionManager
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.postgres.external.Schemas
 import com.openlattice.transporter.types.TransporterDatastore
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
@@ -20,13 +21,7 @@ class RectifyOrganizationsUpgrade(
 
     private val connMan = toolbox.extDbConMan
 
-    private val allSchemas = arrayOf(
-            AssemblerConnectionManager.OPENLATTICE_SCHEMA,
-            AssemblerConnectionManager.INTEGRATIONS_SCHEMA,
-            AssemblerConnectionManager.STAGING_SCHEMA,
-            TransporterDatastore.ORG_FOREIGN_TABLES_SCHEMA,
-            TransporterDatastore.ORG_VIEWS_SCHEMA
-    ).map {
+    private val allSchemas = Schemas.values().map {
         "CREATE SCHEMA IF NOT EXISTS $it"
     }
 
