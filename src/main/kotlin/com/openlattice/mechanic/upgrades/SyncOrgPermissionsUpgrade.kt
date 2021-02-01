@@ -27,13 +27,9 @@ class SyncOrgPermissionsUpgrade(
     private val propertyTypes = HazelcastMap.PROPERTY_TYPES.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
-        val assembledEntitySets = entitySets.entrySet(Predicates.equal<UUID, EntitySet>(EntitySetMapstore.FLAGS_INDEX, EntitySetFlag.TRANSPORTED))
+        val assembledEntitySets = entitySets.values(Predicates.equal<UUID, EntitySet>(EntitySetMapstore.FLAGS_INDEX, EntitySetFlag.TRANSPORTED))
 
-        val assembliesByOrg = assembledEntitySets.groupBy({ (_, value) ->
-            value.organizationId
-        }, { (_, value) ->
-            value
-        })
+        val assembliesByOrg = assembledEntitySets.groupBy { it.organizationId }
 
         val etids = assembliesByOrg.values.flatten().mapTo( mutableSetOf() ) { it.entityTypeId }
 
