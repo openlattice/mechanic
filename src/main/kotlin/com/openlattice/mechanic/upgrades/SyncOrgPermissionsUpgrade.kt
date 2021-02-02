@@ -1,5 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
+import com.openlattice.authorization.AclKey
 import com.openlattice.edm.PropertyTypeIdFqn
 import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.hazelcast.HazelcastMap
@@ -23,6 +24,7 @@ class SyncOrgPermissionsUpgrade(
     private val entitySets = toolbox.entitySets
     private val propertyTypes = toolbox.propertyTypes
     private val transporterState = HazelcastMap.TRANSPORTER_DB_COLUMNS.getMap(toolbox.hazelcast)
+    private val principalTrees = HazelcastMap.PRINCIPAL_TREES.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
         val assemblies = updatePermissionsForAssemblies()
@@ -59,6 +61,7 @@ class SyncOrgPermissionsUpgrade(
         assembliesByOrg.map { (orgId, entitySets) ->
             exConnMan.connectToOrg(orgId).use { hds ->
                 entitySets.forEach { es ->
+                    // this will create all permission roles for transporter use
                     exDbPermMan.initializeAssemblyPermissions(
                         hds,
                         es.id,
@@ -73,10 +76,23 @@ class SyncOrgPermissionsUpgrade(
     }
 
     fun createAllPermRoles(): Boolean {
+
         return true
     }
 
     fun mapAllPrincipalTrees(): Boolean {
+        val sourceToTargets = mutableMapOf<AclKey, MutableSet<AclKey>>()
+        principalTrees.forEach { (target, sources) ->
+            sources.forEach { source ->
+                val targets = sourceToTargets.getOrPut( source ) { mutableSetOf() }
+                targets.add(target)
+                sourceToTargets[source] = targets
+            }
+        }
+        sourceToTargets.forEach { source, targets ->
+            exDbPermMan.addPrincipalToPrincipals(source, targets)
+        }
+
         return true
     }
 
