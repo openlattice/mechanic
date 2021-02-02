@@ -1,17 +1,13 @@
 package com.openlattice.mechanic.upgrades
 
-import com.hazelcast.query.Predicates
-import com.openlattice.edm.EntitySet
 import com.openlattice.edm.PropertyTypeIdFqn
-import com.openlattice.edm.processors.GetFqnFromPropertyTypeEntryProcessor
 import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.external.ExternalDatabasePermissioningService
-import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.transporter.processors.GetPropertyTypesFromTransporterColumnSetEntryProcessor
-import java.util.*
+import org.slf4j.LoggerFactory
 
 /**
  * @author Drew Bailey (drew@openlattice.com)
@@ -22,34 +18,44 @@ class SyncOrgPermissionsUpgrade(
         private val exDbPermMan: ExternalDatabasePermissioningService
 ): Upgrade {
 
-    private val entitySets = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast)
+    val logger = LoggerFactory.getLogger(SyncOrgPermissionsUpgrade::class.java)
+
+    private val entitySets = toolbox.entitySets
+    private val propertyTypes = toolbox.propertyTypes
     private val transporterState = HazelcastMap.TRANSPORTER_DB_COLUMNS.getMap(toolbox.hazelcast)
-    private val propertyTypes = HazelcastMap.PROPERTY_TYPES.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
-        val assembledEntitySets = entitySets.values(Predicates.equal<UUID, EntitySet>(EntitySetMapstore.FLAGS_INDEX, EntitySetFlag.TRANSPORTED))
+        val assemblies = updatePermissionsForAssemblies()
+        val mapPTrees = mapAllPrincipalTrees()
+        val createPRoles = createAllPermRoles()
+        if (assemblies  && mapPTrees  && createPRoles) {
+            return true
+        }
+        logger.error("Sync permissions upgrade failed, final status:\n" +
+                "updatePermissionsForAssemblies: {}\n" +
+                "mapAllPrincipalTrees: {}\n" +
+                "createAllPermRoles: {}\n", assemblies, mapPTrees, createPRoles)
+        return false
+    }
 
-        val assembliesByOrg = assembledEntitySets.groupBy { it.organizationId }
+    fun updatePermissionsForAssemblies(): Boolean {
+        val assembliesByOrg = entitySets.values.filter { es ->
+            es.flags.contains(EntitySetFlag.TRANSPORTED)
+        }.groupBy { it.organizationId }
 
         val etids = assembliesByOrg.values.flatten().mapTo( mutableSetOf() ) { it.entityTypeId }
 
-        val etIdsToPts = transporterState.submitToKeys(
+        val etIdsToPtFqns = transporterState.submitToKeys(
                 etids, GetPropertyTypesFromTransporterColumnSetEntryProcessor()
-        )
-
-        val etIdsToFqns = etIdsToPts.thenCompose { etsToPts ->
-            val allPtids = etsToPts.values.flatMapTo(mutableSetOf()) { it }
-            propertyTypes.submitToKeys(allPtids, GetFqnFromPropertyTypeEntryProcessor())
-        }.thenCombine( etIdsToPts ) { ptIdToFqn, etIdToPt ->
-            etIdToPt.mapValues { (_, ptIds) ->
-                ptIds.mapTo( mutableSetOf() ) { ptid ->
-                    PropertyTypeIdFqn(ptid, ptIdToFqn.getValue(ptid))
-                }.toSet()
+        ).thenApply { etIdsToPtIds ->
+            etIdsToPtIds.mapValues { (_, ptids) ->
+                ptids.mapTo(mutableSetOf()) { ptid ->
+                    PropertyTypeIdFqn.fromPropertyType(propertyTypes.getValue(ptid))
+                }
             }
         }.toCompletableFuture().get()
 
-
-        // final shape is etid -> ptfqns
+        // final shape is etid -> Set<PtIdFqn>
         assembliesByOrg.map { (orgId, entitySets) ->
             exConnMan.connectToOrg(orgId).use { hds ->
                 entitySets.forEach { es ->
@@ -57,12 +63,20 @@ class SyncOrgPermissionsUpgrade(
                         hds,
                         es.id,
                         es.name,
-                        etIdsToFqns.getValue(es.entityTypeId)
+                        etIdsToPtFqns.getValue(es.entityTypeId)
                     )
                 }
             }
         }
 
+        return true
+    }
+
+    fun createAllPermRoles(): Boolean {
+        return true
+    }
+
+    fun mapAllPrincipalTrees(): Boolean {
         return true
     }
 
