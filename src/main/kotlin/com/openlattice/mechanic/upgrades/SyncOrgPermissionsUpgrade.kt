@@ -61,7 +61,7 @@ class SyncOrgPermissionsUpgrade(
     private fun addRolesToDbCreds(): Boolean {
         princpals.values(
                 Predicates.equal<AclKey, SecurablePrincipal>(PrincipalMapstore.PRINCIPAL_TYPE_INDEX, PrincipalType.ROLE)
-        ).map { rolePrincipal ->
+        ).forEach { rolePrincipal ->
             dbCreds.getOrCreateRoleAccount(rolePrincipal)
         }
         return true
@@ -123,16 +123,16 @@ class SyncOrgPermissionsUpgrade(
     }
 
     private fun mapAllPrincipalTrees(): Boolean {
-        val sourceToTargets = mutableMapOf<AclKey, MutableSet<AclKey>>()
-        principalTrees.forEach { (target, sources) ->
-            sources.forEach { source ->
-                val targets = sourceToTargets.getOrPut( source ) { mutableSetOf() }
-                targets.add(target)
-                sourceToTargets[source] = targets
+        principalTrees.entries.flatMap { (target, sources) ->
+            sources.map { source ->
+                source to target
             }
-        }
-        sourceToTargets.forEach { (source, targets) ->
-            exDbPermMan.addPrincipalToPrincipals(source, targets)
+        }.groupBy({
+            it.first
+        }, {
+            it.second
+        }).forEach { (source, targets) ->
+            exDbPermMan.addPrincipalToPrincipals(source, targets.toSet())
         }
         return true
     }
