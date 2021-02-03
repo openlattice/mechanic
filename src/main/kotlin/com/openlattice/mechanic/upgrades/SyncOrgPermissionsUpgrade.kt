@@ -1,9 +1,18 @@
 package com.openlattice.mechanic.upgrades
 
+import com.hazelcast.query.Predicates
 import com.openlattice.authorization.Ace
+import com.openlattice.authorization.AceKey
+import com.openlattice.authorization.AceValue
 import com.openlattice.authorization.Acl
 import com.openlattice.authorization.AclKey
 import com.openlattice.authorization.Action
+import com.openlattice.authorization.DbCredentialService
+import com.openlattice.authorization.PrincipalType
+import com.openlattice.authorization.SecurablePrincipal
+import com.openlattice.authorization.mapstores.PermissionMapstore
+import com.openlattice.authorization.mapstores.PrincipalMapstore
+import com.openlattice.authorization.securable.SecurableObjectType
 import com.openlattice.edm.PropertyTypeIdFqn
 import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.hazelcast.HazelcastMap
@@ -11,6 +20,7 @@ import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.external.ExternalDatabasePermissioningService
 import com.openlattice.transporter.processors.GetPropertyTypesFromTransporterColumnSetEntryProcessor
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 /**
@@ -19,32 +29,45 @@ import org.slf4j.LoggerFactory
 class SyncOrgPermissionsUpgrade(
         toolbox: Toolbox,
         private val exConnMan: ExternalDatabaseConnectionManager,
-        private val exDbPermMan: ExternalDatabasePermissioningService
+        private val exDbPermMan: ExternalDatabasePermissioningService,
+        private val dbCreds: DbCredentialService
 ): Upgrade {
 
-    val logger = LoggerFactory.getLogger(SyncOrgPermissionsUpgrade::class.java)
+    val logger: Logger = LoggerFactory.getLogger(SyncOrgPermissionsUpgrade::class.java)
 
     private val entitySets = toolbox.entitySets
     private val propertyTypes = toolbox.propertyTypes
     private val transporterState = HazelcastMap.TRANSPORTER_DB_COLUMNS.getMap(toolbox.hazelcast)
     private val principalTrees = HazelcastMap.PRINCIPAL_TREES.getMap(toolbox.hazelcast)
+    private val princpals = HazelcastMap.PRINCIPALS.getMap(toolbox.hazelcast)
     private val permissions = HazelcastMap.PERMISSIONS.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
-        val assemblies = updatePermissionsForAssemblies()
+        val addRolesToDbCreds = addRolesToDbCreds()
+        val assemblies = initializeAssemblyPermissions()
         val mapPTrees = mapAllPrincipalTrees()
-        val createPRoles = createAllPermRoles()
-        if (assemblies  && mapPTrees  && createPRoles) {
+        val createPRoles = createAssignAllPermRoles()
+        if (addRolesToDbCreds && assemblies  && mapPTrees  && createPRoles) {
             return true
         }
         logger.error("Sync permissions upgrade failed, final status:\n" +
+                "addRolesToDbCreds: {}\n" +
                 "updatePermissionsForAssemblies: {}\n" +
                 "mapAllPrincipalTrees: {}\n" +
-                "createAllPermRoles: {}\n", assemblies, mapPTrees, createPRoles)
+                "createAllPermRoles: {}\n", addRolesToDbCreds, assemblies, mapPTrees, createPRoles)
         return false
     }
 
-    fun updatePermissionsForAssemblies(): Boolean {
+    private fun addRolesToDbCreds(): Boolean {
+        princpals.values(
+                Predicates.equal<AclKey, SecurablePrincipal>(PrincipalMapstore.PRINCIPAL_TYPE_INDEX, PrincipalType.ROLE)
+        ).map { rolePrincipal ->
+            dbCreds.getOrCreateRoleAccount(rolePrincipal)
+        }
+        return true
+    }
+
+    private fun initializeAssemblyPermissions(): Boolean {
         val assembliesByOrg = entitySets.values.filter { es ->
             es.flags.contains(EntitySetFlag.TRANSPORTED)
         }.groupBy { it.organizationId }
@@ -78,19 +101,28 @@ class SyncOrgPermissionsUpgrade(
         return true
     }
 
-    fun createAllPermRoles(): Boolean {
-        permissions.map { (aceKey, aceVal) ->
-            val ak = aceKey.aclKey
+    private fun createAssignAllPermRoles(): Boolean {
+        val filteredPermissionEntries = permissions.entrySet(
+                Predicates.`in`<AceKey, AceValue>(PermissionMapstore.SECURABLE_OBJECT_TYPE_INDEX,
+                        SecurableObjectType.PropertyTypeInEntitySet,
+                        SecurableObjectType.OrganizationExternalDatabaseColumn
+                )
+        )
+        val acls = filteredPermissionEntries.groupBy({
+            it.key.aclKey
+        }, { (aceKey, aceVal) ->
             val prin = aceKey.principal
             val perms = aceVal.permissions
             val exp = aceVal.expirationDate
-
-            exDbPermMan.executePrivilegesUpdate(Action.SET, listOf(Acl(ak, listOf(Ace(prin, perms, exp)))))
+            Ace(prin, perms, exp)
+        }).map { (aclkey, aces) ->
+            Acl(aclkey, aces)
         }
+        exDbPermMan.executePrivilegesUpdate(Action.SET, acls)
         return true
     }
 
-    fun mapAllPrincipalTrees(): Boolean {
+    private fun mapAllPrincipalTrees(): Boolean {
         val sourceToTargets = mutableMapOf<AclKey, MutableSet<AclKey>>()
         principalTrees.forEach { (target, sources) ->
             sources.forEach { source ->
@@ -99,14 +131,13 @@ class SyncOrgPermissionsUpgrade(
                 sourceToTargets[source] = targets
             }
         }
-        sourceToTargets.forEach { source, targets ->
+        sourceToTargets.forEach { (source, targets) ->
             exDbPermMan.addPrincipalToPrincipals(source, targets)
         }
-
         return true
     }
 
     override fun getSupportedVersion(): Long {
-        TODO("Not yet implemented")
+        return Version.V2021_02_05.value
     }
 }
