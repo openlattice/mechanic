@@ -1,7 +1,9 @@
 package com.openlattice.mechanic.upgrades
 
+import com.openlattice.authorization.Ace
+import com.openlattice.authorization.Acl
 import com.openlattice.authorization.AclKey
-import com.openlattice.authorization.DbCredentialService
+import com.openlattice.authorization.Action
 import com.openlattice.edm.PropertyTypeIdFqn
 import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.hazelcast.HazelcastMap
@@ -17,8 +19,7 @@ import org.slf4j.LoggerFactory
 class SyncOrgPermissionsUpgrade(
         toolbox: Toolbox,
         private val exConnMan: ExternalDatabaseConnectionManager,
-        private val exDbPermMan: ExternalDatabasePermissioningService,
-        private val dbcredsService: DbCredentialService
+        private val exDbPermMan: ExternalDatabasePermissioningService
 ): Upgrade {
 
     val logger = LoggerFactory.getLogger(SyncOrgPermissionsUpgrade::class.java)
@@ -28,7 +29,6 @@ class SyncOrgPermissionsUpgrade(
     private val transporterState = HazelcastMap.TRANSPORTER_DB_COLUMNS.getMap(toolbox.hazelcast)
     private val principalTrees = HazelcastMap.PRINCIPAL_TREES.getMap(toolbox.hazelcast)
     private val permissions = HazelcastMap.PERMISSIONS.getMap(toolbox.hazelcast)
-    private val externalRoleNames = HazelcastMap.EXTERNAL_ROLES.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
         val assemblies = updatePermissionsForAssemblies()
@@ -83,8 +83,9 @@ class SyncOrgPermissionsUpgrade(
             val ak = aceKey.aclKey
             val prin = aceKey.principal
             val perms = aceVal.permissions
-            val type = aceVal.securableObjectType
+            val exp = aceVal.expirationDate
 
+            exDbPermMan.executePrivilegesUpdate(Action.SET, listOf(Acl(ak, listOf(Ace(prin, perms, exp)))))
         }
         return true
     }
