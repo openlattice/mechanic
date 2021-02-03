@@ -1,6 +1,7 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.authorization.AclKey
+import com.openlattice.authorization.DbCredentialService
 import com.openlattice.edm.PropertyTypeIdFqn
 import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.hazelcast.HazelcastMap
@@ -16,7 +17,8 @@ import org.slf4j.LoggerFactory
 class SyncOrgPermissionsUpgrade(
         toolbox: Toolbox,
         private val exConnMan: ExternalDatabaseConnectionManager,
-        private val exDbPermMan: ExternalDatabasePermissioningService
+        private val exDbPermMan: ExternalDatabasePermissioningService,
+        private val dbcredsService: DbCredentialService
 ): Upgrade {
 
     val logger = LoggerFactory.getLogger(SyncOrgPermissionsUpgrade::class.java)
@@ -25,6 +27,8 @@ class SyncOrgPermissionsUpgrade(
     private val propertyTypes = toolbox.propertyTypes
     private val transporterState = HazelcastMap.TRANSPORTER_DB_COLUMNS.getMap(toolbox.hazelcast)
     private val principalTrees = HazelcastMap.PRINCIPAL_TREES.getMap(toolbox.hazelcast)
+    private val permissions = HazelcastMap.PERMISSIONS.getMap(toolbox.hazelcast)
+    private val externalRoleNames = HazelcastMap.EXTERNAL_ROLES.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
         val assemblies = updatePermissionsForAssemblies()
@@ -71,14 +75,9 @@ class SyncOrgPermissionsUpgrade(
                 }
             }
         }
-
         return true
     }
 
-    fun createAllPermRoles(): Boolean {
-
-        return true
-    }
 
     fun mapAllPrincipalTrees(): Boolean {
         val sourceToTargets = mutableMapOf<AclKey, MutableSet<AclKey>>()
