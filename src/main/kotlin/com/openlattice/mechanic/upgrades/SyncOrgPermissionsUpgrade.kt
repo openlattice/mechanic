@@ -78,6 +78,16 @@ class SyncOrgPermissionsUpgrade(
         return true
     }
 
+    fun createAllPermRoles(): Boolean {
+        permissions.map { (aceKey, aceVal) ->
+            val ak = aceKey.aclKey
+            val prin = aceKey.principal
+            val perms = aceVal.permissions
+            val type = aceVal.securableObjectType
+
+        }
+        return true
+    }
 
     fun mapAllPrincipalTrees(): Boolean {
         val sourceToTargets = mutableMapOf<AclKey, MutableSet<AclKey>>()
