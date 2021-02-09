@@ -2,7 +2,6 @@ package com.openlattice.mechanic.upgrades
 
 import com.google.common.collect.ImmutableSet
 import com.hazelcast.query.Predicates
-import com.openlattice.assembler.AssemblerConnectionManager
 import com.openlattice.assembler.MEMBER_ORG_DATABASE_PERMISSIONS
 import com.openlattice.authorization.*
 import com.openlattice.authorization.mapstores.PermissionMapstore
@@ -17,6 +16,7 @@ import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.PostgresPrivileges
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
+import com.openlattice.postgres.external.Schemas
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -137,8 +137,8 @@ class CreateAtlasUsersAndSetPermissions(
             val dbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(organization.id)
             val grantDefaultPermissionsOnDatabaseSql = "GRANT ${MEMBER_ORG_DATABASE_PERMISSIONS.joinToString(", ")} " +
                     "ON DATABASE ${DataTables.quote(dbName)} TO $usernamesSql"
-            val grantOLSchemaPrivilegesSql = "GRANT USAGE ON SCHEMA ${AssemblerConnectionManager.OPENLATTICE_SCHEMA} TO $usernamesSql"
-            val grantStagingSchemaPrivilegesSql = "GRANT USAGE, CREATE ON SCHEMA ${AssemblerConnectionManager.STAGING_SCHEMA} TO $usernamesSql"
+            val grantOLSchemaPrivilegesSql = "GRANT USAGE ON SCHEMA ${Schemas.OPENLATTICE_SCHEMA} TO $usernamesSql"
+            val grantStagingSchemaPrivilegesSql = "GRANT USAGE, CREATE ON SCHEMA ${Schemas.STAGING_SCHEMA} TO $usernamesSql"
 
             logger.info("grantDefaultPermissionsOnDatabaseSql: $grantDefaultPermissionsOnDatabaseSql")
             logger.info("grantOLSchemaPrivilegesSql: $grantOLSchemaPrivilegesSql")
@@ -163,8 +163,8 @@ class CreateAtlasUsersAndSetPermissions(
 
     private fun setSearchPathSql(granteeId: String): String {
         val searchPathSchemas = listOf(
-                AssemblerConnectionManager.OPENLATTICE_SCHEMA,
-                AssemblerConnectionManager.STAGING_SCHEMA
+                Schemas.OPENLATTICE_SCHEMA,
+                Schemas.STAGING_SCHEMA
         )
         return "ALTER USER $granteeId SET search_path TO ${searchPathSchemas.joinToString()}"
     }
@@ -190,7 +190,7 @@ class CreateAtlasUsersAndSetPermissions(
     }
 
     private fun revokePublicSchemaAccessSql(dbUser: String): String {
-        return "REVOKE USAGE ON SCHEMA ${AssemblerConnectionManager.PUBLIC_SCHEMA} FROM ${quote(dbUser)}"
+        return "REVOKE USAGE ON SCHEMA ${Schemas.PUBLIC_SCHEMA} FROM ${quote(dbUser)}"
 
     }
 

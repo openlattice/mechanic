@@ -1,7 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.assembler.AssemblerConfiguration
-import com.openlattice.assembler.AssemblerConnectionManager
 import com.openlattice.assembler.PostgresRoles
 import com.openlattice.authorization.Principal
 import com.openlattice.hazelcast.HazelcastMap
@@ -9,6 +8,7 @@ import com.openlattice.mechanic.Toolbox
 import com.openlattice.organizations.Organization
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
+import com.openlattice.postgres.external.Schemas
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 
@@ -61,8 +61,8 @@ class CreateStagingSchemaForExistingOrgs(
                         stmt.execute(setSearchPathSql(
                                 it,
                                 true,
-                                AssemblerConnectionManager.OPENLATTICE_SCHEMA,
-                                STAGING_SCHEMA
+                                Schemas.OPENLATTICE_SCHEMA,
+                                Schemas.STAGING_SCHEMA
                         ))
                     }
 
@@ -70,10 +70,10 @@ class CreateStagingSchemaForExistingOrgs(
                     stmt.execute(setSearchPathSql(
                             assemblerConfiguration.server["username"].toString(),
                             false,
-                            AssemblerConnectionManager.INTEGRATIONS_SCHEMA,
-                            AssemblerConnectionManager.OPENLATTICE_SCHEMA,
-                            AssemblerConnectionManager.PUBLIC_SCHEMA,
-                            STAGING_SCHEMA
+                            Schemas.INTEGRATIONS_SCHEMA,
+                            Schemas.OPENLATTICE_SCHEMA,
+                            Schemas.PUBLIC_SCHEMA,
+                            Schemas.STAGING_SCHEMA
                     ))
                 }
             }
@@ -95,7 +95,7 @@ class CreateStagingSchemaForExistingOrgs(
         return "GRANT USAGE, CREATE ON SCHEMA $STAGING_SCHEMA TO $userIdsSql"
     }
 
-    private fun setSearchPathSql(granteeId: String, isUser: Boolean, vararg schemas: String): String {
+    private fun setSearchPathSql(granteeId: String, isUser: Boolean, vararg schemas: Schemas): String {
         val granteeType = if (isUser) "USER" else "ROLE"
         return "ALTER $granteeType $granteeId SET search_path TO ${schemas.joinToString()}"
     }
