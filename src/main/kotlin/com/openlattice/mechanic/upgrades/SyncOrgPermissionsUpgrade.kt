@@ -101,6 +101,42 @@ class SyncOrgPermissionsUpgrade(
         return true
     }
 
+    private fun removeAllOldPermissionRoles() {
+        val assembliesByOrg = entitySets.values.filter { es ->
+            es.flags.contains(EntitySetFlag.TRANSPORTED)
+        }.groupBy {
+            it.organizationId
+        }
+
+        val colsByEt = transporterState.mapValues { (_, columns) ->
+            columns.keys.map {
+                propertyTypes.getValue(it).type
+            }
+        }
+
+        assembliesByOrg.map { (orgId, entitySets) ->
+            val statements = entitySets.flatMapTo(mutableSetOf()) { es ->
+                colsByEt.getValue(es.entityTypeId).map { colName ->
+                    "DROP ROLE ${roleName(es.name, colName.toString())}"
+                }
+            }
+            exConnMan.connectToOrg(orgId).use { hds ->
+                hds.connection.use {  conn ->
+                    conn.createStatement().use { stmt ->
+                        statements.forEach {
+                            stmt.addBatch(it)
+                        }
+                        stmt.executeBatch()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun roleName(entitySetName: String, columnName: String): String {
+        return "${entitySetName}_$columnName"
+    }
+
     private fun createAssignAllPermRoles(): Boolean {
         val filteredPermissionEntries = permissions.entrySet(
                 Predicates.`in`<AceKey, AceValue>(PermissionMapstore.SECURABLE_OBJECT_TYPE_INDEX,
