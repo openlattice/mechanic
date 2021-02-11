@@ -2,11 +2,11 @@ package com.openlattice.mechanic.upgrades
 
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.organizations.OrganizationMetadataEntitySetsService
+import com.openlattice.organizations.OrganizationEntitySetsService
 
 class PopulateOrgMetadataEntitySets(
         private val toolbox: Toolbox,
-        private val metadataEntitySetService: OrganizationMetadataEntitySetsService
+        private val organizationEntitySetsService: OrganizationEntitySetsService
 ): Upgrade {
 
     override fun upgrade(): Boolean {

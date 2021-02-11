@@ -7,14 +7,14 @@ import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.organization.roles.Role
 import com.openlattice.organizations.Organization
-import com.openlattice.organizations.OrganizationMetadataEntitySetsService
+import com.openlattice.organizations.OrganizationEntitySetsService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import org.slf4j.LoggerFactory
 import java.util.*
 
 class CreateAllOrgMetadataEntitySets(
         private val toolbox: Toolbox,
-        private val metadataEntitySetsService: OrganizationMetadataEntitySetsService,
+        private val organizationEntitySetsService: OrganizationEntitySetsService,
         private val principalsManager: SecurePrincipalsManager,
         private val authorizationManager: AuthorizationManager
 ) : Upgrade {
@@ -30,7 +30,7 @@ class CreateAllOrgMetadataEntitySets(
 
         orgs.values.forEach {
             logger.info("About to initialize metadata entity sets for organization ${it.title} [${it.id}]")
-            metadataEntitySetsService.initializeOrganizationMetadataEntitySets(adminRoles.getValue(it.id))
+            organizationEntitySetsService.initializeOrganizationMetadataEntitySets(adminRoles.getValue(it.id))
             logger.info("Finished initializing metadata entity sets for organization ${it.title} [${it.id}]")
         }
 
