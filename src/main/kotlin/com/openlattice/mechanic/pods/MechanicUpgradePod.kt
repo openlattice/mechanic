@@ -64,7 +64,7 @@ import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.*
 import com.openlattice.notifications.sms.PhoneNumberService
 import com.openlattice.organizations.HazelcastOrganizationService
-import com.openlattice.organizations.OrganizationMetadataEntitySetsService
+import com.openlattice.organizations.OrganizationEntitySetsService
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
@@ -424,21 +424,25 @@ class MechanicUpgradePod {
         )
     }
 
-    fun uninitializedOrganizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
-        val service = OrganizationMetadataEntitySetsService(edmManager(), authorizationManager())
+    fun uninitializedOrganizationEntitySetsService(): OrganizationEntitySetsService {
+        val service = OrganizationEntitySetsService(
+            hazelcastInstance,
+            edmManager(),
+            securePrincipalsManager,
+            authorizationManager()
+        )
         return service
     }
 
-    fun organizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
-        val service = uninitializedOrganizationMetadataEntitySetsService()
+    fun organizationEntitySetsService(): OrganizationEntitySetsService {
+        val service = uninitializedOrganizationEntitySetsService()
         val entitySetService = uninitializedEntitySetManager(service)
-        service.organizationService = uninitializedOrganizationService(service)
         service.entitySetsManager = entitySetService
         service.dataGraphManager = dataGraphManager(entitySetService)
         return service
     }
 
-    fun uninitializedEntitySetManager(metadataService: OrganizationMetadataEntitySetsService): EntitySetManager {
+    fun uninitializedEntitySetManager(organizationEntitySetsService: OrganizationEntitySetsService): EntitySetManager {
         return EntitySetService(
                 hazelcastInstance,
                 eventBus,
@@ -447,7 +451,7 @@ class MechanicUpgradePod {
                 partitionManager(),
                 edmManager(),
                 hikariDataSource,
-                metadataService,
+                organizationEntitySetsService,
                 auditingConfiguration
         )
     }
@@ -486,7 +490,7 @@ class MechanicUpgradePod {
     fun createAllOrgMetadataEntitySets(): CreateAllOrgMetadataEntitySets {
         return CreateAllOrgMetadataEntitySets(
                 toolbox,
-                organizationMetadataEntitySetsService(),
+                organizationEntitySetsService(),
                 securePrincipalsManager,
                 authorizationManager()
         )
@@ -513,7 +517,9 @@ class MechanicUpgradePod {
 
     }
 
-    fun uninitializedOrganizationService(metadataService: OrganizationMetadataEntitySetsService): HazelcastOrganizationService {
+    fun uninitializedOrganizationService(
+        organizationEntitySetsService: OrganizationEntitySetsService
+    ): HazelcastOrganizationService {
         val dbCredService = DbCredentialService(
                 toolbox.hazelcast,
                 HazelcastLongIdService(hazelcastClientProvider)
@@ -536,7 +542,7 @@ class MechanicUpgradePod {
                 PhoneNumberService(hazelcastInstance),
                 partitionManager(),
                 assembler,
-                metadataService
+                organizationEntitySetsService
         )
     }
 
@@ -612,7 +618,7 @@ class MechanicUpgradePod {
     fun populateOrgMetadataEntitySets(): PopulateOrgMetadataEntitySets {
         return PopulateOrgMetadataEntitySets(
                 toolbox,
-                organizationMetadataEntitySetsService()
+                organizationEntitySetsService()
         )
     }
 
