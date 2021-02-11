@@ -24,18 +24,14 @@ import com.codahale.metrics.MetricRegistry
 import com.geekbeast.hazelcast.HazelcastClientProvider
 import com.geekbeast.rhizome.jobs.HazelcastJobService
 import com.google.common.eventbus.EventBus
+import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
 import com.kryptnostic.rhizome.configuration.RhizomeConfiguration
 import com.openlattice.assembler.Assembler
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditingConfiguration
 import com.openlattice.auditing.pods.AuditingConfigurationPod
-import com.openlattice.authorization.AuthorizationManager
-import com.openlattice.authorization.DbCredentialService
-import com.openlattice.authorization.HazelcastAclKeyReservationService
-import com.openlattice.authorization.HazelcastAuthorizationService
-import com.openlattice.authorization.HazelcastPrincipalsMapManager
-import com.openlattice.authorization.PrincipalsMapManager
+import com.openlattice.authorization.*
 import com.openlattice.data.DataGraphManager
 import com.openlattice.data.DataGraphService
 import com.openlattice.data.EntityKeyIdService
@@ -74,6 +70,7 @@ import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.external.ExternalDatabasePermissioner
 import com.openlattice.postgres.external.ExternalDatabasePermissioningService
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
+import com.openlattice.transporter.services.TransporterService
 import com.openlattice.transporter.types.TransporterDatastore
 import com.zaxxer.hikari.HikariDataSource
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
@@ -127,6 +124,9 @@ class MechanicUpgradePod {
 
     @Inject
     private lateinit var securePrincipalsManager: SecurePrincipalsManager
+
+    @Inject
+    private lateinit var executor: ListeningExecutorService
 
     // Added for SyncOrgPermissionsUpgrade
     @Bean
@@ -637,11 +637,20 @@ class MechanicUpgradePod {
         return ExternalDatabaseManagementService(
                 hazelcastInstance,
                 externalDatabaseConnectionManager,
-                securePrincipalsManager(),
+                securePrincipalsManager,
                 aclKeyReservationService(),
                 authorizationManager(),
                 OrganizationExternalDatabaseConfiguration("", "", ""),
-                TransporterDatastore(assemblerConfiguration, rhizomeConfiguration, externalDatabaseConnectionManager),
+                externalDatabasePermissioningService(),
+                TransporterService(
+                        eventBus,
+                        edmManager(),
+                        partitionManager(),
+                        uninitializedEntitySetManager(uninitializedOrganizationMetadataEntitySetsService()),
+                        executor,
+                        hazelcastInstance,
+                        TransporterDatastore(assemblerConfiguration, rhizomeConfiguration, externalDatabaseConnectionManager, externalDatabasePermissioningService())
+                ),
                 dbCredentialService(),
                 hikariDataSource
         )
