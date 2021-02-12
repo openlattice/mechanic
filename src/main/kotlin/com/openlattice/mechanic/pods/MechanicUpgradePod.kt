@@ -644,29 +644,24 @@ class MechanicUpgradePod {
 
     fun externalDatabaseManagementService(): ExternalDatabaseManagementService {
         return ExternalDatabaseManagementService(
-            hazelcastInstance,
-            externalDatabaseConnectionManager,
-            securePrincipalsManager,
-            aclKeyReservationService(),
-            authorizationManager(),
-            OrganizationExternalDatabaseConfiguration("", "", ""),
-            externalDatabasePermissioningService(),
-            TransporterService(
-                eventBus,
-                edmManager(),
-                partitionManager(),
-                uninitializedEntitySetManager(uninitializedOrganizationEntitySetsService()),
-                executor,
                 hazelcastInstance,
-                TransporterDatastore(
-                    assemblerConfiguration,
-                    rhizomeConfiguration,
-                    externalDatabaseConnectionManager,
-                    externalDatabasePermissioningService()
-                )
-            ),
-            dbCredentialService(),
-            hikariDataSource
+                externalDatabaseConnectionManager,
+                securePrincipalsManager,
+                aclKeyReservationService(),
+                authorizationManager(),
+                OrganizationExternalDatabaseConfiguration("", "", ""),
+                externalDatabasePermissioningService(),
+                TransporterService(
+                        eventBus,
+                        edmManager(),
+                        partitionManager(),
+                        uninitializedEntitySetManager(uninitializedOrganizationEntitySetsService()),
+                        executor,
+                        hazelcastInstance,
+                        TransporterDatastore(assemblerConfiguration, rhizomeConfiguration, externalDatabaseConnectionManager, externalDatabasePermissioningService())
+                ),
+                dbCredentialService(),
+                hikariDataSource
         )
     }
 
