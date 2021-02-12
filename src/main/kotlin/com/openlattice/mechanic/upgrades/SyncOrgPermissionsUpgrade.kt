@@ -20,6 +20,7 @@ import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.external.ExternalDatabasePermissioningService
 import com.openlattice.transporter.processors.GetPropertyTypesFromTransporterColumnSetEntryProcessor
+import com.openlattice.transporter.services.TransporterService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -30,7 +31,8 @@ class SyncOrgPermissionsUpgrade(
         toolbox: Toolbox,
         private val exConnMan: ExternalDatabaseConnectionManager,
         private val exDbPermMan: ExternalDatabasePermissioningService,
-        private val dbCreds: DbCredentialService
+        private val dbCreds: DbCredentialService,
+        private val tarnsporterService: TransporterService
 ): Upgrade {
 
     val logger: Logger = LoggerFactory.getLogger(SyncOrgPermissionsUpgrade::class.java)

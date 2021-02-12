@@ -31,7 +31,12 @@ import com.openlattice.assembler.Assembler
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditingConfiguration
 import com.openlattice.auditing.pods.AuditingConfigurationPod
-import com.openlattice.authorization.*
+import com.openlattice.authorization.AuthorizationManager
+import com.openlattice.authorization.DbCredentialService
+import com.openlattice.authorization.HazelcastAclKeyReservationService
+import com.openlattice.authorization.HazelcastAuthorizationService
+import com.openlattice.authorization.HazelcastPrincipalsMapManager
+import com.openlattice.authorization.PrincipalsMapManager
 import com.openlattice.data.DataGraphManager
 import com.openlattice.data.DataGraphService
 import com.openlattice.data.EntityKeyIdService
@@ -123,7 +128,6 @@ class MechanicUpgradePod {
     @Inject
     private lateinit var byteBlobDataManager: ByteBlobDataManager
 
-
     @Inject
     private lateinit var executor: ListeningExecutorService
 
@@ -144,7 +148,8 @@ class MechanicUpgradePod {
                 toolbox,
                 externalDatabaseConnectionManager,
                 externalDatabasePermissioningService(),
-                dbCreds()
+                dbCreds(),
+                transporterService()
         )
     }
 
@@ -641,6 +646,19 @@ class MechanicUpgradePod {
         return DbCredentialService(hazelcastInstance, HazelcastLongIdService(hazelcastClientProvider))
     }
 
+    @Bean
+    fun transporterService(): TransporterService {
+        return TransporterService(
+                eventBus,
+                edmManager(),
+                partitionManager(),
+                uninitializedEntitySetManager(uninitializedOrganizationMetadataEntitySetsService()),
+                executor,
+                hazelcastInstance,
+                TransporterDatastore(assemblerConfiguration, rhizomeConfiguration, externalDatabaseConnectionManager, externalDatabasePermissioningService())
+        )
+    }
+
 
     fun externalDatabaseManagementService(): ExternalDatabaseManagementService {
         return ExternalDatabaseManagementService(
@@ -651,15 +669,7 @@ class MechanicUpgradePod {
                 authorizationManager(),
                 OrganizationExternalDatabaseConfiguration("", "", ""),
                 externalDatabasePermissioningService(),
-                TransporterService(
-                        eventBus,
-                        edmManager(),
-                        partitionManager(),
-                        uninitializedEntitySetManager(uninitializedOrganizationMetadataEntitySetsService()),
-                        executor,
-                        hazelcastInstance,
-                        TransporterDatastore(assemblerConfiguration, rhizomeConfiguration, externalDatabaseConnectionManager, externalDatabasePermissioningService())
-                ),
+                transporterService(),
                 dbCredentialService(),
                 hikariDataSource
         )
