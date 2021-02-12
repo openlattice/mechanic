@@ -32,6 +32,7 @@ class SyncOrgPermissionsUpgrade(
     private val principalTrees = HazelcastMap.PRINCIPAL_TREES.getMap(toolbox.hazelcast)
     private val princpals = HazelcastMap.PRINCIPALS.getMap(toolbox.hazelcast)
     private val permissions = HazelcastMap.PERMISSIONS.getMap(toolbox.hazelcast)
+    private val dbCredentials = HazelcastMap.DB_CREDS.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
         val addRolesToDbCreds = addRolesToDbCreds()
@@ -144,10 +145,14 @@ class SyncOrgPermissionsUpgrade(
     }
 
     private fun mapAllPrincipalTrees(): Boolean {
+        val validAclKeys = dbCredentials.keys.toSet()
+
         principalTrees.entries.flatMap { (target, sources) ->
             sources.map { source ->
                 source to target
             }
+        }.filter {
+            validAclKeys.contains(it.first) && validAclKeys.contains(it.second)
         }.groupBy({
             it.first
         }, {
