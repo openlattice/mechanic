@@ -24,17 +24,14 @@ import com.codahale.metrics.MetricRegistry
 import com.geekbeast.hazelcast.HazelcastClientProvider
 import com.geekbeast.rhizome.jobs.HazelcastJobService
 import com.google.common.eventbus.EventBus
+import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
+import com.kryptnostic.rhizome.configuration.RhizomeConfiguration
 import com.openlattice.assembler.Assembler
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditingConfiguration
 import com.openlattice.auditing.pods.AuditingConfigurationPod
-import com.openlattice.authorization.AuthorizationManager
-import com.openlattice.authorization.DbCredentialService
-import com.openlattice.authorization.HazelcastAclKeyReservationService
-import com.openlattice.authorization.HazelcastAuthorizationService
-import com.openlattice.authorization.HazelcastPrincipalsMapManager
-import com.openlattice.authorization.PrincipalsMapManager
+import com.openlattice.authorization.*
 import com.openlattice.data.DataGraphManager
 import com.openlattice.data.DataGraphService
 import com.openlattice.data.EntityKeyIdService
@@ -63,14 +60,18 @@ import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.*
 import com.openlattice.notifications.sms.PhoneNumberService
+import com.openlattice.organizations.ExternalDatabaseManagementService
 import com.openlattice.organizations.HazelcastOrganizationService
 import com.openlattice.organizations.OrganizationEntitySetsService
+import com.openlattice.organizations.OrganizationExternalDatabaseConfiguration
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.external.ExternalDatabasePermissioner
 import com.openlattice.postgres.external.ExternalDatabasePermissioningService
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
+import com.openlattice.transporter.services.TransporterService
+import com.openlattice.transporter.types.TransporterDatastore
 import com.zaxxer.hikari.HikariDataSource
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.springframework.context.annotation.Bean
@@ -107,6 +108,9 @@ class MechanicUpgradePod {
     private lateinit var auditingConfiguration: AuditingConfiguration
 
     @Inject
+    private lateinit var rhizomeConfiguration: RhizomeConfiguration
+
+    @Inject
     private lateinit var externalDatabaseConnectionManager: ExternalDatabaseConnectionManager
 
     @Inject
@@ -121,24 +125,27 @@ class MechanicUpgradePod {
     @Inject
     private lateinit var securePrincipalsManager: SecurePrincipalsManager
 
+    @Inject
+    private lateinit var executor: ListeningExecutorService
+
     // Added for SyncOrgPermissionsUpgrade
     @Bean
     fun syncExternalPermissions(): SyncOrgPermissionsUpgrade {
         return SyncOrgPermissionsUpgrade(
-                toolbox,
-                externalDatabaseConnectionManager,
-                externalDatabasePermissioningService(),
-                dbCreds()
+            toolbox,
+            externalDatabaseConnectionManager,
+            externalDatabasePermissioningService(),
+            dbCreds()
         )
     }
 
     @Bean
     fun externalDatabasePermissioningService(): ExternalDatabasePermissioningService {
         return ExternalDatabasePermissioner(
-                toolbox.hazelcast,
-                externalDatabaseConnectionManager,
-                dbCreds(),
-                principalsMapManager()
+            toolbox.hazelcast,
+            externalDatabaseConnectionManager,
+            dbCreds(),
+            principalsMapManager()
         )
     }
 
@@ -150,8 +157,8 @@ class MechanicUpgradePod {
     @Bean
     fun dbCreds(): DbCredentialService {
         return DbCredentialService(
-                toolbox.hazelcast,
-                longIdService()
+            toolbox.hazelcast,
+            longIdService()
         )
     }
 
@@ -203,9 +210,9 @@ class MechanicUpgradePod {
     @Bean
     fun materializationForeignServer(): MaterializationForeignServer {
         return MaterializationForeignServer(
-                mapstoresPod.organizationAssemblies() as OrganizationAssemblyMapstore,
-                assemblerConfiguration,
-                externalDatabaseConnectionManager
+            mapstoresPod.organizationAssemblies() as OrganizationAssemblyMapstore,
+            assemblerConfiguration,
+            externalDatabaseConnectionManager
         )
     }
 
@@ -217,9 +224,9 @@ class MechanicUpgradePod {
     @Bean
     fun organizationDbUserSetup(): OrganizationDbUserSetup {
         return OrganizationDbUserSetup(
-                mapstoresPod.organizationAssemblies() as OrganizationAssemblyMapstore,
-                assemblerConfiguration,
-                externalDatabaseConnectionManager
+            mapstoresPod.organizationAssemblies() as OrganizationAssemblyMapstore,
+            assemblerConfiguration,
+            externalDatabaseConnectionManager
         )
     }
 
@@ -301,30 +308,31 @@ class MechanicUpgradePod {
     @Bean
     fun rectifyOrganizationsUpgrade(): RectifyOrganizationsUpgrade {
         val dbCredService = DbCredentialService(
-                toolbox.hazelcast,
-                HazelcastLongIdService(hazelcastClientProvider)
+            toolbox.hazelcast,
+            HazelcastLongIdService(hazelcastClientProvider)
         )
         val assembler = Assembler(
-                dbCredService,
-                toolbox.hds,
-                authorizationManager(),
-                securePrincipalsManager,
-                metricRegistry,
-                toolbox.hazelcast,
-                eventBus
+            dbCredService,
+            toolbox.hds,
+            authorizationManager(),
+            securePrincipalsManager,
+            metricRegistry,
+            toolbox.hazelcast,
+            eventBus
         )
         return RectifyOrganizationsUpgrade(
-                toolbox,
-                assembler
+            toolbox,
+            assembler
         )
     }
 
     @Bean
     fun grantPublicSchemaAccessToOrgs(): GrantPublicSchemaAccessToOrgs {
         return GrantPublicSchemaAccessToOrgs(
-                mapstoresPod.organizationsMapstore() as OrganizationsMapstore,
-                securePrincipalsManager,
-                assemblerConfiguration)
+            mapstoresPod.organizationsMapstore() as OrganizationsMapstore,
+            securePrincipalsManager,
+            assemblerConfiguration
+        )
     }
 
     @Bean
@@ -416,11 +424,11 @@ class MechanicUpgradePod {
     @Bean
     fun edmManager(): EdmManager {
         return EdmService(
-                hazelcastInstance,
-                aclKeyReservationService(),
-                authorizationManager(),
-                postgresTypeManager(),
-                schemaManager()
+            hazelcastInstance,
+            aclKeyReservationService(),
+            authorizationManager(),
+            postgresTypeManager(),
+            schemaManager()
         )
     }
 
@@ -444,15 +452,15 @@ class MechanicUpgradePod {
 
     fun uninitializedEntitySetManager(organizationEntitySetsService: OrganizationEntitySetsService): EntitySetManager {
         return EntitySetService(
-                hazelcastInstance,
-                eventBus,
-                aclKeyReservationService(),
-                authorizationManager(),
-                partitionManager(),
-                edmManager(),
-                hikariDataSource,
-                organizationEntitySetsService,
-                auditingConfiguration
+            hazelcastInstance,
+            eventBus,
+            aclKeyReservationService(),
+            authorizationManager(),
+            partitionManager(),
+            edmManager(),
+            hikariDataSource,
+            organizationEntitySetsService,
+            auditingConfiguration
         )
     }
 
@@ -489,10 +497,10 @@ class MechanicUpgradePod {
     @Bean
     fun createAllOrgMetadataEntitySets(): CreateAllOrgMetadataEntitySets {
         return CreateAllOrgMetadataEntitySets(
-                toolbox,
-                organizationEntitySetsService(),
-                securePrincipalsManager,
-                authorizationManager()
+            toolbox,
+            organizationEntitySetsService(),
+            securePrincipalsManager,
+            authorizationManager()
         )
     }
 
@@ -521,38 +529,38 @@ class MechanicUpgradePod {
         organizationEntitySetsService: OrganizationEntitySetsService
     ): HazelcastOrganizationService {
         val dbCredService = DbCredentialService(
-                toolbox.hazelcast,
-                HazelcastLongIdService(hazelcastClientProvider)
+            toolbox.hazelcast,
+            HazelcastLongIdService(hazelcastClientProvider)
         )
         val assembler = Assembler(
-                dbCredService,
-                toolbox.hds,
-                authorizationManager(),
-                securePrincipalsManager,
-                metricRegistry,
-                toolbox.hazelcast,
-                eventBus
+            dbCredService,
+            toolbox.hds,
+            authorizationManager(),
+            securePrincipalsManager,
+            metricRegistry,
+            toolbox.hazelcast,
+            eventBus
         )
 
         return HazelcastOrganizationService(
-                hazelcastInstance,
-                aclKeyReservationService(),
-                authorizationManager(),
-                securePrincipalsManager,
-                PhoneNumberService(hazelcastInstance),
-                partitionManager(),
-                assembler,
-                organizationEntitySetsService
+            hazelcastInstance,
+            aclKeyReservationService(),
+            authorizationManager(),
+            securePrincipalsManager,
+            PhoneNumberService(hazelcastInstance),
+            partitionManager(),
+            assembler,
+            organizationEntitySetsService
         )
     }
 
     @Bean
     fun dataQueryService(): PostgresEntityDataQueryService {
         return PostgresEntityDataQueryService(
-                hikariDataSource,
-                hikariDataSource,
-                byteBlobDataManager,
-                partitionManager()
+            hikariDataSource,
+            hikariDataSource,
+            byteBlobDataManager,
+            partitionManager()
         )
     }
 
@@ -568,13 +576,13 @@ class MechanicUpgradePod {
 
     fun entityDatastore(entitySetManager: EntitySetManager): EntityDatastore {
         return PostgresEntityDatastore(
-                dataQueryService(),
-                edmManager(),
-                entitySetManager,
-                metricRegistry,
-                eventBus,
-                postgresLinkingFeedbackQueryService(),
-                lqs()
+            dataQueryService(),
+            edmManager(),
+            entitySetManager,
+            metricRegistry,
+            eventBus,
+            postgresLinkingFeedbackQueryService(),
+            lqs()
         )
     }
 
@@ -586,9 +594,10 @@ class MechanicUpgradePod {
     @Bean
     fun idService(): EntityKeyIdService {
         return PostgresEntityKeyIdService(
-                hikariDataSource,
-                idGenerationService(),
-                partitionManager())
+            hikariDataSource,
+            idGenerationService(),
+            partitionManager()
+        )
     }
 
     @Bean
@@ -598,27 +607,29 @@ class MechanicUpgradePod {
 
 
     fun dataGraphManager(entitySetManager: EntitySetManager): DataGraphManager {
-        val graphService = Graph(hikariDataSource,
-                hikariDataSource,
-                entitySetManager,
-                partitionManager(),
-                dataQueryService(),
-                idService(),
-                MetricRegistry())
+        val graphService = Graph(
+            hikariDataSource,
+            hikariDataSource,
+            entitySetManager,
+            partitionManager(),
+            dataQueryService(),
+            idService(),
+            MetricRegistry()
+        )
 
         return DataGraphService(
-                graphService,
-                idService(),
-                entityDatastore(entitySetManager),
-                jobService()
+            graphService,
+            idService(),
+            entityDatastore(entitySetManager),
+            jobService()
         )
     }
 
     @Bean
     fun populateOrgMetadataEntitySets(): PopulateOrgMetadataEntitySets {
         return PopulateOrgMetadataEntitySets(
-                toolbox,
-                organizationEntitySetsService()
+            toolbox,
+            organizationEntitySetsService()
         )
     }
 
@@ -627,4 +638,40 @@ class MechanicUpgradePod {
         return GrantCreateOnOLSchemaToOrgMembers(toolbox, externalDatabaseConnectionManager, securePrincipalsManager)
     }
 
+    fun dbCredentialService(): DbCredentialService {
+        return DbCredentialService(hazelcastInstance, HazelcastLongIdService(hazelcastClientProvider))
+    }
+
+    fun externalDatabaseManagementService(): ExternalDatabaseManagementService {
+        return ExternalDatabaseManagementService(
+            hazelcastInstance,
+            externalDatabaseConnectionManager,
+            securePrincipalsManager,
+            aclKeyReservationService(),
+            authorizationManager(),
+            OrganizationExternalDatabaseConfiguration("", "", ""),
+            externalDatabasePermissioningService(),
+            TransporterService(
+                eventBus,
+                edmManager(),
+                partitionManager(),
+                uninitializedEntitySetManager(uninitializedOrganizationEntitySetsService()),
+                executor,
+                hazelcastInstance,
+                TransporterDatastore(
+                    assemblerConfiguration,
+                    rhizomeConfiguration,
+                    externalDatabaseConnectionManager,
+                    externalDatabasePermissioningService()
+                )
+            ),
+            dbCredentialService(),
+            hikariDataSource
+        )
+    }
+
+    @Bean
+    fun AddSchemaToExternalTables(): AddSchemaToExternalTables {
+        return AddSchemaToExternalTables(toolbox, externalDatabaseManagementService(), aclKeyReservationService())
+    }
 }
