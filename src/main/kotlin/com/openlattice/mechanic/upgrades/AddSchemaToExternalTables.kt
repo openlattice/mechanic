@@ -102,13 +102,10 @@ class AddSchemaToExternalTables(
         edms.deleteOrganizationExternalDatabaseColumnObjects(externalColumns
                 .values
                 .toList()
+                .filter { !tableIds.contains(it.tableId) || !orgIds.contains(it.organizationId) }
                 .groupBy { it.tableId }
-                .filter { tableIds.contains(it.key) }
                 .mapValues {
-                    it.value
-                            .filter { c -> orgIds.contains(c.organizationId) }
-                            .map { c -> c.id }
-                            .toSet()
+                    it.value.map { c -> c.id }.toSet()
                 }
         )
 
