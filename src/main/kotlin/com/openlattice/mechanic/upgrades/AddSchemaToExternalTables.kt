@@ -50,7 +50,11 @@ class AddSchemaToExternalTables(
 
                 tablesAndColumns[it.name]?.let { (oid, _, schemaName) ->
 
-                    reservationService.renameReservation(it.id, it.getUniqueName())
+                    try {
+                        reservationService.renameReservation(it.id, it.getUniqueName())
+                    } catch (e: Exception) {
+                        logger.info("reservation ${it.getUniqueName()} was already renamed, skipping...")
+                    }
 
                     tablesWithSchemaAndOid[it.id] = OrganizationExternalDatabaseTable(
                             id = it.id,
