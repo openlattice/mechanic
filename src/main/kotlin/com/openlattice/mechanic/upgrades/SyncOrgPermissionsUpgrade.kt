@@ -13,6 +13,7 @@ import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.external.ExternalDatabasePermissioningService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.util.*
 
 /**
  * @author Drew Bailey (drew@openlattice.com)
@@ -33,6 +34,7 @@ class SyncOrgPermissionsUpgrade(
     private val princpals = HazelcastMap.PRINCIPALS.getMap(toolbox.hazelcast)
     private val permissions = HazelcastMap.PERMISSIONS.getMap(toolbox.hazelcast)
     private val dbCredentials = HazelcastMap.DB_CREDS.getMap(toolbox.hazelcast)
+    private val externalTables = HazelcastMap.ORGANIZATION_EXTERNAL_DATABASE_TABLE.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
 //        val addRolesToDbCreds = addRolesToDbCreds()
@@ -125,26 +127,66 @@ class SyncOrgPermissionsUpgrade(
         return "${entitySetName}_$columnName"
     }
 
-    private fun createAssignAllPermRoles(): Boolean {
-        logger.info("create assign all perm roles")
-        val filteredPermissionEntries = permissions.entrySet(
-                Predicates.`in`<AceKey, AceValue>(PermissionMapstore.SECURABLE_OBJECT_TYPE_INDEX,
-                        SecurableObjectType.PropertyTypeInEntitySet,
-                        SecurableObjectType.OrganizationExternalDatabaseColumn
-                )
-        )
-        val acls = filteredPermissionEntries.groupBy({
+    private fun mapEntriesToAclsByOrg(permissionEntries: Set<Map.Entry<AceKey, AceValue>>, aclKeyRootToOrg: Map<UUID, UUID>): Map<UUID, List<Acl>> {
+        return permissionEntries.groupBy({
             it.key.aclKey
         }, { (aceKey, aceVal) ->
             val prin = aceKey.principal
             val perms = aceVal.permissions
             val exp = aceVal.expirationDate
             Ace(prin, perms, exp)
-        }).map { (aclkey, aces) ->
-            Acl(aclkey, aces)
+        }).toList().map { (aclkey, aces) ->
+            aclKeyRootToOrg[aclkey.first()] to Acl(aclkey, aces)
+        }.filter {
+            it.first != null
+        }.map {
+            it.first!! to it.second
+        }.groupBy {
+            it.first
+        }.mapValues {
+            it.value.map { pair -> pair.second }
         }
-        exDbPermMan.executePrivilegesUpdate(Action.SET, acls)
-        logger.info("successfully created + assigned all perm roles!")
+
+    }
+
+    private fun createAssignAllPermRoles(): Boolean {
+        logger.info("create assign all perm roles")
+
+        val columnPermissions = permissions.entrySet(Predicates.equal(
+                PermissionMapstore.SECURABLE_OBJECT_TYPE_INDEX,
+                SecurableObjectType.OrganizationExternalDatabaseColumn
+        )).toSet()
+        val tableIdToOrg = externalTables.values.toSet().associate { it.id to it.organizationId }
+        val columnAclsByOrg = mapEntriesToAclsByOrg(columnPermissions, tableIdToOrg)
+
+        logger.info("Loaded ${columnPermissions.size} column permissions across ${columnAclsByOrg.size} organizations")
+
+        val ptPermissions = permissions.entrySet(Predicates.equal(
+                PermissionMapstore.SECURABLE_OBJECT_TYPE_INDEX,
+                SecurableObjectType.PropertyTypeInEntitySet
+        )).toSet()
+        val entitySetIdToOrg = toolbox.entitySets.values.associate { it.id to it.organizationId }
+        val ptAclsByOrg = mapEntriesToAclsByOrg(ptPermissions, entitySetIdToOrg)
+
+        logger.info("Loaded ${ptPermissions.size} property type permissions across ${ptAclsByOrg.size} organizations")
+
+
+        columnAclsByOrg.forEach { (organizationId, acls) ->
+            logger.info("About to sync ${acls.size} column acls for organization $organizationId")
+
+            exDbPermMan.executePrivilegesUpdate(Action.SET, acls)
+
+            logger.info("Finished syncing column accls for organization $organizationId")
+        }
+
+        ptAclsByOrg.forEach { (organizationId, acls) ->
+            logger.info("About to sync ${acls.size} property type acls for organization $organizationId")
+
+            exDbPermMan.executePrivilegesUpdate(Action.SET, acls)
+
+            logger.info("Finished syncing property type accls for organization $organizationId")
+        }
+
         return true
     }
 
