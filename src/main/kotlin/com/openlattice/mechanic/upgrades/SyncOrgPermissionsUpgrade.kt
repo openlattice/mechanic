@@ -161,12 +161,15 @@ class SyncOrgPermissionsUpgrade(
 
         logger.info("Loaded ${columnPermissions.size} column permissions across ${columnAclsByOrg.size} organizations")
 
+        val assembledEntitySetIdToOrg = toolbox.entitySets.values.filter {
+            it.flags.contains(EntitySetFlag.TRANSPORTED)
+        }.associate { it.id to it.organizationId }
+
         val ptPermissions = permissions.entrySet(Predicates.equal(
                 PermissionMapstore.SECURABLE_OBJECT_TYPE_INDEX,
                 SecurableObjectType.PropertyTypeInEntitySet
         )).toSet()
-        val entitySetIdToOrg = toolbox.entitySets.values.associate { it.id to it.organizationId }
-        val ptAclsByOrg = mapEntriesToAclsByOrg(ptPermissions, entitySetIdToOrg)
+        val ptAclsByOrg = mapEntriesToAclsByOrg(ptPermissions, assembledEntitySetIdToOrg)
 
         logger.info("Loaded ${ptPermissions.size} property type permissions across ${ptAclsByOrg.size} organizations")
 
