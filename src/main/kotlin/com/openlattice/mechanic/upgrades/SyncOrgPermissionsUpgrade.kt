@@ -1,15 +1,7 @@
 package com.openlattice.mechanic.upgrades
 
 import com.hazelcast.query.Predicates
-import com.openlattice.authorization.Ace
-import com.openlattice.authorization.AceKey
-import com.openlattice.authorization.AceValue
-import com.openlattice.authorization.Acl
-import com.openlattice.authorization.AclKey
-import com.openlattice.authorization.Action
-import com.openlattice.authorization.DbCredentialService
-import com.openlattice.authorization.PrincipalType
-import com.openlattice.authorization.SecurablePrincipal
+import com.openlattice.authorization.*
 import com.openlattice.authorization.mapstores.PermissionMapstore
 import com.openlattice.authorization.mapstores.PrincipalMapstore
 import com.openlattice.authorization.securable.SecurableObjectType
@@ -19,8 +11,6 @@ import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.external.ExternalDatabasePermissioningService
-import com.openlattice.transporter.processors.GetPropertyTypesFromTransporterColumnSetEntryProcessor
-import com.openlattice.transporter.services.TransporterService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -28,12 +18,11 @@ import org.slf4j.LoggerFactory
  * @author Drew Bailey (drew@openlattice.com)
  */
 class SyncOrgPermissionsUpgrade(
-        toolbox: Toolbox,
+        private val toolbox: Toolbox,
         private val exConnMan: ExternalDatabaseConnectionManager,
         private val exDbPermMan: ExternalDatabasePermissioningService,
-        private val dbCreds: DbCredentialService,
-        private val tarnsporterService: TransporterService
-): Upgrade {
+        private val dbCreds: DbCredentialService
+) : Upgrade {
 
     val logger: Logger = LoggerFactory.getLogger(SyncOrgPermissionsUpgrade::class.java)
 
@@ -49,7 +38,7 @@ class SyncOrgPermissionsUpgrade(
         val assemblies = initializeAssemblyPermissions()
         val mapPTrees = mapAllPrincipalTrees()
         val createPRoles = createAssignAllPermRoles()
-        if (addRolesToDbCreds && assemblies  && mapPTrees  && createPRoles) {
+        if (addRolesToDbCreds && assemblies && mapPTrees && createPRoles) {
             return true
         }
         logger.error("Sync permissions upgrade failed, final status:\n" +
@@ -74,17 +63,11 @@ class SyncOrgPermissionsUpgrade(
             es.flags.contains(EntitySetFlag.TRANSPORTED)
         }.groupBy { it.organizationId }
 
-        val etids = assembliesByOrg.values.flatten().mapTo( mutableSetOf() ) { it.entityTypeId }
-
-        val etIdsToPtFqns = transporterState.submitToKeys(
-                etids, GetPropertyTypesFromTransporterColumnSetEntryProcessor()
-        ).thenApply { etIdsToPtIds ->
-            etIdsToPtIds.mapValues { (_, ptids) ->
-                ptids.mapTo(mutableSetOf()) { ptid ->
-                    PropertyTypeIdFqn.fromPropertyType(propertyTypes.getValue(ptid))
-                }
-            }
-        }.toCompletableFuture().get()
+        val etIdsToPtFqns = toolbox.entityTypes.values.associate {
+            it.id to it.properties.map { pt ->
+                PropertyTypeIdFqn.fromPropertyType(toolbox.propertyTypes.getValue(pt))
+            }.toMutableSet()
+        }
 
         // final shape is etid -> Set<PtIdFqn>
         assembliesByOrg.map { (orgId, entitySets) ->
@@ -92,10 +75,10 @@ class SyncOrgPermissionsUpgrade(
                 entitySets.forEach { es ->
                     // this will create all permission roles for transporter use
                     exDbPermMan.initializeAssemblyPermissions(
-                        hds,
-                        es.id,
-                        es.name,
-                        etIdsToPtFqns.getValue(es.entityTypeId)
+                            hds,
+                            es.id,
+                            es.name,
+                            etIdsToPtFqns.getValue(es.entityTypeId)
                     )
                 }
             }
@@ -123,7 +106,7 @@ class SyncOrgPermissionsUpgrade(
                 }
             }
             exConnMan.connectToOrg(orgId).use { hds ->
-                hds.connection.use {  conn ->
+                hds.connection.use { conn ->
                     conn.createStatement().use { stmt ->
                         statements.forEach {
                             stmt.addBatch(it)

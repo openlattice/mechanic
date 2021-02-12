@@ -7,20 +7,29 @@ enable-persistence:  false
 session-clustering-enabled: false
 
 hazelcast:
-    server: true
+  server: true
+  group: "local"
+  password: "trellis"
+  seed-nodes:
+    - "localhost"
+  cp-member-count: 0
+
+
+hazelcast-clients:
+  IDS:
+    server: false
     group: "local"
     password: "trellis"
-    seed-nodes: 
-        - "localhost"
     cp-member-count: 0
-
+    seed-nodes:
+      - "localhost"
 
 postgres:
-    citus: false
-    initialize-indices: true
-    hikari:
-        jdbcUrl: jdbc:postgresql://localhost:5432/openlattice
-        username: "oltest"
-        password: "test"
-        maximumPoolSize: 32
-        connectionTimeout: 30000
+  citus: false
+  initialize-indices: true
+  hikari:
+    jdbcUrl: jdbc:postgresql://localhost:5432/openlattice
+    username: "oltest"
+    password: "test"
+    maximumPoolSize: 32
+    connectionTimeout: 30000
