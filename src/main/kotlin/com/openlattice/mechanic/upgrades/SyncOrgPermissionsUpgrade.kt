@@ -124,6 +124,7 @@ class SyncOrgPermissionsUpgrade(
     }
 
     private fun createAssignAllPermRoles(): Boolean {
+        logger.info("create assign all perm roles")
         val filteredPermissionEntries = permissions.entrySet(
                 Predicates.`in`<AceKey, AceValue>(PermissionMapstore.SECURABLE_OBJECT_TYPE_INDEX,
                         SecurableObjectType.PropertyTypeInEntitySet,
@@ -141,10 +142,12 @@ class SyncOrgPermissionsUpgrade(
             Acl(aclkey, aces)
         }
         exDbPermMan.executePrivilegesUpdate(Action.SET, acls)
+        logger.info("successfully created + assigned all perm roles!")
         return true
     }
 
     private fun mapAllPrincipalTrees(): Boolean {
+        logger.info("mapping all principal trees")
         val validAclKeys = dbCredentials.keys.toSet()
 
         principalTrees.entries.flatMap { (target, sources) ->
@@ -160,6 +163,7 @@ class SyncOrgPermissionsUpgrade(
         }).forEach { (source, targets) ->
             exDbPermMan.addPrincipalToPrincipals(source, targets.toSet())
         }
+        logger.info("successfully mapped principal trees!")
         return true
     }
 
