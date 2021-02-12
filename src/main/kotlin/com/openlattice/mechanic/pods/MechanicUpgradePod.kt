@@ -31,12 +31,7 @@ import com.openlattice.assembler.Assembler
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditingConfiguration
 import com.openlattice.auditing.pods.AuditingConfigurationPod
-import com.openlattice.authorization.AuthorizationManager
-import com.openlattice.authorization.DbCredentialService
-import com.openlattice.authorization.HazelcastAclKeyReservationService
-import com.openlattice.authorization.HazelcastAuthorizationService
-import com.openlattice.authorization.HazelcastPrincipalsMapManager
-import com.openlattice.authorization.PrincipalsMapManager
+import com.openlattice.authorization.*
 import com.openlattice.data.DataGraphManager
 import com.openlattice.data.DataGraphService
 import com.openlattice.data.EntityKeyIdService
@@ -148,8 +143,7 @@ class MechanicUpgradePod {
                 toolbox,
                 externalDatabaseConnectionManager,
                 externalDatabasePermissioningService(),
-                dbCreds(),
-                transporterService()
+                dbCreds()
         )
     }
 
