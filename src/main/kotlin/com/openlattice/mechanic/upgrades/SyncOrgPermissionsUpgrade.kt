@@ -35,18 +35,20 @@ class SyncOrgPermissionsUpgrade(
     private val dbCredentials = HazelcastMap.DB_CREDS.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
-        val addRolesToDbCreds = addRolesToDbCreds()
-        val assemblies = initializeAssemblyPermissions()
+//        val addRolesToDbCreds = addRolesToDbCreds()
+//        val assemblies = initializeAssemblyPermissions()
         val mapPTrees = mapAllPrincipalTrees()
         val createPRoles = createAssignAllPermRoles()
-        if (addRolesToDbCreds && assemblies && mapPTrees && createPRoles) {
+        if (mapPTrees && createPRoles) {
+            logger.info("omg yay")
             return true
         }
-        logger.error("Sync permissions upgrade failed, final status:\n" +
-                "addRolesToDbCreds: {}\n" +
-                "updatePermissionsForAssemblies: {}\n" +
-                "mapAllPrincipalTrees: {}\n" +
-                "createAllPermRoles: {}\n", addRolesToDbCreds, assemblies, mapPTrees, createPRoles)
+        logger.error("failure :(")
+//        logger.error("Sync permissions upgrade failed, final status:\n" +
+//                "addRolesToDbCreds: {}\n" +
+//                "updatePermissionsForAssemblies: {}\n" +
+//                "mapAllPrincipalTrees: {}\n" +
+//                "createAllPermRoles: {}\n", addRolesToDbCreds, assemblies, mapPTrees, createPRoles)
         return false
     }
 
