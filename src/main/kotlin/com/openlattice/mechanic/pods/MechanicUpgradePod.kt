@@ -65,6 +65,7 @@ import com.openlattice.organizations.HazelcastOrganizationService
 import com.openlattice.organizations.OrganizationExternalDatabaseConfiguration
 import com.openlattice.organizations.OrganizationMetadataEntitySetsService
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
+import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.external.ExternalDatabasePermissioner
@@ -122,11 +123,19 @@ class MechanicUpgradePod {
     @Inject
     private lateinit var byteBlobDataManager: ByteBlobDataManager
 
-    @Inject
-    private lateinit var securePrincipalsManager: SecurePrincipalsManager
 
     @Inject
     private lateinit var executor: ListeningExecutorService
+
+    @Bean
+    fun securePrincipalsManager(): SecurePrincipalsManager {
+        return HazelcastPrincipalService(hazelcastInstance,
+                aclKeyReservationService(),
+                authorizationManager(),
+                principalsMapManager(),
+                externalDatabasePermissioningService()
+        )
+    }
 
     // Added for SyncOrgPermissionsUpgrade
     @Bean
