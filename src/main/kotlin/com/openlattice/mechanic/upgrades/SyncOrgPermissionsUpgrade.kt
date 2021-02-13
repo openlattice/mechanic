@@ -14,6 +14,7 @@ import com.openlattice.postgres.external.ExternalDatabasePermissioningService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.*
+import kotlin.math.ceil
 
 /**
  * @author Drew Bailey (drew@openlattice.com)
@@ -165,29 +166,56 @@ class SyncOrgPermissionsUpgrade(
             it.flags.contains(EntitySetFlag.TRANSPORTED)
         }.associate { it.id to it.organizationId }
 
-        val ptPermissions = permissions.entrySet(Predicates.equal(
-                PermissionMapstore.SECURABLE_OBJECT_TYPE_INDEX,
-                SecurableObjectType.PropertyTypeInEntitySet
+        val ptPermissions = permissions.entrySet(Predicates.and(
+                Predicates.equal<AceKey, AceValue>(
+                        PermissionMapstore.SECURABLE_OBJECT_TYPE_INDEX,
+                        SecurableObjectType.PropertyTypeInEntitySet
+
+                ),
+                Predicates.`in`<AceKey, AceValue>(
+                        PermissionMapstore.ROOT_OBJECT_INDEX,
+                        *assembledEntitySetIdToOrg.keys.toTypedArray()
+                )
         )).toSet()
         val ptAclsByOrg = mapEntriesToAclsByOrg(ptPermissions, assembledEntitySetIdToOrg)
 
         logger.info("Loaded ${ptPermissions.size} property type permissions across ${ptAclsByOrg.size} organizations")
 
 
+        var colBatch = 1
+        val totalColBatches = columnAclsByOrg.size
         columnAclsByOrg.forEach { (organizationId, acls) ->
-            logger.info("About to sync ${acls.size} column acls for organization $organizationId")
+            logger.info("COLUMNS [ $colBatch / $totalColBatches]: About to sync ${acls.size} column acls for organization $organizationId")
 
-            exDbPermMan.executePrivilegesUpdate(Action.SET, acls)
+            var batchNum = 1
+            val totalBatches = ceil(acls.size * 1.0 / 1000)
+
+            acls.chunked(1000).forEach { aclChunk ->
+                logger.info("Processing batch [ $batchNum / $totalBatches ]")
+                exDbPermMan.executePrivilegesUpdate(Action.SET, aclChunk)
+                batchNum++
+            }
 
             logger.info("Finished syncing column accls for organization $organizationId")
+            colBatch++
         }
 
+        var ptBatch = 1
+        val totalPtBatches = ptAclsByOrg.size
         ptAclsByOrg.forEach { (organizationId, acls) ->
-            logger.info("About to sync ${acls.size} property type acls for organization $organizationId")
+            logger.info("PROPERTY TYPES [ $ptBatch / $totalPtBatches]: About to sync ${acls.size} property type acls for organization $organizationId")
 
-            exDbPermMan.executePrivilegesUpdate(Action.SET, acls)
+            var batchNum = 1
+            val totalBatches = ceil(acls.size * 1.0 / 1000)
+
+            acls.chunked(1000).forEach { aclChunk ->
+                logger.info("Processing batch [ $batchNum / $totalBatches ]")
+                exDbPermMan.executePrivilegesUpdate(Action.SET, aclChunk)
+                batchNum++
+            }
 
             logger.info("Finished syncing property type accls for organization $organizationId")
+            ptBatch++
         }
 
         return true
