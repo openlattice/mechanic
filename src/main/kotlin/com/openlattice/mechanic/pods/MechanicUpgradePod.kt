@@ -65,6 +65,7 @@ import com.openlattice.organizations.HazelcastOrganizationService
 import com.openlattice.organizations.OrganizationExternalDatabaseConfiguration
 import com.openlattice.organizations.OrganizationMetadataEntitySetsService
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
+import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.external.ExternalDatabasePermissioner
@@ -123,10 +124,17 @@ class MechanicUpgradePod {
     private lateinit var byteBlobDataManager: ByteBlobDataManager
 
     @Inject
-    private lateinit var securePrincipalsManager: SecurePrincipalsManager
-
-    @Inject
     private lateinit var executor: ListeningExecutorService
+
+    @Bean
+    fun securePrincipalsManager(): SecurePrincipalsManager {
+        return HazelcastPrincipalService(hazelcastInstance,
+            aclKeyReservationService(),
+            authorizationManager(),
+            principalsMapManager(),
+            externalDatabasePermissioningService()
+        )
+    }
 
     // Added for SyncOrgPermissionsUpgrade
     @Bean
@@ -315,7 +323,7 @@ class MechanicUpgradePod {
                 dbCredService,
                 toolbox.hds,
                 authorizationManager(),
-                securePrincipalsManager,
+                securePrincipalsManager(),
                 metricRegistry,
                 toolbox.hazelcast,
                 eventBus
@@ -330,7 +338,7 @@ class MechanicUpgradePod {
     fun grantPublicSchemaAccessToOrgs(): GrantPublicSchemaAccessToOrgs {
         return GrantPublicSchemaAccessToOrgs(
                 mapstoresPod.organizationsMapstore() as OrganizationsMapstore,
-                securePrincipalsManager,
+                securePrincipalsManager(),
                 assemblerConfiguration)
     }
 
@@ -432,8 +440,12 @@ class MechanicUpgradePod {
     }
 
     fun uninitializedOrganizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
-        val service = OrganizationMetadataEntitySetsService(edmManager(), authorizationManager())
-        return service
+        return OrganizationMetadataEntitySetsService(
+            hazelcastInstance,
+            edmManager(),
+            securePrincipalsManager(),
+            authorizationManager()
+        )
     }
 
     fun organizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
@@ -494,14 +506,14 @@ class MechanicUpgradePod {
         return CreateAllOrgMetadataEntitySets(
                 toolbox,
                 organizationMetadataEntitySetsService(),
-                securePrincipalsManager,
+                securePrincipalsManager(),
                 authorizationManager()
         )
     }
 
     @Bean
     fun cleanOutOrgMembersAndRoles(): CleanOutOrgMembersAndRoles {
-        return CleanOutOrgMembersAndRoles(toolbox, securePrincipalsManager, authorizationManager())
+        return CleanOutOrgMembersAndRoles(toolbox, securePrincipalsManager(), authorizationManager())
     }
 
     @Bean
@@ -529,7 +541,7 @@ class MechanicUpgradePod {
                 dbCredService,
                 toolbox.hds,
                 authorizationManager(),
-                securePrincipalsManager,
+                securePrincipalsManager(),
                 metricRegistry,
                 toolbox.hazelcast,
                 eventBus
@@ -539,7 +551,7 @@ class MechanicUpgradePod {
                 hazelcastInstance,
                 aclKeyReservationService(),
                 authorizationManager(),
-                securePrincipalsManager,
+                securePrincipalsManager(),
                 PhoneNumberService(hazelcastInstance),
                 partitionManager(),
                 assembler,
@@ -625,7 +637,7 @@ class MechanicUpgradePod {
 
     @Bean
     fun grantCreateOnOLSchemaToOrgMembers(): GrantCreateOnOLSchemaToOrgMembers {
-        return GrantCreateOnOLSchemaToOrgMembers(toolbox, externalDatabaseConnectionManager, securePrincipalsManager)
+        return GrantCreateOnOLSchemaToOrgMembers(toolbox, externalDatabaseConnectionManager, securePrincipalsManager())
     }
 
     fun dbCredentialService(): DbCredentialService {
@@ -637,7 +649,7 @@ class MechanicUpgradePod {
         return ExternalDatabaseManagementService(
                 hazelcastInstance,
                 externalDatabaseConnectionManager,
-                securePrincipalsManager,
+                securePrincipalsManager(),
                 aclKeyReservationService(),
                 authorizationManager(),
                 OrganizationExternalDatabaseConfiguration("", "", ""),
@@ -661,4 +673,14 @@ class MechanicUpgradePod {
         return AddSchemaToExternalTables(toolbox, externalDatabaseManagementService(), aclKeyReservationService())
     }
 
+    @Bean
+    fun deleteAndCreateOrgMetaEntitySets() : DeleteAndCreateOrgMetaEntitySets {
+        val metadata = organizationMetadataEntitySetsService()
+        return DeleteAndCreateOrgMetaEntitySets(
+            toolbox,
+            uninitializedOrganizationService(metadata),
+            uninitializedEntitySetManager(metadata),
+            metadata
+        )
+    }
 }
