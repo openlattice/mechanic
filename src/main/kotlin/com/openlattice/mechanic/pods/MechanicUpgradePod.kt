@@ -440,8 +440,12 @@ class MechanicUpgradePod {
     }
 
     fun uninitializedOrganizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
-        val service = OrganizationMetadataEntitySetsService(edmManager(), authorizationManager())
-        return service
+        return OrganizationMetadataEntitySetsService(
+            hazelcastInstance,
+            edmManager(),
+            securePrincipalsManager(),
+            authorizationManager()
+        )
     }
 
     fun organizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
@@ -674,4 +678,14 @@ class MechanicUpgradePod {
         return AddSchemaToExternalTables(toolbox, externalDatabaseManagementService(), aclKeyReservationService())
     }
 
+    @Bean
+    fun deleteAndCreateOrgMetaEntitySets() : DeleteAndCreateOrgMetaEntitySets {
+        val meta = organizationMetadataEntitySetsService()
+        return DeleteAndCreateOrgMetaEntitySets(
+            toolbox,
+            uninitializedEntitySetManager(meta),
+            uninitializedOrganizationService(meta),
+            meta
+        )
+    }
 }
