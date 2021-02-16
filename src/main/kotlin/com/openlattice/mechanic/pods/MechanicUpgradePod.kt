@@ -444,7 +444,7 @@ class MechanicUpgradePod {
         return OrganizationMetadataEntitySetsService(
             hazelcastInstance,
             edmManager(),
-            securePrincipalsManager(),
+            principalsMapManager(),
             authorizationManager()
         )
     }
