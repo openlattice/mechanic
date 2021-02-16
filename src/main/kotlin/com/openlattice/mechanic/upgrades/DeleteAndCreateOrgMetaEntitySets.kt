@@ -1,5 +1,7 @@
 package com.openlattice.mechanic.upgrades
 
+import com.openlattice.auditing.AuditRecordEntitySetsManager
+import com.openlattice.authorization.AclKey
 import com.openlattice.datastore.services.EntitySetManager
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
@@ -12,7 +14,8 @@ class DeleteAndCreateOrgMetaEntitySets(
     private val orgsService: HazelcastOrganizationService,
     private val entitySetsService: EntitySetManager,
     private val metadataEntitySetsService: OrganizationMetadataEntitySetsService,
-    private val externalDatabaseManagementService: ExternalDatabaseManagementService
+    private val externalDatabaseManagementService: ExternalDatabaseManagementService,
+    private val auditRecordEntitySetsManager: AuditRecordEntitySetsManager
 ) : Upgrade {
 
     companion object {
@@ -28,6 +31,10 @@ class DeleteAndCreateOrgMetaEntitySets(
         val orgs = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast).toMap()
         orgs.values.forEach {
 
+            logger.info("================================")
+            logger.info("================================")
+            logger.info("starting processing org - ${it.title} (${it.id})")
+
             deleteOrgMetaEntitySet(it, it.organizationMetadataEntitySetIds.organization)
             deleteOrgMetaEntitySet(it, it.organizationMetadataEntitySetIds.columns)
             deleteOrgMetaEntitySet(it, it.organizationMetadataEntitySetIds.datasets)
@@ -42,6 +49,10 @@ class DeleteAndCreateOrgMetaEntitySets(
             logger.info("syncing org external database tables and columns - ${it.title} (${it.id})")
             syncOrgExternalDatabaseObjects(it)
             logger.info("finished syncing org external database tables and columns - ${it.title} (${it.id})")
+
+            logger.info("finished processing org - ${it.title} (${it.id})")
+            logger.info("================================")
+            logger.info("================================")
         }
 
         return true
@@ -81,6 +92,22 @@ class DeleteAndCreateOrgMetaEntitySets(
         val columnIds = columns.mapValues { it.value.map { c -> c.id }.toSet() }
         logger.info("column ids by table id - $columnIds")
 
+        logger.info("adding org external database tables and columns")
         metadataEntitySetsService.addDatasetsAndColumns(org.id, tables.values, columns)
+
+        tables.keys.forEach { id ->
+            val key = AclKey(id)
+            var ids = auditRecordEntitySetsManager.getAuditRecordEntitySets(key)
+            var entitySets = entitySetsService.getEntitySetsAsMap(ids)
+            var propertyTypes = entitySetsService.getPropertyTypesOfEntitySets(ids).mapValues { it.value.values }
+            logger.info("adding audit entity sets associated with org external database tables")
+            metadataEntitySetsService.addDatasetsAndColumns(entitySets.values, propertyTypes)
+
+            ids = auditRecordEntitySetsManager.getAuditEdgeEntitySets(key)
+            entitySets = entitySetsService.getEntitySetsAsMap(ids)
+            propertyTypes = entitySetsService.getPropertyTypesOfEntitySets(ids).mapValues { it.value.values }
+            logger.info("adding audit edge entity sets associated with org external database tables")
+            metadataEntitySetsService.addDatasetsAndColumns(entitySets.values, propertyTypes)
+        }
     }
 }

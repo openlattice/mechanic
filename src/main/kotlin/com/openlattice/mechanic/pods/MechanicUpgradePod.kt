@@ -29,6 +29,7 @@ import com.hazelcast.core.HazelcastInstance
 import com.kryptnostic.rhizome.configuration.RhizomeConfiguration
 import com.openlattice.assembler.Assembler
 import com.openlattice.assembler.AssemblerConfiguration
+import com.openlattice.auditing.AuditRecordEntitySetsManager
 import com.openlattice.auditing.AuditingConfiguration
 import com.openlattice.auditing.pods.AuditingConfigurationPod
 import com.openlattice.authorization.*
@@ -681,7 +682,14 @@ class MechanicUpgradePod {
             uninitializedOrganizationService(metadata),
             uninitializedEntitySetManager(metadata),
             metadata,
-            externalDatabaseManagementService()
+            externalDatabaseManagementService(),
+            auditRecordEntitySetsManager()
         )
+    }
+
+    @Bean
+    fun auditRecordEntitySetsManager(): AuditRecordEntitySetsManager {
+        val metadata = organizationMetadataEntitySetsService()
+        return uninitializedEntitySetManager(metadata).getAuditRecordEntitySetsManager()
     }
 }
