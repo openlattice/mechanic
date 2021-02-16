@@ -680,7 +680,8 @@ class MechanicUpgradePod {
             toolbox,
             uninitializedOrganizationService(metadata),
             uninitializedEntitySetManager(metadata),
-            metadata
+            metadata,
+            externalDatabaseManagementService()
         )
     }
 }
