@@ -17,8 +17,8 @@ class AddPartitionsToOrgsAndEntitySets(private val toolbox: Toolbox) : Upgrade {
 
     override fun upgrade(): Boolean {
 
-        val organizations = HazelcastMap.ORGANIZATIONS.getMap( toolbox.hazelcast )
-        val entitySets = HazelcastMap.ENTITY_SETS.getMap( toolbox.hazelcast )
+        val organizations = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
+        val entitySets = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast)
         val partitionManager = PartitionManager(toolbox.hazelcast, toolbox.hds)
 
         addMissingPartitionsToOrganizations(partitionManager, organizations)
