@@ -692,4 +692,9 @@ class MechanicUpgradePod {
         val metadata = organizationMetadataEntitySetsService()
         return uninitializedEntitySetManager(metadata).getAuditRecordEntitySetsManager()
     }
+
+    @Bean
+    fun grantReadToOrgOnMetadataEntitySets(): GrantReadToOrgOnMetadataEntitySets {
+        return GrantReadToOrgOnMetadataEntitySets(toolbox, authorizationManager())
+    }
 }
