@@ -685,7 +685,7 @@ class MechanicUpgradePod {
         return ExternalDatabaseManagementService(
                 hazelcastInstance,
                 externalDatabaseConnectionManager,
-                securePrincipalsManager(),
+                principalsMapManager(),
                 aclKeyReservationService(),
                 authorizationManager(),
                 OrganizationExternalDatabaseConfiguration("", "", ""),
