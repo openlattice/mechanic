@@ -130,10 +130,10 @@ class MechanicUpgradePod {
     @Bean
     fun securePrincipalsManager(): SecurePrincipalsManager {
         return HazelcastPrincipalService(hazelcastInstance,
-            aclKeyReservationService(),
-            authorizationManager(),
-            principalsMapManager(),
-            externalDatabasePermissioningService()
+                aclKeyReservationService(),
+                authorizationManager(),
+                principalsMapManager(),
+                externalDatabasePermissioningService()
         )
     }
 
@@ -442,10 +442,10 @@ class MechanicUpgradePod {
 
     fun uninitializedOrganizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
         return OrganizationMetadataEntitySetsService(
-            hazelcastInstance,
-            edmManager(),
-            principalsMapManager(),
-            authorizationManager()
+                hazelcastInstance,
+                edmManager(),
+                principalsMapManager(),
+                authorizationManager()
         )
     }
 
@@ -650,7 +650,7 @@ class MechanicUpgradePod {
         return ExternalDatabaseManagementService(
                 hazelcastInstance,
                 externalDatabaseConnectionManager,
-                securePrincipalsManager(),
+                principalsMapManager(),
                 aclKeyReservationService(),
                 authorizationManager(),
                 OrganizationExternalDatabaseConfiguration("", "", ""),
@@ -675,15 +675,15 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun deleteAndCreateOrgMetaEntitySets() : DeleteAndCreateOrgMetaEntitySets {
+    fun deleteAndCreateOrgMetaEntitySets(): DeleteAndCreateOrgMetaEntitySets {
         val metadata = organizationMetadataEntitySetsService()
         return DeleteAndCreateOrgMetaEntitySets(
-            toolbox,
-            uninitializedOrganizationService(metadata),
-            uninitializedEntitySetManager(metadata),
-            metadata,
-            externalDatabaseManagementService(),
-            auditRecordEntitySetsManager()
+                toolbox,
+                uninitializedOrganizationService(metadata),
+                uninitializedEntitySetManager(metadata),
+                metadata,
+                externalDatabaseManagementService(),
+                auditRecordEntitySetsManager()
         )
     }
 
