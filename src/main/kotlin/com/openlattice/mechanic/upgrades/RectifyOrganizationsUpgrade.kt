@@ -1,11 +1,9 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.assembler.Assembler
-import com.openlattice.assembler.AssemblerConnectionManager
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.external.Schemas
-import com.openlattice.transporter.types.TransporterDatastore
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 

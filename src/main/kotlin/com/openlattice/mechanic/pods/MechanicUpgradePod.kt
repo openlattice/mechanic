@@ -33,6 +33,9 @@ import com.openlattice.auditing.AuditRecordEntitySetsManager
 import com.openlattice.auditing.AuditingConfiguration
 import com.openlattice.auditing.pods.AuditingConfigurationPod
 import com.openlattice.authorization.*
+import com.openlattice.collaborations.CollaborationDatabaseManager
+import com.openlattice.collaborations.CollaborationService
+import com.openlattice.collaborations.PostgresCollaborationDatabaseService
 import com.openlattice.data.DataGraphManager
 import com.openlattice.data.DataGraphService
 import com.openlattice.data.EntityKeyIdService
@@ -68,9 +71,7 @@ import com.openlattice.organizations.OrganizationMetadataEntitySetsService
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
-import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
-import com.openlattice.postgres.external.ExternalDatabasePermissioner
-import com.openlattice.postgres.external.ExternalDatabasePermissioningService
+import com.openlattice.postgres.external.*
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
 import com.openlattice.transporter.services.TransporterService
 import com.openlattice.transporter.types.TransporterDatastore
@@ -533,13 +534,9 @@ class MechanicUpgradePod {
 
     }
 
-    fun uninitializedOrganizationService(metadataService: OrganizationMetadataEntitySetsService): HazelcastOrganizationService {
-        val dbCredService = DbCredentialService(
-                toolbox.hazelcast,
-                HazelcastLongIdService(hazelcastClientProvider)
-        )
-        val assembler = Assembler(
-                dbCredService,
+    fun assembler(): Assembler {
+        return Assembler(
+                dbCredentialService(),
                 toolbox.hds,
                 authorizationManager(),
                 securePrincipalsManager(),
@@ -547,7 +544,44 @@ class MechanicUpgradePod {
                 toolbox.hazelcast,
                 eventBus
         )
+    }
 
+    @Bean
+    fun dbQueryManager(): DatabaseQueryManager {
+        return PostgresDatabaseQueryService(
+                assemblerConfiguration,
+                externalDatabaseConnectionManager,
+                securePrincipalsManager(),
+                dbCredentialService()
+        )
+    }
+
+    @Bean
+    fun collaborationDatabaseManager(): CollaborationDatabaseManager {
+        return PostgresCollaborationDatabaseService(
+                hazelcastInstance,
+                dbQueryManager(),
+                externalDatabaseConnectionManager,
+                authorizationManager(),
+                externalDatabasePermissioningService(),
+                securePrincipalsManager(),
+                dbCreds(),
+                assemblerConfiguration
+        )
+    }
+
+    @Bean
+    fun collaborationService(): CollaborationService {
+        return CollaborationService(
+                hazelcastInstance,
+                aclKeyReservationService(),
+                authorizationManager(),
+                securePrincipalsManager(),
+                collaborationDatabaseManager()
+        )
+    }
+
+    fun uninitializedOrganizationService(metadataService: OrganizationMetadataEntitySetsService): HazelcastOrganizationService {
         return HazelcastOrganizationService(
                 hazelcastInstance,
                 aclKeyReservationService(),
@@ -555,8 +589,9 @@ class MechanicUpgradePod {
                 securePrincipalsManager(),
                 PhoneNumberService(hazelcastInstance),
                 partitionManager(),
-                assembler,
-                metadataService
+                assembler(),
+                metadataService,
+                collaborationService()
         )
     }
 

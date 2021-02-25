@@ -2,7 +2,6 @@ package com.openlattice.mechanic.upgrades
 
 import com.google.common.collect.ImmutableSet
 import com.hazelcast.query.Predicates
-import com.openlattice.assembler.MEMBER_ORG_DATABASE_PERMISSIONS
 import com.openlattice.authorization.*
 import com.openlattice.authorization.mapstores.PermissionMapstore
 import com.openlattice.authorization.securable.SecurableObjectType
@@ -16,6 +15,7 @@ import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.PostgresPrivileges
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
+import com.openlattice.postgres.external.MEMBER_ORG_DATABASE_PERMISSIONS
 import com.openlattice.postgres.external.Schemas
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
