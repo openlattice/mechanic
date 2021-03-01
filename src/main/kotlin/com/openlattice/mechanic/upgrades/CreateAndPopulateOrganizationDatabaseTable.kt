@@ -2,9 +2,7 @@ package com.openlattice.mechanic.upgrades
 
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.PostgresColumn.ID
-import com.openlattice.postgres.PostgresColumn.NAME
-import com.openlattice.postgres.PostgresColumn.OID
+import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresTable.ORGANIZATION_DATABASES
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.streams.BasePostgresIterable
@@ -48,7 +46,7 @@ class CreateAndPopulateOrganizationDatabaseTable(
     }
 
     private fun connectToExternalDatabase(): HikariDataSource {
-        return externalDatabaseConnectionManager.connect("postgres")
+        return externalDatabaseConnectionManager.connectAsSuperuser()
     }
 
     private fun getDatabasesToOid(): Map<String, Int> {

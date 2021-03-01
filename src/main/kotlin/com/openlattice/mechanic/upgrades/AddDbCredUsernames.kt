@@ -1,7 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.assembler.AssemblerConfiguration
-import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.PostgresColumn.PRINCIPAL_ID
@@ -89,7 +88,7 @@ class AddDbCredUsernames(
     private fun updateExternalDatabaseUsernames(userIdsToUsernames: Map<String, String>) {
         logger.info("About to update usernames in external database")
 
-        val numUpdates = externalDbConMan.connect("postgres").connection.use { conn ->
+        val numUpdates = externalDbConMan.connectAsSuperuser().connection.use { conn ->
             conn.createStatement().use { stmt ->
 
                 userIdsToUsernames.map { (userId, username) ->

@@ -326,6 +326,7 @@ class MechanicUpgradePod {
                 toolbox.hds,
                 authorizationManager(),
                 securePrincipalsManager(),
+                dbQueryManager(),
                 metricRegistry,
                 toolbox.hazelcast,
                 eventBus
@@ -540,6 +541,7 @@ class MechanicUpgradePod {
                 toolbox.hds,
                 authorizationManager(),
                 securePrincipalsManager(),
+                dbQueryManager(),
                 metricRegistry,
                 toolbox.hazelcast,
                 eventBus
