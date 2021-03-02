@@ -7,7 +7,7 @@ import com.openlattice.authorization.PrincipalType
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.DataTables
-import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
+import com.openlattice.postgres.external.ExternalDatabaseType
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
@@ -44,7 +44,7 @@ class GrantPublicSchemaAccessToOrgs(
     }
 
     private fun grantUsageOnPublicSchema(orgId: UUID, principals: Set<Principal>) {
-        val dbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(orgId)
+        val dbName = ExternalDatabaseType.ORGANIZATION.generateName(orgId)
         val userNames = getUserNames(principals)
         if (userNames.isEmpty()) {
             logger.info("no members in org with id $orgId")

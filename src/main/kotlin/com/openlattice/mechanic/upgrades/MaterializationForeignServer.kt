@@ -22,6 +22,7 @@ package com.openlattice.mechanic.upgrades
 
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
+import com.openlattice.postgres.external.ExternalDatabaseType
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
@@ -52,7 +53,7 @@ class MaterializationForeignServer(
     }
 
     private fun updateForeignServerPort(organizationId: UUID) {
-        val organizationDbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(organizationId)
+        val organizationDbName = ExternalDatabaseType.ORGANIZATION.generateName(organizationId)
         connect(organizationDbName).use { dataSource ->
             dataSource.connection.use { connection ->
                 connection.createStatement().use { statement ->
