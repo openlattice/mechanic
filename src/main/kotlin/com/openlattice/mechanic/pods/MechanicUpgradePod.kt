@@ -32,7 +32,12 @@ import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditRecordEntitySetsManager
 import com.openlattice.auditing.AuditingConfiguration
 import com.openlattice.auditing.pods.AuditingConfigurationPod
-import com.openlattice.authorization.*
+import com.openlattice.authorization.AuthorizationManager
+import com.openlattice.authorization.DbCredentialService
+import com.openlattice.authorization.HazelcastAclKeyReservationService
+import com.openlattice.authorization.HazelcastAuthorizationService
+import com.openlattice.authorization.HazelcastPrincipalsMapManager
+import com.openlattice.authorization.PrincipalsMapManager
 import com.openlattice.collaborations.CollaborationDatabaseManager
 import com.openlattice.collaborations.CollaborationService
 import com.openlattice.collaborations.PostgresCollaborationDatabaseService
@@ -71,7 +76,11 @@ import com.openlattice.organizations.OrganizationMetadataEntitySetsService
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
-import com.openlattice.postgres.external.*
+import com.openlattice.postgres.external.DatabaseQueryManager
+import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
+import com.openlattice.postgres.external.ExternalDatabasePermissioner
+import com.openlattice.postgres.external.ExternalDatabasePermissioningService
+import com.openlattice.postgres.external.PostgresDatabaseQueryService
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
 import com.openlattice.transporter.services.TransporterService
 import com.openlattice.transporter.types.TransporterDatastore
@@ -323,7 +332,6 @@ class MechanicUpgradePod {
         )
         val assembler = Assembler(
                 dbCredService,
-                toolbox.hds,
                 authorizationManager(),
                 securePrincipalsManager(),
                 dbQueryManager(),
@@ -538,7 +546,6 @@ class MechanicUpgradePod {
     fun assembler(): Assembler {
         return Assembler(
                 dbCredentialService(),
-                toolbox.hds,
                 authorizationManager(),
                 securePrincipalsManager(),
                 dbQueryManager(),
