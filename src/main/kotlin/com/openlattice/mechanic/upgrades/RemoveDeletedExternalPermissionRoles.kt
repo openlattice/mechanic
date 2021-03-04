@@ -24,7 +24,10 @@ class RemoveDeletedExternalPermissionRoles(
 
         val externalPermissionRoles = HazelcastMap.EXTERNAL_PERMISSION_ROLES.getMap(toolbox.hazelcast)
 
+        var batchCounter = 1
         externalPermissionRoles.entries.chunked(BATCH_SIZE).forEach { chunk ->
+            logger.info("Processing batch #{}", batchCounter)
+
             val toDelete = chunk.filter { !propertyTypeAndColumnIds.contains(it.key.aclKey.last()) }
 
             hds.connection.use { conn ->
@@ -39,6 +42,10 @@ class RemoveDeletedExternalPermissionRoles(
                     }
                 }
             }
+
+            logger.info("Deleted {} unused entries.", toDelete.size)
+
+            batchCounter++
         }
 
         logger.info("Finished removing deleted external permission roles")
