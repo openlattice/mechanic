@@ -746,4 +746,9 @@ class MechanicUpgradePod {
     fun alterAtlasUsersWithInherit(): AlterAtlasUsersWithInherit {
         return AlterAtlasUsersWithInherit(toolbox, externalDatabaseConnectionManager)
     }
+
+    @Bean
+    fun removeDeletedExternalPermissionRoles(): RemoveDeletedExternalPermissionRoles {
+        return RemoveDeletedExternalPermissionRoles(toolbox, externalDatabaseConnectionManager)
+    }
 }
