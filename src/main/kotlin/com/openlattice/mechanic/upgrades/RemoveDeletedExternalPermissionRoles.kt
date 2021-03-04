@@ -34,7 +34,7 @@ class RemoveDeletedExternalPermissionRoles(
                             stmt.execute("DROP ROLE ${quote(roleName.toString())}")
                             externalPermissionRoles.delete(accessTarget)
                         } catch (e: Exception) {
-                            logger.error("Unable to delete role {} for AccessTarger {}", roleName, accessTarget)
+                            logger.error("Unable to delete role {} for AccessTarget {}", roleName, accessTarget)
                         }
                     }
                 }
