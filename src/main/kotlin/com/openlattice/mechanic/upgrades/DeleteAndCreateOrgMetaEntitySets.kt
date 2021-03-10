@@ -97,17 +97,25 @@ class DeleteAndCreateOrgMetaEntitySets(
 
         tables.keys.forEach { id ->
             val key = AclKey(id)
-            var ids = auditRecordEntitySetsManager.getAuditRecordEntitySets(key)
-            var entitySets = entitySetsService.getEntitySetsAsMap(ids)
-            var propertyTypes = entitySetsService.getPropertyTypesOfEntitySets(ids).mapValues { it.value.values }
-            logger.info("adding audit entity sets associated with org external database tables")
-            metadataEntitySetsService.addDatasetsAndColumns(entitySets.values, propertyTypes)
+            try {
+                val ids = auditRecordEntitySetsManager.getAuditRecordEntitySets(key)
+                val entitySets = entitySetsService.getEntitySetsAsMap(ids)
+                val propertyTypes = entitySetsService.getPropertyTypesOfEntitySets(ids).mapValues { it.value.values }
+                logger.info("adding audit entity sets associated with org external database tables")
+                metadataEntitySetsService.addDatasetsAndColumns(entitySets.values, propertyTypes)
+            } catch (e: Exception) {
+                logger.error("caught exception while adding audit entity sets - org $org.id, table $id", e)
+            }
 
-            ids = auditRecordEntitySetsManager.getAuditEdgeEntitySets(key)
-            entitySets = entitySetsService.getEntitySetsAsMap(ids)
-            propertyTypes = entitySetsService.getPropertyTypesOfEntitySets(ids).mapValues { it.value.values }
-            logger.info("adding audit edge entity sets associated with org external database tables")
-            metadataEntitySetsService.addDatasetsAndColumns(entitySets.values, propertyTypes)
+            try {
+                val ids = auditRecordEntitySetsManager.getAuditEdgeEntitySets(key)
+                val entitySets = entitySetsService.getEntitySetsAsMap(ids)
+                val propertyTypes = entitySetsService.getPropertyTypesOfEntitySets(ids).mapValues { it.value.values }
+                logger.info("adding audit edge entity sets associated with org external database tables")
+                metadataEntitySetsService.addDatasetsAndColumns(entitySets.values, propertyTypes)
+            } catch (e: Exception) {
+                logger.error("caught exception while adding audit edge entity sets - org $org.id, table $id", e)
+            }
         }
     }
 }
