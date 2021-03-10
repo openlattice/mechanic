@@ -70,7 +70,7 @@ class SyncOrgEntitySetsMissingInMeta(
             }
 
             val ids = data.entities
-                .mapNotNull { entity -> entity }
+                .filterNotNull()
                 .mapNotNull { entity ->
                     val id = entity[ID_FQN]?.first()
                     try {
