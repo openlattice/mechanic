@@ -74,7 +74,8 @@ class AddSchemaToExternalTables(
                 .flatMap { columnsByTable[it] ?: listOf() }
                 .groupBy { it.tableId }
                 .mapValues { it.value.map { c -> c.id }.toSet() }
-        edms.deleteOrganizationExternalDatabaseColumnObjects(columnIdsTodDelete)
+
+//        edms.deleteOrganizationExternalDatabaseColumnObjects(UUID.randomUUID(), columnIdsTodDelete)
 
         logger.info("Finished adding schema and missing oids")
 
@@ -97,18 +98,18 @@ class AddSchemaToExternalTables(
 
         val tableIds = externalTables.keys.toSet()
 
-        edms.deleteOrganizationExternalDatabaseColumnObjects(externalColumns
-                .values
-                .toList()
-                .groupBy { it.tableId }
-                .filter { tableIds.contains(it.key) }
-                .mapValues {
-                    it.value
-                            .filter { c -> orgIds.contains(c.organizationId) }
-                            .map { c -> c.id }
-                            .toSet()
-                }
-        )
+//        edms.deleteOrganizationExternalDatabaseColumnObjects(UUID.randomUUID(), externalColumns
+//                .values
+//                .toList()
+//                .groupBy { it.tableId }
+//                .filter { tableIds.contains(it.key) }
+//                .mapValues {
+//                    it.value
+//                            .filter { c -> orgIds.contains(c.organizationId) }
+//                            .map { c -> c.id }
+//                            .toSet()
+//                }
+//        )
 
     }
 
