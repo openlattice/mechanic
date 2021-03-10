@@ -723,6 +723,19 @@ class MechanicUpgradePod {
     }
 
     @Bean
+    fun syncOrgEntitySetsMissingInMeta(): SyncOrgEntitySetsMissingInMeta {
+        val metadata = organizationMetadataEntitySetsService()
+        val entitySetService = uninitializedEntitySetManager(metadata)
+        return SyncOrgEntitySetsMissingInMeta(
+            toolbox,
+            entitySetService,
+            metadata,
+            edmManager(),
+            dataGraphManager(entitySetService)
+        )
+    }
+
+    @Bean
     fun auditRecordEntitySetsManager(): AuditRecordEntitySetsManager {
         val metadata = organizationMetadataEntitySetsService()
         return uninitializedEntitySetManager(metadata).getAuditRecordEntitySetsManager()
