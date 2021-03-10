@@ -19,3 +19,5 @@ logging/
 # source maps
 *.css.map
 *.js.map
+
+src/main/resources/auth0.yaml
