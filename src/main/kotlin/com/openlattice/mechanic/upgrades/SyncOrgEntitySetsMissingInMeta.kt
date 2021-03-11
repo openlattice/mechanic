@@ -103,11 +103,19 @@ class SyncOrgEntitySetsMissingInMeta(
     private fun syncOrgEntitySets(org: Organization, ids: Set<UUID>) {
         try {
             logger.info("getting entity sets")
-            val entitySets = entitySetsService.getEntitySetsAsMap(ids).values
+            val entitySets = toolbox.entitySets.filter { ids.contains(it.key) }.values
+            if (entitySets.size != ids.size) {
+                throw IllegalStateException("entitySets.size does not match ids.size")
+            }
             val propertyTypesByEntitySet = mutableMapOf<UUID, Collection<PropertyType>>()
             logger.info("getting property types")
             entitySets.forEach { entitySet ->
-                val propertyTypes = edmService.getPropertyTypesOfEntityType(entitySet.entityTypeId)
+                val entityType = toolbox.entityTypes[entitySet.entityTypeId]
+                if (entityType == null) {
+                    logger.warn("encountered null entity type for entity set ${entitySet.id}")
+                    return@forEach
+                }
+                val propertyTypes = toolbox.propertyTypes.filter { entityType.properties.contains(it.key) }
                 propertyTypesByEntitySet[entitySet.id] = propertyTypes.values
             }
             metadataEntitySetsService.addDatasetsAndColumns(entitySets, propertyTypesByEntitySet)
