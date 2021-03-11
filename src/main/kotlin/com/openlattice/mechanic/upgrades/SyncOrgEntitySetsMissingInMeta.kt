@@ -73,16 +73,15 @@ class SyncOrgEntitySetsMissingInMeta(
 
             val ids = data.entities
                 .filterNotNull()
-                .mapNotNull { entity ->
+                .mapNotNullTo(mutableSetOf()) { entity ->
                     val id = entity[ID_FQN]?.first()
                     try {
                         UUID.fromString(id.toString())
                     } catch (e: Exception) {
                         logger.error("invalid data set id $id", e)
-                        return@mapNotNull null
+                        return@mapNotNullTo null
                     }
                 }
-                .toSet()
 
             val targetIds = orgEntitySetsIds.subtract(ids)
             logger.info("found ${targetIds.size} entity sets to sync - $targetIds")
