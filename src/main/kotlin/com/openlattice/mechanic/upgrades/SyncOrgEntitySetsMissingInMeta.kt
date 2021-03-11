@@ -32,15 +32,17 @@ class SyncOrgEntitySetsMissingInMeta(
     override fun upgrade(): Boolean {
 
         val orgs = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast).toMap()
+        val entitySetsByOrg = toolbox.entitySets.values.groupBy { it.organizationId }
+
         orgs.values.forEachIndexed { index, org ->
 
             logger.info("================================")
             logger.info("================================")
             logger.info("starting processing org ${org.id}")
 
-            val orgEntitySetsIds = entitySetsService.getEntitySetsForOrganization(org.id)
+            val orgEntitySetsIds = entitySetsByOrg.getOrDefault(org.id, listOf()).mapNotNull { it.id }.toSet()
             if (orgEntitySetsIds.isEmpty()) {
-                logger.info("getEntitySetsForOrganization returned empty set")
+                logger.warn("org does not have entity sets")
                 return@forEachIndexed
             }
 
