@@ -42,9 +42,7 @@ class AddSchemaToExternalTables(
         orgIdsWithDbs.forEach { orgId ->
             logger.info("About to scrape org $orgId")
 
-            val dbName = orgDbs.getValue(orgId).name
-
-            val tablesAndColumns = edms.getColumnNamesByTableName(dbName).associateBy { it.tableName }
+            val tablesAndColumns = edms.getTableInfoForOrganization(orgId).associateBy { it.tableName }
 
             (tablesByOrg[orgId] ?: listOf()).forEach {
 

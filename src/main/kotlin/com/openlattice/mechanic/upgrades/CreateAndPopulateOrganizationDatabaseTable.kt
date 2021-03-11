@@ -7,6 +7,7 @@ import com.openlattice.postgres.PostgresColumn.NAME
 import com.openlattice.postgres.PostgresColumn.OID
 import com.openlattice.postgres.PostgresTable.ORGANIZATION_DATABASES
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
+import com.openlattice.postgres.external.ExternalDatabaseType
 import com.openlattice.postgres.streams.BasePostgresIterable
 import com.openlattice.postgres.streams.StatementHolderSupplier
 import com.zaxxer.hikari.HikariDataSource
@@ -48,7 +49,7 @@ class CreateAndPopulateOrganizationDatabaseTable(
     }
 
     private fun connectToExternalDatabase(): HikariDataSource {
-        return externalDatabaseConnectionManager.connect("postgres")
+        return externalDatabaseConnectionManager.connectAsSuperuser()
     }
 
     private fun getDatabasesToOid(): Map<String, Int> {
@@ -79,7 +80,7 @@ class CreateAndPopulateOrganizationDatabaseTable(
             conn.prepareStatement(insertSql).use { ps ->
 
                 orgIds.forEach { orgId ->
-                    val dbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(orgId)
+                    val dbName = ExternalDatabaseType.ORGANIZATION.generateName(orgId)
                     val oid = databaseNamesToOids.getOrDefault(dbName, -1)
 
                     ps.setObject(1, orgId)

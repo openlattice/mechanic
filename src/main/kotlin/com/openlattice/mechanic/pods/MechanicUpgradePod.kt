@@ -332,9 +332,9 @@ class MechanicUpgradePod {
         )
         val assembler = Assembler(
                 dbCredService,
-                toolbox.hds,
                 authorizationManager(),
                 securePrincipalsManager(),
+                dbQueryManager(),
                 metricRegistry,
                 toolbox.hazelcast,
                 eventBus
@@ -546,9 +546,9 @@ class MechanicUpgradePod {
     fun assembler(): Assembler {
         return Assembler(
                 dbCredentialService(),
-                toolbox.hds,
                 authorizationManager(),
                 securePrincipalsManager(),
+                dbQueryManager(),
                 metricRegistry,
                 toolbox.hazelcast,
                 eventBus

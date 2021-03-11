@@ -25,6 +25,7 @@ import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.assembler.PostgresRoles
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
+import com.openlattice.postgres.external.ExternalDatabaseType
 import com.openlattice.postgres.external.Schemas
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
 import java.util.*
@@ -42,7 +43,7 @@ class OrganizationDbUserSetup(
     }
 
     private fun setupOrganizationDbUser(organizationId: UUID) {
-        val organizationDbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(organizationId)
+        val organizationDbName = ExternalDatabaseType.ORGANIZATION.generateName(organizationId)
         val dbOrgUser = DataTables.quote(PostgresRoles.buildOrganizationUserId(organizationId))
         val connectionConfig = assemblerConfiguration.server.clone() as Properties
 

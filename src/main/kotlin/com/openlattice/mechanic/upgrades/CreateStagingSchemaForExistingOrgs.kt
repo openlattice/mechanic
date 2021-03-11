@@ -9,13 +9,12 @@ import com.openlattice.organizations.Organization
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.external.Schemas
-import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 
 class CreateStagingSchemaForExistingOrgs(
         private val toolbox: Toolbox,
         private val assemblerConfiguration: AssemblerConfiguration,
-        private val externalDatabaseConnectionManager: ExternalDatabaseConnectionManager
+        private val extDbConnMan: ExternalDatabaseConnectionManager
 ) : Upgrade {
 
     companion object {
@@ -45,8 +44,7 @@ class CreateStagingSchemaForExistingOrgs(
         logger.info("About to create staging schema for org ${org.title} [${org.id}]")
 
         val members = org.members.mapNotNull { allPrincipals[it] } + DataTables.quote(PostgresRoles.buildOrganizationUserId(org.id))
-
-        connectToDatabase(org).let { hds ->
+        extDbConnMan.connectToOrg(org.id).let { hds ->
             hds.connection.use { connection ->
                 connection.createStatement().use { stmt ->
 
@@ -81,13 +79,6 @@ class CreateStagingSchemaForExistingOrgs(
 
         logger.info("Finished creating and configuring staging schema for org ${org.title}")
     }
-
-    private fun connectToDatabase(org: Organization): HikariDataSource {
-        return externalDatabaseConnectionManager.connect(
-                ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(org.id)
-        )
-    }
-
 
     private val CREATE_SCHEMA_SQL = "CREATE SCHEMA IF NOT EXISTS $STAGING_SCHEMA"
 

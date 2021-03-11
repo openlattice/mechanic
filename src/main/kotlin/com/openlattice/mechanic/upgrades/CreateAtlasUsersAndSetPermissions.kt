@@ -15,15 +15,15 @@ import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.PostgresPrivileges
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
+import com.openlattice.postgres.external.ExternalDatabaseType
 import com.openlattice.postgres.external.MEMBER_ORG_DATABASE_PERMISSIONS
 import com.openlattice.postgres.external.Schemas
-import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 import java.util.*
 
 class CreateAtlasUsersAndSetPermissions(
         private val toolbox: Toolbox,
-        private val externalDatabaseConnectionManager: ExternalDatabaseConnectionManager
+        private val extDbConnMan: ExternalDatabaseConnectionManager
 ) : Upgrade {
 
     companion object {
@@ -65,7 +65,7 @@ class CreateAtlasUsersAndSetPermissions(
     }
 
     private fun resetUserCredentials(dbCreds: Map<AclKey, MaterializedViewAccount>) {
-        connectToExternalDatabase().connection.use { conn ->
+        extDbConnMan.connectAsSuperuser().connection.use { conn ->
             conn.createStatement().use { stmt ->
 
                 dbCreds.values.forEach { mvAccount ->
@@ -98,20 +98,10 @@ class CreateAtlasUsersAndSetPermissions(
         }
     }
 
-
-    private fun connectToOrgDatabase(org: Organization): HikariDataSource {
-        val dbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(org.id)
-        return connectToExternalDatabase(dbName)
-    }
-
-    private fun connectToExternalDatabase(dbName: String = "postgres"): HikariDataSource {
-        return externalDatabaseConnectionManager.connect(dbName)
-    }
-
     private fun configureUsersInAtlas(userMVAccounts: Collection<MaterializedViewAccount>) {
         logger.info("About to create users in external database")
 
-        val numUpdates = connectToExternalDatabase().connection.use { conn ->
+        val numUpdates = extDbConnMan.connectAsSuperuser().connection.use { conn ->
             conn.createStatement().use { stmt ->
 
                 userMVAccounts.map {
@@ -128,13 +118,12 @@ class CreateAtlasUsersAndSetPermissions(
     private fun configureUsersInOrganization(organization: Organization, principalsToAccounts: Map<Principal, MaterializedViewAccount>) {
 
         try {
-
             val usernames = organization.members.mapNotNull { principalsToAccounts[it]?.username }
             val usernamesSql = usernames.joinToString(", ")
 
             logger.info("Configuring users $usernames in organization ${organization.title} [${organization.id}]")
 
-            val dbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(organization.id)
+            val dbName = ExternalDatabaseType.ORGANIZATION.generateName(organization.id)
             val grantDefaultPermissionsOnDatabaseSql = "GRANT ${MEMBER_ORG_DATABASE_PERMISSIONS.joinToString(", ")} " +
                     "ON DATABASE ${DataTables.quote(dbName)} TO $usernamesSql"
             val grantOLSchemaPrivilegesSql = "GRANT USAGE ON SCHEMA ${Schemas.OPENLATTICE_SCHEMA} TO $usernamesSql"
@@ -144,7 +133,7 @@ class CreateAtlasUsersAndSetPermissions(
             logger.info("grantOLSchemaPrivilegesSql: $grantOLSchemaPrivilegesSql")
             logger.info("grantStagingSchemaPrivilegesSql: $grantStagingSchemaPrivilegesSql")
 
-            connectToOrgDatabase(organization).connection.use { connection ->
+            extDbConnMan.connectToOrg(organization.id).connection.use { connection ->
                 connection.createStatement().use { statement ->
 
                     statement.execute(grantDefaultPermissionsOnDatabaseSql)
@@ -244,8 +233,7 @@ class CreateAtlasUsersAndSetPermissions(
                     .groupBy { columnsById[it.aclKey[1]]!!.organizationId }
 
             columnAclsByOrg.forEach { (orgId, columnAcls) ->
-                val dbName = ExternalDatabaseConnectionManager.buildDefaultOrganizationDatabaseName(orgId)
-                connectToExternalDatabase(dbName).connection.use { conn ->
+                extDbConnMan.connectToOrg(orgId).connection.use { conn ->
                     conn.autoCommit = false
                     val stmt = conn.createStatement()
                     columnAcls.forEach {
