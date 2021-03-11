@@ -732,6 +732,17 @@ class MechanicUpgradePod {
     }
 
     @Bean
+    fun syncOrgEntitySetsMissingInMeta(): SyncOrgEntitySetsMissingInMeta {
+        val metadata = organizationMetadataEntitySetsService()
+        val entitySetService = uninitializedEntitySetManager(metadata)
+        return SyncOrgEntitySetsMissingInMeta(
+            toolbox,
+            metadata,
+            dataGraphManager(entitySetService)
+        )
+    }
+
+    @Bean
     fun auditRecordEntitySetsManager(): AuditRecordEntitySetsManager {
         val metadata = organizationMetadataEntitySetsService()
         return uninitializedEntitySetManager(metadata).getAuditRecordEntitySetsManager()
@@ -740,5 +751,15 @@ class MechanicUpgradePod {
     @Bean
     fun grantReadToOrgOnMetadataEntitySets(): GrantReadToOrgOnMetadataEntitySets {
         return GrantReadToOrgOnMetadataEntitySets(toolbox, authorizationManager())
+    }
+
+    @Bean
+    fun alterAtlasUsersWithInherit(): AlterAtlasUsersWithInherit {
+        return AlterAtlasUsersWithInherit(toolbox, externalDatabaseConnectionManager)
+    }
+
+    @Bean
+    fun removeDeletedExternalPermissionRoles(): RemoveDeletedExternalPermissionRoles {
+        return RemoveDeletedExternalPermissionRoles(toolbox, externalDatabaseConnectionManager)
     }
 }
