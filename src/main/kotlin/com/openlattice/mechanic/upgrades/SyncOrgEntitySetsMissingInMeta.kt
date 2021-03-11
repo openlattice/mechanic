@@ -22,7 +22,9 @@ class SyncOrgEntitySetsMissingInMeta(
 
     companion object {
         private val logger = LoggerFactory.getLogger(SyncOrgEntitySetsMissingInMeta::class.java)
+
         private val ID_FQN = FullQualifiedName("ol.id")
+        private val OL_ID_UUID = UUID.fromString("39e13db7-a730-421a-a600-ae0674060140")
     }
 
     override fun getSupportedVersion(): Long {
@@ -34,6 +36,12 @@ class SyncOrgEntitySetsMissingInMeta(
         val orgs = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast).toMap()
         val entitySetsByOrg = toolbox.entitySets.values.groupBy { it.organizationId }
 
+        val idPT = toolbox.propertyTypes[OL_ID_UUID]
+        if (idPT == null) {
+            logger.error("PropertyType \"ol.id\" is null")
+            return false
+        }
+
         orgs.values.forEachIndexed { index, org ->
 
             logger.info("================================")
@@ -43,12 +51,6 @@ class SyncOrgEntitySetsMissingInMeta(
             val orgEntitySetsIds = entitySetsByOrg.getOrDefault(org.id, listOf()).mapNotNull { it.id }.toSet()
             if (orgEntitySetsIds.isEmpty()) {
                 logger.warn("org does not have entity sets")
-                return@forEachIndexed
-            }
-
-            val idPT = edmService.getPropertyType(ID_FQN)
-            if (idPT == null) {
-                logger.info("ol.id PropertyType is null")
                 return@forEachIndexed
             }
 
