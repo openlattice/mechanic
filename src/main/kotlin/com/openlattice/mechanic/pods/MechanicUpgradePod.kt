@@ -728,9 +728,7 @@ class MechanicUpgradePod {
         val entitySetService = uninitializedEntitySetManager(metadata)
         return SyncOrgEntitySetsMissingInMeta(
             toolbox,
-            entitySetService,
             metadata,
-            edmManager(),
             dataGraphManager(entitySetService)
         )
     }

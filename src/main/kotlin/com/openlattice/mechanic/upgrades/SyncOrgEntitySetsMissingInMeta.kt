@@ -14,9 +14,7 @@ import java.util.*
 
 class SyncOrgEntitySetsMissingInMeta(
     private val toolbox: Toolbox,
-    private val entitySetsService: EntitySetManager,
     private val metadataEntitySetsService: OrganizationMetadataEntitySetsService,
-    private val edmService: EdmManager,
     private val dataService: DataGraphManager
 ) : Upgrade {
 
@@ -55,9 +53,9 @@ class SyncOrgEntitySetsMissingInMeta(
             }
 
             val dataSetsESID = org.organizationMetadataEntitySetIds.datasets
-            val dsEntitySet = entitySetsService.getEntitySet(dataSetsESID)
+            val dsEntitySet = toolbox.entitySets[dataSetsESID]
             if (dsEntitySet == null) {
-                logger.info("\"datasets\" meta entity set is null")
+                logger.warn("\"datasets\" meta entity set is null")
                 return@forEachIndexed
             }
 
