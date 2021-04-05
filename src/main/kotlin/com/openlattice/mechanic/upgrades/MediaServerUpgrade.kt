@@ -82,7 +82,7 @@ class MediaServerUpgrade(private val toolbox: Toolbox) : Upgrade {
                 val hashString = PostgresDataHasher.hashObjectToHex(data, EdmPrimitiveTypeKind.Binary)
 
                 val key = rs.getString(1) + "/" + rs.getString(2) + "/" + entry.key + "/" + hashString
-                byteBlobDataManager.putObject(key, data, "png")
+//                byteBlobDataManager.putObject(key, data, "png")
                 val conn2 = toolbox.hds.connection
                 val ps2 = conn2.prepareStatement("UPDATE $propertyTable SET ${quote(fqn + "_new")} = ? where $HASH = ?")
                 ps2.setString(1, key)
