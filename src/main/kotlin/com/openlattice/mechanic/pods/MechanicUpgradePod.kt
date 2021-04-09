@@ -762,4 +762,9 @@ class MechanicUpgradePod {
     fun removeDeletedExternalPermissionRoles(): RemoveDeletedExternalPermissionRoles {
         return RemoveDeletedExternalPermissionRoles(toolbox, externalDatabaseConnectionManager)
     }
+
+    @Bean
+    fun createMissingAdminRoles(): CreateMissingAdminRoles {
+        return CreateMissingAdminRoles(toolbox, securePrincipalsManager(), authorizationManager())
+    }
 }
