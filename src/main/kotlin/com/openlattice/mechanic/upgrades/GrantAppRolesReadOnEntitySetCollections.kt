@@ -14,7 +14,7 @@ class GrantAppRolesReadOnEntitySetCollections(
 ): Upgrade {
 
     override fun upgrade(): Boolean {
-        val authorizations = HazelcastAuthorizationService(toolbox.hazelcast, eventBus)
+//        val authorizations = HazelcastAuthorizationService(toolbox.hazelcast, eventBus)
         val permissionsToAdd = mutableListOf<Acl>()
 
         val rolePrincipals = getRolePrincipalsByAclKey()
@@ -39,7 +39,7 @@ class GrantAppRolesReadOnEntitySetCollections(
             permissionsToAdd.add(Acl(aclKey, aces))
         }
 
-        authorizations.addPermissions(permissionsToAdd)
+//        authorizations.addPermissions(permissionsToAdd)
         return true
     }
 
