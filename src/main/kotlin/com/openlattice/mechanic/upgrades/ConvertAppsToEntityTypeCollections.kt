@@ -8,8 +8,11 @@ import com.openlattice.apps.App
 import com.openlattice.apps.AppConfigKey
 import com.openlattice.apps.AppRole
 import com.openlattice.apps.AppTypeSetting
-import com.openlattice.authorization.*
-import com.openlattice.authorization.securable.SecurableObjectType
+import com.openlattice.authorization.AclKey
+import com.openlattice.authorization.HazelcastAclKeyReservationService
+import com.openlattice.authorization.Permission
+import com.openlattice.authorization.Principal
+import com.openlattice.authorization.PrincipalType
 import com.openlattice.collections.CollectionTemplateKey
 import com.openlattice.collections.CollectionTemplateType
 import com.openlattice.collections.EntitySetCollection
@@ -51,7 +54,7 @@ class ConvertAppsToEntityTypeCollections(
     val entitySetCollectionsConfig = HazelcastMap.ENTITY_SET_COLLECTION_CONFIG.getMap(hazelcast)
 
     val reservations = HazelcastAclKeyReservationService(hazelcast)
-    val authorizations = HazelcastAuthorizationService(hazelcast, eventBus)
+//    val authorizations = HazelcastAuthorizationService(hazelcast, eventBus)
 
     companion object {
         private val logger = LoggerFactory.getLogger(ConvertAppsToEntityTypeCollections::class.java)
@@ -217,7 +220,7 @@ class ConvertAppsToEntityTypeCollections(
         }
 
         val orgs = organizations.getAll(templatesByOrg.keys).filter { it.value != null }
-        val orgOwners = authorizations.getOwnersForSecurableObjects(orgs.keys.map { AclKey(it) })
+//        val orgOwners = authorizations.getOwnersForSecurableObjects(orgs.keys.map { AclKey(it) })
 
         // Skip migration for any deleted organizations that have left behind garbage
         val missingOrgs = Sets.difference(templatesByOrg.keys, orgs.keys)
@@ -265,13 +268,13 @@ class ConvertAppsToEntityTypeCollections(
             })
 
             /** grant permissions on entity set collection to organization owners **/
-            authorizations.setSecurableObjectType(AclKey(entitySetCollection.id), SecurableObjectType.EntitySetCollection)
-            authorizations.addPermissions(listOf(
-                    Acl(
-                            AclKey(entitySetCollection.id),
-                            (orgOwners[AclKey(orgId)] + appPrincipal).map { p -> Ace(p, EnumSet.allOf(Permission::class.java)) }
-                    )
-            ))
+//            authorizations.setSecurableObjectType(AclKey(entitySetCollection.id), SecurableObjectType.EntitySetCollection)
+//            authorizations.addPermissions(listOf(
+//                    Acl(
+//                            AclKey(entitySetCollection.id),
+//                            (orgOwners[AclKey(orgId)] + appPrincipal).map { p -> Ace(p, EnumSet.allOf(Permission::class.java)) }
+//                    )
+//            ))
 
             /** trigger indexing **/
             eventBus.post(EntitySetCollectionCreatedEvent(entitySetCollection))
