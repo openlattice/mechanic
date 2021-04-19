@@ -5,8 +5,8 @@ import com.hazelcast.map.IMap
 import com.openlattice.authorization.HazelcastAclKeyReservationService
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.organization.OrganizationExternalDatabaseColumn
-import com.openlattice.organization.OrganizationExternalDatabaseTable
+import com.openlattice.organization.ExternalColumn
+import com.openlattice.organization.ExternalTable
 import com.openlattice.organizations.ExternalDatabaseManagementService
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -28,8 +28,8 @@ class AddSchemaToExternalTables(
         val orgDbs = HazelcastMap.ORGANIZATION_DATABASES.getMap(toolbox.hazelcast).toMap()
         val orgIdsWithDbs = Sets.intersection(orgs.keys, orgDbs.keys).immutableCopy()
 
-        val externalTables = HazelcastMap.ORGANIZATION_EXTERNAL_DATABASE_TABLE.getMap(toolbox.hazelcast)
-        val externalColumns = HazelcastMap.ORGANIZATION_EXTERNAL_DATABASE_COLUMN.getMap(toolbox.hazelcast)
+        val externalTables = HazelcastMap.EXTERNAL_TABLES.getMap(toolbox.hazelcast)
+        val externalColumns = HazelcastMap.EXTERNAL_COLUMNS.getMap(toolbox.hazelcast)
 
         cleanUpStrayTablesAndCols(orgIdsWithDbs, externalTables, externalColumns)
 
@@ -37,7 +37,7 @@ class AddSchemaToExternalTables(
         val columnsByTable = externalColumns.values.toList().groupBy { it.tableId }
 
         val tableIdsToDelete = mutableSetOf<UUID>()
-        val tablesWithSchemaAndOid = mutableMapOf<UUID, OrganizationExternalDatabaseTable>()
+        val tablesWithSchemaAndOid = mutableMapOf<UUID, ExternalTable>()
 
         orgIdsWithDbs.forEach { orgId ->
             logger.info("About to scrape org $orgId")
@@ -50,7 +50,7 @@ class AddSchemaToExternalTables(
 
                     reservationService.renameReservation(it.id, it.getUniqueName())
 
-                    tablesWithSchemaAndOid[it.id] = OrganizationExternalDatabaseTable(
+                    tablesWithSchemaAndOid[it.id] = ExternalTable(
                             id = it.id,
                             name = it.name,
                             title = it.title,
@@ -69,7 +69,7 @@ class AddSchemaToExternalTables(
 
         externalTables.putAll(tablesWithSchemaAndOid)
 
-        edms.deleteOrganizationExternalDatabaseTableObjects(tableIdsToDelete)
+        edms.deleteExternalTableObjects(tableIdsToDelete)
         val columnIdsTodDelete = tableIdsToDelete
                 .flatMap { columnsByTable[it] ?: listOf() }
                 .groupBy { it.tableId }
@@ -83,11 +83,11 @@ class AddSchemaToExternalTables(
 
     private fun cleanUpStrayTablesAndCols(
             orgIds: Set<UUID>,
-            externalTables: IMap<UUID, OrganizationExternalDatabaseTable>,
-            externalColumns: IMap<UUID, OrganizationExternalDatabaseColumn>
+            externalTables: IMap<UUID, ExternalTable>,
+            externalColumns: IMap<UUID, ExternalColumn>
     ) {
 
-        edms.deleteOrganizationExternalDatabaseTableObjects(externalTables
+        edms.deleteExternalTableObjects(externalTables
                 .values
                 .toList()
                 .filter { !orgIds.contains(it.organizationId) }

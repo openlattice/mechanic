@@ -16,8 +16,8 @@ class PopulateOrgMetadataEntitySets(
         val entitySetsToPropertyTypes = toolbox.entitySets.mapValues { entityTypesToPropertyTypes.getValue(it.value.entityTypeId) }
 
         val entitySetsByOrg = toolbox.entitySets.values.groupBy { it.organizationId }
-        val externalTablesByOrg = HazelcastMap.ORGANIZATION_EXTERNAL_DATABASE_TABLE.getMap(toolbox.hazelcast).values.groupBy { it.organizationId }
-        val externalColumnsByTable = HazelcastMap.ORGANIZATION_EXTERNAL_DATABASE_COLUMN.getMap(toolbox.hazelcast).values.groupBy { it.tableId }
+        val externalTablesByOrg = HazelcastMap.EXTERNAL_TABLES.getMap(toolbox.hazelcast).values.groupBy { it.organizationId }
+        val externalColumnsByTable = HazelcastMap.EXTERNAL_COLUMNS.getMap(toolbox.hazelcast).values.groupBy { it.tableId }
 
         organizations.forEach { organization ->
             val orgId = organization.id

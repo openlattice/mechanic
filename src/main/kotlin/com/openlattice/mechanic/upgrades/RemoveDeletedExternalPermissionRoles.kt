@@ -18,7 +18,7 @@ class RemoveDeletedExternalPermissionRoles(
 
     override fun upgrade(): Boolean {
         logger.info("About to remove deleted external permission roles")
-        val propertyTypeAndColumnIds = toolbox.propertyTypes.keys + HazelcastMap.ORGANIZATION_EXTERNAL_DATABASE_COLUMN.getMap(toolbox.hazelcast).keys.toSet()
+        val propertyTypeAndColumnIds = toolbox.propertyTypes.keys + HazelcastMap.EXTERNAL_COLUMNS.getMap(toolbox.hazelcast).keys.toSet()
 
         val hds = externalDbConnMan.connectAsSuperuser()
 

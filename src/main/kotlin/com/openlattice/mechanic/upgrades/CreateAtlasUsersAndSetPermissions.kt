@@ -8,8 +8,8 @@ import com.openlattice.authorization.securable.SecurableObjectType
 import com.openlattice.directory.MaterializedViewAccount
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.organization.OrganizationExternalDatabaseColumn
-import com.openlattice.organization.OrganizationExternalDatabaseTable
+import com.openlattice.organization.ExternalColumn
+import com.openlattice.organization.ExternalTable
 import com.openlattice.organizations.Organization
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
@@ -184,8 +184,8 @@ class CreateAtlasUsersAndSetPermissions(
     }
 
     private fun grantPrivilegesBasedOnStoredPermissions(principalsToAccounts: Map<Principal, MaterializedViewAccount>) {
-        val tablesMap = HazelcastMap.ORGANIZATION_EXTERNAL_DATABASE_TABLE.getMap(toolbox.hazelcast).toMap()
-        val columnsMap = HazelcastMap.ORGANIZATION_EXTERNAL_DATABASE_COLUMN.getMap(toolbox.hazelcast).toMap()
+        val tablesMap = HazelcastMap.EXTERNAL_TABLES.getMap(toolbox.hazelcast).toMap()
+        val columnsMap = HazelcastMap.EXTERNAL_COLUMNS.getMap(toolbox.hazelcast).toMap()
         val orgsMap = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
 
         val colsToUserPermissions = getColumnsToUserPermissions()
@@ -222,8 +222,8 @@ class CreateAtlasUsersAndSetPermissions(
             organizationId: UUID,
             columnAcls: List<Acl>,
             principalsToAccounts: Map<Principal, MaterializedViewAccount>,
-            tablesMap: Map<UUID, OrganizationExternalDatabaseTable>,
-            columnsMap: Map<UUID, OrganizationExternalDatabaseColumn>
+            tablesMap: Map<UUID, ExternalTable>,
+            columnsMap: Map<UUID, ExternalColumn>
     ) {
         try {
             val columnIds = columnAcls.map { it.aclKey[1] }.toSet()
@@ -268,8 +268,8 @@ class CreateAtlasUsersAndSetPermissions(
 
     private fun getTableAndColumnNames(
             aclKey: AclKey,
-            tablesMap: Map<UUID, OrganizationExternalDatabaseTable>,
-            columnsMap: Map<UUID, OrganizationExternalDatabaseColumn>
+            tablesMap: Map<UUID, ExternalTable>,
+            columnsMap: Map<UUID, ExternalColumn>
     ): Pair<String, String> {
         val securableObjectId = aclKey[1]
         val organizationAtlasColumn = columnsMap.getValue(securableObjectId)
