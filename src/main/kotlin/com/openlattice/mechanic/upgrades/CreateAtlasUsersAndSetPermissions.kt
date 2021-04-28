@@ -1,5 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
+import com.google.common.collect.ImmutableSet
 import com.hazelcast.query.Predicates
 import com.openlattice.authorization.*
 import com.openlattice.authorization.mapstores.PermissionMapstore
@@ -277,7 +278,7 @@ class CreateAtlasUsersAndSetPermissions(
         return Pair(tableName, columnName)
     }
 
-    private fun getPrivilegesFromPermissions(permissions: EnumSet<Permission>): List<String> {
+    private fun getPrivilegesFromPermissions(permissions: ImmutableSet<Permission>): List<String> {
         val privileges = mutableListOf<String>()
         if (permissions.contains(Permission.OWNER)) {
             privileges.add(PostgresPrivileges.ALL.toString())
