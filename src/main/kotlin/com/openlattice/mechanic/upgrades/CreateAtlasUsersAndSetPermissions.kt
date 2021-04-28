@@ -1,6 +1,5 @@
 package com.openlattice.mechanic.upgrades
 
-import com.google.common.collect.ImmutableSet
 import com.hazelcast.query.Predicates
 import com.openlattice.authorization.*
 import com.openlattice.authorization.mapstores.PermissionMapstore
@@ -16,7 +15,7 @@ import com.openlattice.postgres.DataTables.quote
 import com.openlattice.postgres.PostgresPrivileges
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.external.ExternalDatabaseType
-import com.openlattice.postgres.external.MEMBER_ORG_DATABASE_PERMISSIONS
+import com.openlattice.postgres.external.MEMBER_DATABASE_PERMISSIONS
 import com.openlattice.postgres.external.Schemas
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -124,7 +123,7 @@ class CreateAtlasUsersAndSetPermissions(
             logger.info("Configuring users $usernames in organization ${organization.title} [${organization.id}]")
 
             val dbName = ExternalDatabaseType.ORGANIZATION.generateName(organization.id)
-            val grantDefaultPermissionsOnDatabaseSql = "GRANT ${MEMBER_ORG_DATABASE_PERMISSIONS.joinToString(", ")} " +
+            val grantDefaultPermissionsOnDatabaseSql = "GRANT ${MEMBER_DATABASE_PERMISSIONS.joinToString(", ")} " +
                     "ON DATABASE ${DataTables.quote(dbName)} TO $usernamesSql"
             val grantOLSchemaPrivilegesSql = "GRANT USAGE ON SCHEMA ${Schemas.OPENLATTICE_SCHEMA} TO $usernamesSql"
             val grantStagingSchemaPrivilegesSql = "GRANT USAGE, CREATE ON SCHEMA ${Schemas.STAGING_SCHEMA} TO $usernamesSql"
@@ -278,7 +277,7 @@ class CreateAtlasUsersAndSetPermissions(
         return Pair(tableName, columnName)
     }
 
-    private fun getPrivilegesFromPermissions(permissions: ImmutableSet<Permission>): List<String> {
+    private fun getPrivilegesFromPermissions(permissions: EnumSet<Permission>): List<String> {
         val privileges = mutableListOf<String>()
         if (permissions.contains(Permission.OWNER)) {
             privileges.add(PostgresPrivileges.ALL.toString())
