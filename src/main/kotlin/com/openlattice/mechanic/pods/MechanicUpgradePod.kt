@@ -32,12 +32,7 @@ import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditRecordEntitySetsManager
 import com.openlattice.auditing.AuditingConfiguration
 import com.openlattice.auditing.pods.AuditingConfigurationPod
-import com.openlattice.authorization.AuthorizationManager
-import com.openlattice.authorization.DbCredentialService
-import com.openlattice.authorization.HazelcastAclKeyReservationService
-import com.openlattice.authorization.HazelcastAuthorizationService
-import com.openlattice.authorization.HazelcastPrincipalsMapManager
-import com.openlattice.authorization.PrincipalsMapManager
+import com.openlattice.authorization.*
 import com.openlattice.collaborations.CollaborationDatabaseManager
 import com.openlattice.collaborations.CollaborationService
 import com.openlattice.collaborations.PostgresCollaborationDatabaseService
@@ -50,6 +45,7 @@ import com.openlattice.data.storage.EntityDatastore
 import com.openlattice.data.storage.PostgresEntityDataQueryService
 import com.openlattice.data.storage.PostgresEntityDatastore
 import com.openlattice.data.storage.partitions.PartitionManager
+import com.openlattice.datasets.DatasetService
 import com.openlattice.datastore.pods.ByteBlobServicePod
 import com.openlattice.datastore.services.EdmManager
 import com.openlattice.datastore.services.EdmService
@@ -446,7 +442,8 @@ class MechanicUpgradePod {
                 aclKeyReservationService(),
                 authorizationManager(),
                 postgresTypeManager(),
-                schemaManager()
+                schemaManager(),
+                datasetService()
         )
     }
 
@@ -468,6 +465,11 @@ class MechanicUpgradePod {
         return service
     }
 
+    @Bean
+    fun datasetService(): DatasetService {
+        return DatasetService(hazelcastInstance, eventBus)
+    }
+
     fun uninitializedEntitySetManager(metadataService: OrganizationMetadataEntitySetsService): EntitySetManager {
         return EntitySetService(
                 hazelcastInstance,
@@ -478,6 +480,7 @@ class MechanicUpgradePod {
                 edmManager(),
                 hikariDataSource,
                 metadataService,
+                datasetService(),
                 auditingConfiguration
         )
     }
@@ -709,7 +712,8 @@ class MechanicUpgradePod {
                         TransporterDatastore(assemblerConfiguration, rhizomeConfiguration, externalDatabaseConnectionManager, externalDatabasePermissioningService())
                 ),
                 dbCredentialService(),
-                hikariDataSource
+                hikariDataSource,
+                datasetService()
         )
     }
 
@@ -736,9 +740,9 @@ class MechanicUpgradePod {
         val metadata = organizationMetadataEntitySetsService()
         val entitySetService = uninitializedEntitySetManager(metadata)
         return SyncOrgEntitySetsMissingInMeta(
-            toolbox,
-            metadata,
-            dataGraphManager(entitySetService)
+                toolbox,
+                metadata,
+                dataGraphManager(entitySetService)
         )
     }
 
