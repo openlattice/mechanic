@@ -32,7 +32,12 @@ import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditRecordEntitySetsManager
 import com.openlattice.auditing.AuditingConfiguration
 import com.openlattice.auditing.pods.AuditingConfigurationPod
-import com.openlattice.authorization.*
+import com.openlattice.authorization.AuthorizationManager
+import com.openlattice.authorization.DbCredentialService
+import com.openlattice.authorization.HazelcastAclKeyReservationService
+import com.openlattice.authorization.HazelcastAuthorizationService
+import com.openlattice.authorization.HazelcastPrincipalsMapManager
+import com.openlattice.authorization.PrincipalsMapManager
 import com.openlattice.collaborations.CollaborationDatabaseManager
 import com.openlattice.collaborations.CollaborationService
 import com.openlattice.collaborations.PostgresCollaborationDatabaseService
@@ -770,5 +775,10 @@ class MechanicUpgradePod {
     @Bean
     fun createMissingAdminRoles(): CreateMissingAdminRoles {
         return CreateMissingAdminRoles(toolbox, securePrincipalsManager(), authorizationManager())
+    }
+
+    @Bean
+    fun initializeObjectMetadata(): InitializeObjectMetadata {
+        return InitializeObjectMetadata(toolbox, datasetService())
     }
 }
