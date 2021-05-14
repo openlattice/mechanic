@@ -24,9 +24,18 @@ import com.google.common.base.Stopwatch
 import com.openlattice.authorization.securable.SecurableObjectType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresArrays
-import com.openlattice.postgres.PostgresColumn.*
+import com.openlattice.postgres.PostgresColumn.ACL_KEY
+import com.openlattice.postgres.PostgresColumn.ENTITY_SET_ID
+import com.openlattice.postgres.PostgresColumn.ID
+import com.openlattice.postgres.PostgresColumn.NAME
+import com.openlattice.postgres.PostgresColumn.SECURABLE_OBJECTID
+import com.openlattice.postgres.PostgresColumn.SECURABLE_OBJECT_TYPE
 import com.openlattice.postgres.PostgresTable
-import com.openlattice.postgres.PostgresTable.*
+import com.openlattice.postgres.PostgresTable.ACL_KEYS
+import com.openlattice.postgres.PostgresTable.ENTITY_SETS
+import com.openlattice.postgres.PostgresTable.MATERIALIZED_ENTITY_SETS
+import com.openlattice.postgres.PostgresTable.NAMES
+import com.openlattice.postgres.PostgresTable.SECURABLE_OBJECTS
 import com.openlattice.postgres.ResultSetAdapters
 import com.openlattice.postgres.streams.BasePostgresIterable
 import com.openlattice.postgres.streams.PreparedStatementHolderSupplier
@@ -172,7 +181,7 @@ class CheckOrphanedEntitySets(private val toolbox: Toolbox) : Check {
             "RETURNING ${ENTITY_SET_ID.name}"
 
     private val deleteOrphanedEntitySetPropertyMetaData =
-            "DELETE FROM ${ENTITY_SET_PROPERTY_METADATA.name} " +
+//            "DELETE FROM ${ENTITY_SET_PROPERTY_METADATA.name} " +
             "WHERE ${ENTITY_SET_ID.name} NOT IN ( $entitySetIds ) " +
             "RETURNING ${ENTITY_SET_ID.name}"
 

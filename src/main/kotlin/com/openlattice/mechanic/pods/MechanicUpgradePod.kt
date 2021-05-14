@@ -50,6 +50,7 @@ import com.openlattice.data.storage.EntityDatastore
 import com.openlattice.data.storage.PostgresEntityDataQueryService
 import com.openlattice.data.storage.PostgresEntityDatastore
 import com.openlattice.data.storage.partitions.PartitionManager
+import com.openlattice.datasets.DatasetService
 import com.openlattice.datastore.pods.ByteBlobServicePod
 import com.openlattice.datastore.services.EdmManager
 import com.openlattice.datastore.services.EdmService
@@ -446,7 +447,8 @@ class MechanicUpgradePod {
                 aclKeyReservationService(),
                 authorizationManager(),
                 postgresTypeManager(),
-                schemaManager()
+                schemaManager(),
+                datasetService()
         )
     }
 
@@ -468,6 +470,11 @@ class MechanicUpgradePod {
         return service
     }
 
+    @Bean
+    fun datasetService(): DatasetService {
+        return DatasetService(hazelcastInstance, eventBus)
+    }
+
     fun uninitializedEntitySetManager(metadataService: OrganizationMetadataEntitySetsService): EntitySetManager {
         return EntitySetService(
                 hazelcastInstance,
@@ -478,6 +485,7 @@ class MechanicUpgradePod {
                 edmManager(),
                 hikariDataSource,
                 metadataService,
+                datasetService(),
                 auditingConfiguration
         )
     }
@@ -709,7 +717,8 @@ class MechanicUpgradePod {
                         TransporterDatastore(assemblerConfiguration, rhizomeConfiguration, externalDatabaseConnectionManager, externalDatabasePermissioningService())
                 ),
                 dbCredentialService(),
-                hikariDataSource
+                hikariDataSource,
+                datasetService()
         )
     }
 
@@ -736,9 +745,9 @@ class MechanicUpgradePod {
         val metadata = organizationMetadataEntitySetsService()
         val entitySetService = uninitializedEntitySetManager(metadata)
         return SyncOrgEntitySetsMissingInMeta(
-            toolbox,
-            metadata,
-            dataGraphManager(entitySetService)
+                toolbox,
+                metadata,
+                dataGraphManager(entitySetService)
         )
     }
 
@@ -766,5 +775,10 @@ class MechanicUpgradePod {
     @Bean
     fun createMissingAdminRoles(): CreateMissingAdminRoles {
         return CreateMissingAdminRoles(toolbox, securePrincipalsManager(), authorizationManager())
+    }
+
+    @Bean
+    fun initializeObjectMetadata(): InitializeObjectMetadata {
+        return InitializeObjectMetadata(toolbox, datasetService())
     }
 }
