@@ -23,6 +23,7 @@ package com.openlattice.mechanic
 
 import com.google.common.base.Preconditions.checkArgument
 import com.google.common.collect.Maps
+import com.kryptnostic.rhizome.configuration.ConfigurationConstants
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.AWS_CONFIGURATION_PROFILE
 import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.LOCAL_CONFIGURATION_PROFILE
 import com.kryptnostic.rhizome.core.Rhizome
@@ -90,7 +91,7 @@ fun main(args: Array<String>) {
     }
 
     if (cl.hasOption(POSTGRES)) {
-        ars.add(PostgresPod.PROFILE)
+        ars.add(ConfigurationConstants.Profiles.POSTGRES_DB_PROFILE)
     }
 
     if (cl.hasOption(CHECK)) {
