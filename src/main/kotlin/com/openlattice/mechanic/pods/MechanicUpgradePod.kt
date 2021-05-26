@@ -45,10 +45,7 @@ import com.openlattice.data.DataGraphManager
 import com.openlattice.data.DataGraphService
 import com.openlattice.data.EntityKeyIdService
 import com.openlattice.data.ids.PostgresEntityKeyIdService
-import com.openlattice.data.storage.ByteBlobDataManager
-import com.openlattice.data.storage.EntityDatastore
-import com.openlattice.data.storage.PostgresEntityDataQueryService
-import com.openlattice.data.storage.PostgresEntityDatastore
+import com.openlattice.data.storage.*
 import com.openlattice.data.storage.partitions.PartitionManager
 import com.openlattice.datasets.DatasetService
 import com.openlattice.datastore.pods.ByteBlobServicePod
@@ -63,6 +60,7 @@ import com.openlattice.graph.Graph
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.ids.HazelcastIdGenerationService
 import com.openlattice.ids.HazelcastLongIdService
+import com.openlattice.jdbc.DataSourceManager
 import com.openlattice.linking.LinkingQueryService
 import com.openlattice.linking.PostgresLinkingFeedbackService
 import com.openlattice.linking.graph.PostgresLinkingQueryService
@@ -77,6 +75,7 @@ import com.openlattice.organizations.OrganizationMetadataEntitySetsService
 import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
+import com.openlattice.postgres.PostgresTable
 import com.openlattice.postgres.external.DatabaseQueryManager
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.external.ExternalDatabasePermissioner
@@ -134,6 +133,9 @@ class MechanicUpgradePod {
 
     @Inject
     private lateinit var byteBlobDataManager: ByteBlobDataManager
+
+    @Inject
+    private lateinit var dataSourceManager: DataSourceManager
 
     @Inject
     private lateinit var executor: ListeningExecutorService
@@ -613,10 +615,16 @@ class MechanicUpgradePod {
     }
 
     @Bean
+    fun dataSourceResolver(): DataSourceResolver {
+        dataSourceManager.registerTablesWithAllDatasources(PostgresTable.E)
+        dataSourceManager.registerTablesWithAllDatasources(PostgresTable.DATA)
+        return DataSourceResolver(hazelcastInstance, dataSourceManager)
+    }
+
+    @Bean
     fun dataQueryService(): PostgresEntityDataQueryService {
         return PostgresEntityDataQueryService(
-                hikariDataSource,
-                hikariDataSource,
+     dataSourceResolver(),
                 byteBlobDataManager,
                 partitionManager()
         )
@@ -664,8 +672,7 @@ class MechanicUpgradePod {
 
 
     fun dataGraphManager(entitySetManager: EntitySetManager): DataGraphManager {
-        val graphService = Graph(hikariDataSource,
-                hikariDataSource,
+        val graphService = Graph(dataSourceResolver(),
                 entitySetManager,
                 partitionManager(),
                 dataQueryService(),
