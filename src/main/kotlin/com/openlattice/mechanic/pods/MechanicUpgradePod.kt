@@ -660,7 +660,7 @@ class MechanicUpgradePod {
     @Bean
     fun idService(): EntityKeyIdService {
         return PostgresEntityKeyIdService(
-                hikariDataSource,
+                dataSourceResolver(),
                 idGenerationService(),
                 partitionManager())
     }
