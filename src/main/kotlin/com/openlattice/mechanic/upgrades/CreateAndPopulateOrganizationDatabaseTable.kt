@@ -52,14 +52,14 @@ class CreateAndPopulateOrganizationDatabaseTable(
         return externalDatabaseConnectionManager.connectAsSuperuser()
     }
 
-    private fun getDatabasesToOid(): Map<String, Int> {
+    private fun getDatabasesToOid(): Map<String, Long> {
         val lookupSql = "SELECT datname, oid FROM pg_database"
 
         logger.info("About to lookup databases to oids using sql: $lookupSql")
 
         val dbsToOids = BasePostgresIterable(StatementHolderSupplier(connectToExternalDatabase(), lookupSql)) {
             val dbName = it.getString(1)
-            val oid = it.getInt(2)
+            val oid = it.getLong(2)
 
             dbName to oid
         }.toMap()
@@ -84,7 +84,7 @@ class CreateAndPopulateOrganizationDatabaseTable(
                     val oid = databaseNamesToOids.getOrDefault(dbName, -1)
 
                     ps.setObject(1, orgId)
-                    ps.setInt(2, oid)
+                    ps.setLong(2, oid)
                     ps.setString(3, dbName)
 
                     ps.addBatch()
