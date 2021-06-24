@@ -20,12 +20,12 @@ class UpdateAuditEntitySetPartitions(private val toolbox: Toolbox) : Upgrade {
 
     override fun upgrade(): Boolean {
         val entitySetPartitions = toolbox.entitySets.values
-                .filter { !it.flags.contains(EntitySetFlag.AUDIT) }
-                .associate { it.id to it.partitions }
+            .filter { !it.flags.contains(EntitySetFlag.AUDIT) }
+            .associate { it.id to it.partitions }
 
         logger.info("Mapped ${entitySetPartitions.size} non-audit entity set ids to their partitions")
 
-        val auditRecordEntitySets = HazelcastMap.AUDIT_RECORD_ENTITY_SETS.getMap( toolbox.hazelcast )
+        val auditRecordEntitySets = HazelcastMap.AUDIT_RECORD_ENTITY_SETS.getMap(toolbox.hazelcast)
 
         val sql = "UPDATE ${ENTITY_SETS.name} SET ${PARTITIONS.name} = ? WHERE ${ID.name} = ANY(?)"
 
@@ -34,12 +34,16 @@ class UpdateAuditEntitySetPartitions(private val toolbox: Toolbox) : Upgrade {
         val numUpdates = toolbox.hds.connection.use { conn ->
             conn.prepareStatement(sql).use { ps ->
 
-                auditRecordEntitySets.forEach {
+                (auditRecordEntitySets as Map<AclKey, AuditRecordEntitySetConfiguration>).forEach {
                     val entitySetId = it.key.first()
 
                     if (entitySetPartitions.containsKey(entitySetId)) {
-                        val partitionsArr = PostgresArrays.createIntArray(conn, entitySetPartitions.getValue(entitySetId))
-                        val auditEntitySetIds = PostgresArrays.createUuidArray(conn, it.value.auditRecordEntitySetIds + it.value.auditEdgeEntitySetIds)
+                        val partitionsArr =
+                            PostgresArrays.createIntArray(conn, entitySetPartitions.getValue(entitySetId))
+                        val auditEntitySetIds = PostgresArrays.createUuidArray(
+                            conn,
+                            it.value.auditRecordEntitySetIds + it.value.auditEdgeEntitySetIds
+                        )
 
                         ps.setArray(1, partitionsArr)
                         ps.setArray(2, auditEntitySetIds)

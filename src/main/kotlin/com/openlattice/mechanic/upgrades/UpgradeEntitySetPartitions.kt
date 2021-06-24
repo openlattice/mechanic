@@ -26,7 +26,7 @@ class UpgradeEntitySetPartitions(private val toolbox: Toolbox) : Upgrade {
         //Manually ran upgrade to alter entity sets table.
 
         val entitySetSizes = retrieveEntitySetSizes()
-        THE_BIG_ONE = entitySetSizes.values.maxBy { it.count }?.count ?: throw IllegalStateException(
+        THE_BIG_ONE = entitySetSizes.values.maxByOrNull { it.count }?.count ?: throw IllegalStateException(
                 "Entity set sizes cannot be null."
         )
 
