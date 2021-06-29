@@ -1,14 +1,14 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.authorization.AclKey
-import com.openlattice.datasets.DatasetService
+import com.openlattice.datasets.DataSetService
 import com.openlattice.datasets.SecurableObjectMetadata
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 
 class InitializeObjectMetadata(
         private val toolbox: Toolbox,
-        private val datasetService: DatasetService
+        private val datasetService: DataSetService
 ) : Upgrade {
 
     override fun upgrade(): Boolean {

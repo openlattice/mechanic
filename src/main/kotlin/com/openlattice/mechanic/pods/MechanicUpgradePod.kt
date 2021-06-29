@@ -27,27 +27,25 @@ import com.google.common.eventbus.EventBus
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
 import com.kryptnostic.rhizome.configuration.RhizomeConfiguration
+import com.kryptnostic.rhizome.pods.ConfigurationLoader
 import com.openlattice.assembler.Assembler
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditRecordEntitySetsManager
 import com.openlattice.auditing.AuditingConfiguration
 import com.openlattice.auditing.pods.AuditingConfigurationPod
-import com.openlattice.authorization.AuthorizationManager
-import com.openlattice.authorization.DbCredentialService
-import com.openlattice.authorization.HazelcastAclKeyReservationService
-import com.openlattice.authorization.HazelcastAuthorizationService
-import com.openlattice.authorization.HazelcastPrincipalsMapManager
-import com.openlattice.authorization.PrincipalsMapManager
+import com.openlattice.authorization.*
 import com.openlattice.collaborations.CollaborationDatabaseManager
 import com.openlattice.collaborations.CollaborationService
 import com.openlattice.collaborations.PostgresCollaborationDatabaseService
+import com.openlattice.conductor.rpc.ConductorConfiguration
+import com.openlattice.conductor.rpc.ConductorElasticsearchApi
 import com.openlattice.data.DataGraphManager
 import com.openlattice.data.DataGraphService
 import com.openlattice.data.EntityKeyIdService
 import com.openlattice.data.ids.PostgresEntityKeyIdService
 import com.openlattice.data.storage.*
 import com.openlattice.data.storage.partitions.PartitionManager
-import com.openlattice.datasets.DatasetService
+import com.openlattice.datasets.DataSetService
 import com.openlattice.datastore.pods.ByteBlobServicePod
 import com.openlattice.datastore.services.EdmManager
 import com.openlattice.datastore.services.EdmService
@@ -76,12 +74,9 @@ import com.openlattice.organizations.mapstores.OrganizationsMapstore
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.PostgresTable
-import com.openlattice.postgres.external.DatabaseQueryManager
-import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
-import com.openlattice.postgres.external.ExternalDatabasePermissioner
-import com.openlattice.postgres.external.ExternalDatabasePermissioningService
-import com.openlattice.postgres.external.PostgresDatabaseQueryService
+import com.openlattice.postgres.external.*
 import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
+import com.openlattice.scrunchie.search.ConductorElasticsearchImpl
 import com.openlattice.transporter.services.TransporterService
 import com.openlattice.transporter.types.TransporterDatastore
 import com.zaxxer.hikari.HikariDataSource
@@ -139,6 +134,14 @@ class MechanicUpgradePod {
 
     @Inject
     private lateinit var executor: ListeningExecutorService
+
+    @Inject
+    private lateinit var configurationLoader: ConfigurationLoader
+
+    @Bean
+    fun conductorConfiguration(): ConductorConfiguration {
+        return configurationLoader.logAndLoad("conductor", ConductorConfiguration::class.java)
+    }
 
     @Bean
     fun securePrincipalsManager(): SecurePrincipalsManager {
@@ -473,8 +476,8 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun datasetService(): DatasetService {
-        return DatasetService(hazelcastInstance, eventBus)
+    fun datasetService(): DataSetService {
+        return DataSetService(hazelcastInstance, elasticsearchApi())
     }
 
     fun uninitializedEntitySetManager(metadataService: OrganizationMetadataEntitySetsService): EntitySetManager {
@@ -787,5 +790,10 @@ class MechanicUpgradePod {
     @Bean
     fun initializeObjectMetadata(): InitializeObjectMetadata {
         return InitializeObjectMetadata(toolbox, datasetService())
+    }
+
+    @Bean
+    fun elasticsearchApi(): ConductorElasticsearchApi {
+        return ConductorElasticsearchImpl(conductorConfiguration().searchConfiguration)
     }
 }
