@@ -139,13 +139,10 @@ dependencies {
         logger.info(project.name + " using project dependencies.")
         implementation project(":rhizome")
         implementation project(":conductor-client")
-        implementation project(":scrunchie")
         implementation project(":courier")
     } else {
         logger.info(project.name + " using jar dependencies.")
-        implementation "com.openlattice:scrunchie:$scrunchie_version"
         implementation "com.openlattice:courier:$courier_version"
-
         implementation "com.openlattice:conductor-client:$conductor_client_version"
         implementation "com.openlattice:rhizome:$rhizome_version"
     }
