@@ -1,5 +1,7 @@
 package com.openlattice.mechanic.upgrades
 
+import com.openlattice.authorization.AclKey
+import com.openlattice.directory.MaterializedViewAccount
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.quote
@@ -7,8 +9,8 @@ import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import org.slf4j.LoggerFactory
 
 class AlterAtlasUsersWithInherit(
-        private val toolbox: Toolbox,
-        private val externalDbConnMan: ExternalDatabaseConnectionManager
+    private val toolbox: Toolbox,
+    private val externalDbConnMan: ExternalDatabaseConnectionManager
 ) : Upgrade {
 
     companion object {
@@ -20,13 +22,14 @@ class AlterAtlasUsersWithInherit(
 
         externalDbConnMan.connectAsSuperuser().connection.use { conn ->
             conn.createStatement().use { stmt ->
-                HazelcastMap.DB_CREDS.getMap(toolbox.hazelcast).map { it.value.username }.toList().forEach { roleName ->
-                    try {
-                        stmt.execute(alterRoleStmt(roleName))
-                    } catch (e: Exception) {
-                        logger.error("Unable to alter account {}", roleName)
+                (HazelcastMap.DB_CREDS.getMap(toolbox.hazelcast) as Map<AclKey, MaterializedViewAccount>)
+                    .map { it.value.username }.toList().forEach { roleName ->
+                        try {
+                            stmt.execute(alterRoleStmt(roleName))
+                        } catch (e: Exception) {
+                            logger.error("Unable to alter account {}", roleName)
+                        }
                     }
-                }
             }
         }
 
