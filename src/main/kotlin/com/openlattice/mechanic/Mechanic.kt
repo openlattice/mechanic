@@ -37,6 +37,7 @@ import com.openlattice.auth0.Auth0Pod
 import com.openlattice.datastore.pods.ByteBlobServicePod
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.hazelcast.pods.SharedStreamSerializersPod
+import com.openlattice.ioc.providers.LateInitProvidersPod
 import com.openlattice.jdbc.JdbcPod
 import com.openlattice.mechanic.MechanicCli.Companion.AWS
 import com.openlattice.mechanic.MechanicCli.Companion.CHECK
@@ -142,7 +143,8 @@ class Mechanic {
                     MetricsPod::class.java,
                     ExternalDatabaseConnectionManagerPod::class.java,
                     PostgresPod::class.java,
-                    SharedStreamSerializersPod::class.java
+                    SharedStreamSerializersPod::class.java,
+                    LateInitProvidersPod::class.java
             )
     )
 

@@ -28,19 +28,14 @@ import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
 import com.kryptnostic.rhizome.configuration.RhizomeConfiguration
 import com.kryptnostic.rhizome.pods.ConfigurationLoader
-import com.openlattice.assembler.Assembler
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditRecordEntitySetsManager
 import com.openlattice.auditing.AuditingConfiguration
 import com.openlattice.auditing.pods.AuditingConfigurationPod
 import com.openlattice.authorization.*
-import com.openlattice.collaborations.CollaborationDatabaseManager
-import com.openlattice.collaborations.CollaborationService
-import com.openlattice.collaborations.PostgresCollaborationDatabaseService
 import com.openlattice.conductor.rpc.ConductorConfiguration
 import com.openlattice.conductor.rpc.ConductorElasticsearchApi
-import com.openlattice.data.DataGraphManager
-import com.openlattice.data.DataGraphService
+import com.openlattice.data.DataDeletionManager
 import com.openlattice.data.EntityKeyIdService
 import com.openlattice.data.ids.PostgresEntityKeyIdService
 import com.openlattice.data.storage.*
@@ -52,40 +47,29 @@ import com.openlattice.datastore.services.EdmService
 import com.openlattice.datastore.services.EntitySetManager
 import com.openlattice.datastore.services.EntitySetService
 import com.openlattice.edm.properties.PostgresTypeManager
-import com.openlattice.edm.schemas.SchemaQueryService
 import com.openlattice.edm.schemas.manager.HazelcastSchemaManager
 import com.openlattice.graph.Graph
-import com.openlattice.hazelcast.pods.MapstoresPod
+import com.openlattice.graph.core.GraphService
 import com.openlattice.ids.HazelcastIdGenerationService
-import com.openlattice.ids.HazelcastLongIdService
+import com.openlattice.ioc.providers.LateInitProvider
 import com.openlattice.jdbc.DataSourceManager
 import com.openlattice.linking.LinkingQueryService
 import com.openlattice.linking.PostgresLinkingFeedbackService
 import com.openlattice.linking.graph.PostgresLinkingQueryService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.mechanic.upgrades.*
-import com.openlattice.notifications.sms.PhoneNumberService
-import com.openlattice.organizations.ExternalDatabaseManagementService
-import com.openlattice.organizations.HazelcastOrganizationService
-import com.openlattice.organizations.OrganizationExternalDatabaseConfiguration
-import com.openlattice.organizations.OrganizationMetadataEntitySetsService
-import com.openlattice.organizations.mapstores.OrganizationsMapstore
-import com.openlattice.organizations.roles.HazelcastPrincipalService
-import com.openlattice.organizations.roles.SecurePrincipalsManager
+import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
 import com.openlattice.postgres.PostgresTable
-import com.openlattice.postgres.external.*
-import com.openlattice.postgres.mapstores.OrganizationAssemblyMapstore
 import com.openlattice.scrunchie.search.ConductorElasticsearchImpl
-import com.openlattice.transporter.services.TransporterService
-import com.openlattice.transporter.types.TransporterDatastore
 import com.zaxxer.hikari.HikariDataSource
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Profile
+import javax.annotation.PostConstruct
 import javax.inject.Inject
+
 
 @Configuration
 @Import(MechanicToolboxPod::class, AuditingConfigurationPod::class, ByteBlobServicePod::class)
@@ -94,230 +78,50 @@ import javax.inject.Inject
 class MechanicUpgradePod {
 
     @Inject
-    private lateinit var hikariDataSource: HikariDataSource
-
-    @Inject
-    private lateinit var eventBus: EventBus
-
-    @Inject
-    private lateinit var mapstoresPod: MapstoresPod
-
-    @Inject
-    private lateinit var hazelcastInstance: HazelcastInstance
-
-    @Inject
     private lateinit var assemblerConfiguration: AssemblerConfiguration
-
-    @Inject
-    private lateinit var toolbox: Toolbox
 
     @Inject
     private lateinit var auditingConfiguration: AuditingConfiguration
 
     @Inject
-    private lateinit var rhizomeConfiguration: RhizomeConfiguration
-
-    @Inject
-    private lateinit var externalDatabaseConnectionManager: ExternalDatabaseConnectionManager
-
-    @Inject
-    private lateinit var hazelcastClientProvider: HazelcastClientProvider
-
-    @Inject
-    private lateinit var metricRegistry: MetricRegistry
-
-    @Inject
     private lateinit var byteBlobDataManager: ByteBlobDataManager
+
+    @Inject
+    private lateinit var configurationLoader: ConfigurationLoader
 
     @Inject
     private lateinit var dataSourceManager: DataSourceManager
 
     @Inject
+    private lateinit var eventBus: EventBus
+
+    @Inject
     private lateinit var executor: ListeningExecutorService
 
     @Inject
-    private lateinit var configurationLoader: ConfigurationLoader
+    private lateinit var hazelcastClientProvider: HazelcastClientProvider
+
+    @Inject
+    private lateinit var hazelcastInstance: HazelcastInstance
+
+    @Inject
+    private lateinit var hikariDataSource: HikariDataSource
+
+    @Inject
+    private lateinit var lateInitProvider: LateInitProvider
+
+    @Inject
+    private lateinit var metricRegistry: MetricRegistry
+
+    @Inject
+    private lateinit var rhizomeConfiguration: RhizomeConfiguration
+
+    @Inject
+    private lateinit var toolbox: Toolbox
 
     @Bean
     fun conductorConfiguration(): ConductorConfiguration {
         return configurationLoader.logAndLoad("conductor", ConductorConfiguration::class.java)
-    }
-
-    @Bean
-    fun securePrincipalsManager(): SecurePrincipalsManager {
-        return HazelcastPrincipalService(hazelcastInstance,
-                aclKeyReservationService(),
-                authorizationManager(),
-                principalsMapManager(),
-                externalDatabasePermissioningService()
-        )
-    }
-
-    // Added for SyncOrgPermissionsUpgrade
-    @Bean
-    fun syncExternalPermissions(): SyncOrgPermissionsUpgrade {
-        return SyncOrgPermissionsUpgrade(
-                toolbox,
-                externalDatabaseConnectionManager,
-                externalDatabasePermissioningService(),
-                dbCreds()
-        )
-    }
-
-    @Bean
-    fun externalDatabasePermissioningService(): ExternalDatabasePermissioningService {
-        return ExternalDatabasePermissioner(
-                toolbox.hazelcast,
-                externalDatabaseConnectionManager,
-                dbCreds(),
-                principalsMapManager()
-        )
-    }
-
-    @Bean
-    fun principalsMapManager(): PrincipalsMapManager {
-        return HazelcastPrincipalsMapManager(hazelcastInstance, aclKeyReservationService())
-    }
-
-    @Bean
-    fun dbCreds(): DbCredentialService {
-        return DbCredentialService(
-                toolbox.hazelcast,
-                longIdService()
-        )
-    }
-
-    @Bean
-    fun longIdService(): HazelcastLongIdService {
-        return HazelcastLongIdService(hazelcastClientProvider)
-    }
-    // End SyncOrgPermissionsUpgrade
-
-    @Bean
-    fun linking(): Linking {
-        return Linking(toolbox)
-    }
-
-    @Bean
-    fun graph(): GraphProcessing {
-        return GraphProcessing(toolbox)
-    }
-
-    @Bean
-    fun mediaServerUpgrade(): MediaServerUpgrade {
-        return MediaServerUpgrade(toolbox)
-    }
-
-    fun mediaServerCleanup(): MediaServerCleanup {
-        return MediaServerCleanup(toolbox)
-    }
-
-    @Bean
-    fun readLinking(): ReadLinking {
-        return ReadLinking(toolbox)
-    }
-
-    @Bean
-    fun propertyValueIndexing(): PropertyValueIndexing {
-        return PropertyValueIndexing(toolbox)
-    }
-
-    @Bean
-    fun lastMigrateColumnUpgrade(): LastMigrateColumnUpgrade {
-        return LastMigrateColumnUpgrade(toolbox)
-    }
-
-    @Bean
-    fun materializedEntitySets(): MaterializedEntitySets {
-        return MaterializedEntitySets(toolbox)
-    }
-
-    @Bean
-    fun materializationForeignServer(): MaterializationForeignServer {
-        return MaterializationForeignServer(
-                mapstoresPod.organizationAssemblies() as OrganizationAssemblyMapstore,
-                assemblerConfiguration,
-                externalDatabaseConnectionManager
-        )
-    }
-
-    @Bean
-    fun materializedEntitySetRefresh(): MaterializedEntitySetRefresh {
-        return MaterializedEntitySetRefresh(toolbox)
-    }
-
-    @Bean
-    fun organizationDbUserSetup(): OrganizationDbUserSetup {
-        return OrganizationDbUserSetup(
-                mapstoresPod.organizationAssemblies() as OrganizationAssemblyMapstore,
-                assemblerConfiguration,
-                externalDatabaseConnectionManager
-        )
-    }
-
-    @Bean
-    fun upgradeCreateDataTable(): CreateDataTable {
-        return CreateDataTable(toolbox)
-    }
-
-    @Bean
-    fun upgradeEntitySetPartitions(): UpgradeEntitySetPartitions {
-        return UpgradeEntitySetPartitions(toolbox)
-    }
-
-    @Bean
-    fun migratePropertyValuesToDataTable(): MigratePropertyValuesToDataTable {
-        return MigratePropertyValuesToDataTable(toolbox)
-    }
-
-    @Bean
-    fun upgradeEdgesTable(): UpgradeEdgesTable {
-        return UpgradeEdgesTable(toolbox)
-    }
-
-    @Bean
-    fun createDataTableIndexes(): CreateDataTableIndexes {
-        return CreateDataTableIndexes(toolbox)
-    }
-
-    @Bean
-    fun resetMigratedVersions(): ResetMigratedVersions {
-        return ResetMigratedVersions(toolbox)
-    }
-
-    @Bean
-    fun upgradeEntityKeyIdsTable(): UpgradeEntityKeyIdsTable {
-        return UpgradeEntityKeyIdsTable(toolbox)
-    }
-
-    @Bean
-    fun insertEntityKeyIdsToDataTable(): InsertEntityKeyIdsToDataTable {
-        return InsertEntityKeyIdsToDataTable(toolbox)
-    }
-
-    @Bean
-    fun dataExpirationUpgrade(): DataExpirationUpgrade {
-        return DataExpirationUpgrade(toolbox)
-    }
-
-    @Bean
-    fun setOriginIdDefaultValueUpgrade(): SetOriginIdDefaultValueUpgrade {
-        return SetOriginIdDefaultValueUpgrade(toolbox)
-    }
-
-    @Bean
-    fun setOriginIdToNonNullUpgrade(): SetOriginIdToNonNullUpgrade {
-        return SetOriginIdToNonNullUpgrade(toolbox)
-    }
-
-    @Bean
-    fun addOriginIdToDataPrimaryKey(): AddOriginIdToDataPrimaryKey {
-        return AddOriginIdToDataPrimaryKey(toolbox)
-    }
-
-    @Bean
-    fun insertDeletedChronicleEdgeIds(): InsertDeletedChronicleEdgeIds {
-        return InsertDeletedChronicleEdgeIds(toolbox)
     }
 
     @Bean
@@ -326,105 +130,20 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun authorizationManager(): AuthorizationManager {
-        return HazelcastAuthorizationService(hazelcastInstance, eventBus, principalsMapManager())
+    fun jobService(): HazelcastJobService {
+        return HazelcastJobService(hazelcastInstance)
     }
 
     @Bean
-    fun rectifyOrganizationsUpgrade(): RectifyOrganizationsUpgrade {
-        val dbCredService = DbCredentialService(
-                toolbox.hazelcast,
-                HazelcastLongIdService(hazelcastClientProvider)
-        )
-        val assembler = Assembler(
-                dbCredService,
-                authorizationManager(),
-                securePrincipalsManager(),
-                dbQueryManager(),
-                metricRegistry,
-                toolbox.hazelcast,
-                eventBus
-        )
-        return RectifyOrganizationsUpgrade(
-                toolbox,
-                assembler
-        )
+    fun elasticsearchApi(): ConductorElasticsearchApi {
+        return ConductorElasticsearchImpl(conductorConfiguration().searchConfiguration)
     }
 
     @Bean
-    fun grantPublicSchemaAccessToOrgs(): GrantPublicSchemaAccessToOrgs {
-        return GrantPublicSchemaAccessToOrgs(
-                mapstoresPod.organizationsMapstore() as OrganizationsMapstore,
-                securePrincipalsManager(),
-                assemblerConfiguration)
+    fun dataSetService(): DataSetService {
+        return DataSetService(hazelcastInstance, elasticsearchApi())
     }
 
-    @Bean
-    fun dropPartitionsVersionColumn(): DropPartitionsVersionColumn {
-        return DropPartitionsVersionColumn(toolbox)
-    }
-
-    @Bean
-    fun resetEntitySetCountsMaterializedView(): ResetEntitySetCountsMaterializedView {
-        return ResetEntitySetCountsMaterializedView(toolbox)
-    }
-
-    @Bean
-    fun migrateOrganizationsToJsonb(): MigrateOrganizationsToJsonb {
-        return MigrateOrganizationsToJsonb(toolbox)
-    }
-
-    @Bean
-    fun setDataTableIdsFieldLastWriteToCreation(): SetDataTableIdsFieldLastWriteToCreation {
-        return SetDataTableIdsFieldLastWriteToCreation(toolbox)
-    }
-
-    @Bean
-    fun convertAppsToEntityTypeCollections(): ConvertAppsToEntityTypeCollections {
-        return ConvertAppsToEntityTypeCollections(toolbox, eventBus)
-    }
-
-    @Bean
-    fun updateAuditEntitySetPartitions(): UpdateAuditEntitySetPartitions {
-        return UpdateAuditEntitySetPartitions(toolbox)
-    }
-
-    @Bean
-    fun adjustNCRICDataDateTimes(): AdjustNCRICDataDateTimes {
-        return AdjustNCRICDataDateTimes(toolbox)
-    }
-
-    @Bean
-    fun addPartitionsToOrgsAndEntitySets(): AddPartitionsToOrgsAndEntitySets {
-        return AddPartitionsToOrgsAndEntitySets(toolbox)
-    }
-
-    @Bean
-    fun clearJSONOrganizationRoles(): ClearJSONOrganizationRoles {
-        return ClearJSONOrganizationRoles(toolbox)
-    }
-
-    @Bean
-    fun updateAppTables(): UpdateAppTables {
-        return UpdateAppTables(toolbox)
-    }
-
-    @Bean
-    fun updateDateTimePropertyHash(): UpdateDateTimePropertyHash {
-        return UpdateDateTimePropertyHash(toolbox)
-    }
-
-    @Bean
-    fun fixAssociationTypeCatogories(): FixAssociationTypeCatogories {
-        return FixAssociationTypeCatogories(toolbox)
-    }
-
-    @Bean
-    fun repartitionOrganizations(): RepartitionOrganizations {
-        return RepartitionOrganizations(toolbox)
-    }
-
-    /* SETUP FOR EntitySetManager */
     @Bean
     fun partitionManager(): PartitionManager {
         return PartitionManager(hazelcastInstance, hikariDataSource)
@@ -436,185 +155,8 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun schemaQueryService(): SchemaQueryService {
-        return postgresTypeManager()
-    }
-
-    @Bean
-    fun schemaManager(): HazelcastSchemaManager {
-        return HazelcastSchemaManager(hazelcastInstance, schemaQueryService())
-    }
-
-    @Bean
-    fun edmManager(): EdmManager {
-        return EdmService(
-                hazelcastInstance,
-                aclKeyReservationService(),
-                authorizationManager(),
-                postgresTypeManager(),
-                schemaManager(),
-                datasetService()
-        )
-    }
-
-    fun uninitializedOrganizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
-        return OrganizationMetadataEntitySetsService(
-                hazelcastInstance,
-                edmManager(),
-                principalsMapManager(),
-                authorizationManager()
-        )
-    }
-
-    fun organizationMetadataEntitySetsService(): OrganizationMetadataEntitySetsService {
-        val service = uninitializedOrganizationMetadataEntitySetsService()
-        val entitySetService = uninitializedEntitySetManager(service)
-        service.organizationService = uninitializedOrganizationService(service)
-        service.entitySetsManager = entitySetService
-        service.dataGraphManager = dataGraphManager(entitySetService)
-        return service
-    }
-
-    @Bean
-    fun datasetService(): DataSetService {
-        return DataSetService(hazelcastInstance, elasticsearchApi())
-    }
-
-    fun uninitializedEntitySetManager(metadataService: OrganizationMetadataEntitySetsService): EntitySetManager {
-        return EntitySetService(
-                hazelcastInstance,
-                eventBus,
-                aclKeyReservationService(),
-                authorizationManager(),
-                partitionManager(),
-                edmManager(),
-                hikariDataSource,
-                metadataService,
-                datasetService(),
-                auditingConfiguration
-        )
-    }
-
-    @Bean
-    fun removeLinkingDataFromDataTable(): RemoveLinkingDataFromDataTable {
-        return RemoveLinkingDataFromDataTable(toolbox)
-    }
-
-    @Bean
-    fun createStagingSchemaForExistingOrgs(): CreateStagingSchemaForExistingOrgs {
-        return CreateStagingSchemaForExistingOrgs(toolbox, assemblerConfiguration, externalDatabaseConnectionManager)
-    }
-
-    @Bean
-    fun grantAppRolesReadOnEntitySetCollections(): GrantAppRolesReadOnEntitySetCollections {
-        return GrantAppRolesReadOnEntitySetCollections(toolbox, eventBus)
-    }
-
-    @Bean
-    fun addDbCredUsernames(): AddDbCredUsernames {
-        return AddDbCredUsernames(toolbox, assemblerConfiguration)
-    }
-
-    @Bean
-    fun createAtlasUsersAndSetPermissions(): CreateAtlasUsersAndSetPermissions {
-        return CreateAtlasUsersAndSetPermissions(toolbox, externalDatabaseConnectionManager)
-    }
-
-    @Bean
-    fun createAndPopulateOrganizationDatabaseTable(): CreateAndPopulateOrganizationDatabaseTable {
-        return CreateAndPopulateOrganizationDatabaseTable(toolbox, externalDatabaseConnectionManager)
-    }
-
-    @Bean
-    fun createAllOrgMetadataEntitySets(): CreateAllOrgMetadataEntitySets {
-        return CreateAllOrgMetadataEntitySets(
-                toolbox,
-                organizationMetadataEntitySetsService(),
-                securePrincipalsManager(),
-                authorizationManager()
-        )
-    }
-
-    @Bean
-    fun cleanOutOrgMembersAndRoles(): CleanOutOrgMembersAndRoles {
-        return CleanOutOrgMembersAndRoles(toolbox, securePrincipalsManager(), authorizationManager())
-    }
-
-    @Bean
-    fun grantAllOnStagingSchemaToOrgUser(): GrantAllOnStagingSchemaToOrgUser {
-        return GrantAllOnStagingSchemaToOrgUser(toolbox, externalDatabaseConnectionManager)
-    }
-
-    @Bean
-    fun cleanUpDeletedUsers(): CleanUpDeletedUsers {
-        return CleanUpDeletedUsers(toolbox)
-    }
-
-    @Bean
-    fun migrateDbCredsKeyToAclKey(): MigrateDbCredsKeyToAclKey {
-        return MigrateDbCredsKeyToAclKey(toolbox)
-
-    }
-
-    fun assembler(): Assembler {
-        return Assembler(
-                dbCredentialService(),
-                authorizationManager(),
-                securePrincipalsManager(),
-                dbQueryManager(),
-                metricRegistry,
-                toolbox.hazelcast,
-                eventBus
-        )
-    }
-
-    @Bean
-    fun dbQueryManager(): DatabaseQueryManager {
-        return PostgresDatabaseQueryService(
-                assemblerConfiguration,
-                externalDatabaseConnectionManager,
-                securePrincipalsManager(),
-                dbCredentialService()
-        )
-    }
-
-    @Bean
-    fun collaborationDatabaseManager(): CollaborationDatabaseManager {
-        return PostgresCollaborationDatabaseService(
-                hazelcastInstance,
-                dbQueryManager(),
-                externalDatabaseConnectionManager,
-                authorizationManager(),
-                externalDatabasePermissioningService(),
-                securePrincipalsManager(),
-                dbCreds(),
-                assemblerConfiguration
-        )
-    }
-
-    @Bean
-    fun collaborationService(): CollaborationService {
-        return CollaborationService(
-                hazelcastInstance,
-                aclKeyReservationService(),
-                authorizationManager(),
-                securePrincipalsManager(),
-                collaborationDatabaseManager()
-        )
-    }
-
-    fun uninitializedOrganizationService(metadataService: OrganizationMetadataEntitySetsService): HazelcastOrganizationService {
-        return HazelcastOrganizationService(
-                hazelcastInstance,
-                aclKeyReservationService(),
-                authorizationManager(),
-                securePrincipalsManager(),
-                PhoneNumberService(hazelcastInstance),
-                partitionManager(),
-                assembler(),
-                metadataService,
-                collaborationService()
-        )
+    fun postgresLinkingFeedbackQueryService(): PostgresLinkingFeedbackService {
+        return PostgresLinkingFeedbackService(hikariDataSource, hazelcastInstance)
     }
 
     @Bean
@@ -625,33 +167,58 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun dataQueryService(): PostgresEntityDataQueryService {
-        return PostgresEntityDataQueryService(
-     dataSourceResolver(),
-                byteBlobDataManager,
-                partitionManager()
+    fun principalsMapManager(): PrincipalsMapManager {
+        return HazelcastPrincipalsMapManager(hazelcastInstance, aclKeyReservationService())
+    }
+
+    @Bean
+    fun authorizationService(): AuthorizationManager {
+        return HazelcastAuthorizationService(hazelcastInstance, eventBus, principalsMapManager())
+    }
+
+    @Bean
+    fun schemaManager(): HazelcastSchemaManager {
+        return HazelcastSchemaManager(hazelcastInstance, postgresTypeManager())
+    }
+
+    @Bean
+    fun edmManager(): EdmManager {
+        return EdmService(
+            hazelcastInstance,
+            aclKeyReservationService(),
+            authorizationService(),
+            postgresTypeManager(),
+            schemaManager(),
+            dataSetService()
         )
     }
 
     @Bean
-    fun postgresLinkingFeedbackQueryService(): PostgresLinkingFeedbackService {
-        return PostgresLinkingFeedbackService(hikariDataSource, hazelcastInstance)
+    fun entitySetService(): EntitySetManager {
+        return EntitySetService(
+            hazelcastInstance,
+            eventBus,
+            aclKeyReservationService(),
+            authorizationService(),
+            partitionManager(),
+            edmManager(),
+            hikariDataSource,
+            dataSetService(),
+            auditingConfiguration
+        )
     }
 
     @Bean
-    fun lqs(): LinkingQueryService {
-        return PostgresLinkingQueryService(hikariDataSource, partitionManager())
+    fun auditRecordEntitySetsManager(): AuditRecordEntitySetsManager {
+        return entitySetService().getAuditRecordEntitySetsManager()
     }
 
-    fun entityDatastore(entitySetManager: EntitySetManager): EntityDatastore {
-        return PostgresEntityDatastore(
-                dataQueryService(),
-                edmManager(),
-                entitySetManager,
-                metricRegistry,
-                eventBus,
-                postgresLinkingFeedbackQueryService(),
-                lqs()
+    @Bean
+    fun dataQueryService(): PostgresEntityDataQueryService {
+        return PostgresEntityDataQueryService(
+            dataSourceResolver(),
+            byteBlobDataManager,
+            partitionManager()
         )
     }
 
@@ -663,137 +230,67 @@ class MechanicUpgradePod {
     @Bean
     fun idService(): EntityKeyIdService {
         return PostgresEntityKeyIdService(
-                dataSourceResolver(),
-                idGenerationService(),
-                partitionManager())
+            dataSourceResolver(),
+            idGenerationService(),
+            partitionManager())
     }
 
     @Bean
-    fun jobService(): HazelcastJobService {
-        return HazelcastJobService(hazelcastInstance)
-    }
-
-
-    fun dataGraphManager(entitySetManager: EntitySetManager): DataGraphManager {
-        val graphService = Graph(dataSourceResolver(),
-                entitySetManager,
-                partitionManager(),
-                dataQueryService(),
-                idService(),
-                MetricRegistry())
-
-        return DataGraphService(
-                graphService,
-                idService(),
-                entityDatastore(entitySetManager),
-                jobService()
+    fun graphService(): GraphService {
+        return Graph(
+            dataSourceResolver(),
+            entitySetService(),
+            partitionManager(),
+            dataQueryService(),
+            idService(),
+            MetricRegistry()
         )
     }
 
     @Bean
-    fun populateOrgMetadataEntitySets(): PopulateOrgMetadataEntitySets {
-        return PopulateOrgMetadataEntitySets(
-                toolbox,
-                organizationMetadataEntitySetsService()
+    fun lqs(): LinkingQueryService {
+        return PostgresLinkingQueryService(hikariDataSource, partitionManager())
+    }
+
+    @Bean
+    fun entityDatastore(entitySetManager: EntitySetManager): EntityDatastore {
+        return PostgresEntityDatastore(
+            dataQueryService(),
+            edmManager(),
+            entitySetManager,
+            metricRegistry,
+            eventBus,
+            postgresLinkingFeedbackQueryService(),
+            lqs()
         )
     }
 
     @Bean
-    fun grantCreateOnOLSchemaToOrgMembers(): GrantCreateOnOLSchemaToOrgMembers {
-        return GrantCreateOnOLSchemaToOrgMembers(toolbox, externalDatabaseConnectionManager, securePrincipalsManager())
-    }
-
-    fun dbCredentialService(): DbCredentialService {
-        return DbCredentialService(hazelcastInstance, HazelcastLongIdService(hazelcastClientProvider))
-    }
-
-
-    fun externalDatabaseManagementService(): ExternalDatabaseManagementService {
-        return ExternalDatabaseManagementService(
-                hazelcastInstance,
-                externalDatabaseConnectionManager,
-                principalsMapManager(),
-                aclKeyReservationService(),
-                authorizationManager(),
-                OrganizationExternalDatabaseConfiguration("", "", ""),
-                externalDatabasePermissioningService(),
-                TransporterService(
-                        eventBus,
-                        edmManager(),
-                        partitionManager(),
-                        uninitializedEntitySetManager(uninitializedOrganizationMetadataEntitySetsService()),
-                        executor,
-                        hazelcastInstance,
-                        TransporterDatastore(assemblerConfiguration, rhizomeConfiguration, externalDatabaseConnectionManager, externalDatabasePermissioningService())
-                ),
-                dbCredentialService(),
-                hikariDataSource,
-                datasetService()
+    fun dataDeletionService(): DataDeletionManager {
+        val entitySetService = entitySetService()
+        return DataDeletionService(
+            entitySetService,
+            authorizationService(),
+            entityDatastore(entitySetService),
+            graphService(),
+            jobService(),
+            partitionManager()
         )
     }
 
     @Bean
-    fun AddSchemaToExternalTables(): AddSchemaToExternalTables {
-        return AddSchemaToExternalTables(toolbox, externalDatabaseManagementService(), aclKeyReservationService())
-    }
-
-    @Bean
-    fun deleteAndCreateOrgMetaEntitySets(): DeleteAndCreateOrgMetaEntitySets {
-        val metadata = organizationMetadataEntitySetsService()
-        return DeleteAndCreateOrgMetaEntitySets(
-                toolbox,
-                uninitializedOrganizationService(metadata),
-                uninitializedEntitySetManager(metadata),
-                metadata,
-                externalDatabaseManagementService(),
-                auditRecordEntitySetsManager()
+    fun deleteOrgMetadataEntitySets(): DeleteOrgMetadataEntitySets {
+        return DeleteOrgMetadataEntitySets(
+            toolbox,
+            auditRecordEntitySetsManager(),
+            dataDeletionService(),
+            entitySetService(),
+            jobService()
         )
     }
 
-    @Bean
-    fun syncOrgEntitySetsMissingInMeta(): SyncOrgEntitySetsMissingInMeta {
-        val metadata = organizationMetadataEntitySetsService()
-        val entitySetService = uninitializedEntitySetManager(metadata)
-        return SyncOrgEntitySetsMissingInMeta(
-                toolbox,
-                metadata,
-                dataGraphManager(entitySetService)
-        )
-    }
-
-    @Bean
-    fun auditRecordEntitySetsManager(): AuditRecordEntitySetsManager {
-        val metadata = organizationMetadataEntitySetsService()
-        return uninitializedEntitySetManager(metadata).getAuditRecordEntitySetsManager()
-    }
-
-    @Bean
-    fun grantReadToOrgOnMetadataEntitySets(): GrantReadToOrgOnMetadataEntitySets {
-        return GrantReadToOrgOnMetadataEntitySets(toolbox, authorizationManager())
-    }
-
-    @Bean
-    fun alterAtlasUsersWithInherit(): AlterAtlasUsersWithInherit {
-        return AlterAtlasUsersWithInherit(toolbox, externalDatabaseConnectionManager)
-    }
-
-    @Bean
-    fun removeDeletedExternalPermissionRoles(): RemoveDeletedExternalPermissionRoles {
-        return RemoveDeletedExternalPermissionRoles(toolbox, externalDatabaseConnectionManager)
-    }
-
-    @Bean
-    fun createMissingAdminRoles(): CreateMissingAdminRoles {
-        return CreateMissingAdminRoles(toolbox, securePrincipalsManager(), authorizationManager())
-    }
-
-    @Bean
-    fun initializeObjectMetadata(): InitializeObjectMetadata {
-        return InitializeObjectMetadata(toolbox, datasetService())
-    }
-
-    @Bean
-    fun elasticsearchApi(): ConductorElasticsearchApi {
-        return ConductorElasticsearchImpl(conductorConfiguration().searchConfiguration)
+    @PostConstruct
+    fun post() {
+        lateInitProvider.setDataSourceResolver(dataSourceResolver())
     }
 }
