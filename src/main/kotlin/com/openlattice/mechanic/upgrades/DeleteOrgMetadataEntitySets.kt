@@ -41,6 +41,7 @@ class DeleteOrgMetadataEntitySets(
     companion object {
         private val logger = LoggerFactory.getLogger(DeleteOrgMetadataEntitySets::class.java)
         private val NON_BLOCKING_JOB_STATUSES = EnumSet.of(JobStatus.FINISHED, JobStatus.CANCELED, JobStatus.PAUSED)
+        private val UNINITIALIZED_ID = UUID(0, 0)
     }
 
     override fun upgrade(): Boolean {
@@ -165,7 +166,7 @@ class DeleteOrgMetadataEntitySets(
             // if the esid is all zeros AND there's no audit entity sets, it's likely the org wasn't initialized
             // correctly. since there's no entity sets to delete, we'll try deleting metadata from json.
             else if (
-                entitySetId.toString() == "00000000-0000-0000-0000-000000000000"
+                UNINITIALIZED_ID == entitySetId
                 && auditEdgeEntitySetIds.isEmpty()
                 && auditRecordEntitySetIds.isEmpty()
             ) {
