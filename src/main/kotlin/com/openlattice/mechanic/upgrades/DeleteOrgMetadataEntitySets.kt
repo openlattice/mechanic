@@ -195,7 +195,7 @@ class DeleteOrgMetadataEntitySets(
 
             val t1 = Stopwatch.createStarted()
             val deleteJobId = dataDeletionService.clearOrDeleteEntitySet(entitySet.id, DeleteType.Hard)
-            waitUntilJobFinishedOrCanceled(deleteJobId, orgId, entitySet.id)
+            waitForDeleteJobToFinish(deleteJobId, orgId, entitySet.id)
             logger.info(
                 "dataDeletionService.clearOrDeleteEntitySet took {} ms - org $orgId entity set $entitySetId",
                 t1.elapsed(TimeUnit.MILLISECONDS),
@@ -221,7 +221,7 @@ class DeleteOrgMetadataEntitySets(
         return false
     }
 
-    private fun waitUntilJobFinishedOrCanceled(jobId: UUID, orgId: UUID, entitySetId: UUID) {
+    private fun waitForDeleteJobToFinish(jobId: UUID, orgId: UUID, entitySetId: UUID) {
 
         var status = jobService.getStatus(jobId)
         while (!NON_BLOCKING_JOB_STATUSES.contains(status)) {
