@@ -242,25 +242,38 @@ class DeleteOrgMetadataEntitySets(
 
     private fun deleteMetadataFromJson(orgId: UUID, key: String? = null): Boolean {
 
-        val sql: String
         if (StringUtils.isNotBlank(key)) {
-            sql = """
-                UPDATE ${ORGANIZATIONS.name}
-                SET ${ORGANIZATION.name} = ${ORGANIZATION.name}::jsonb #- '{"$META_ESIDS", "$key"}'
-                WHERE ${ID.name} = '$orgId'
-            """.trimIndent()
             logger.info("deleting organization->$META_ESIDS->$key - org $orgId")
-        } else {
-            sql = """
+            val sql = """
                 UPDATE ${ORGANIZATIONS.name}
-                SET ${ORGANIZATION.name} = ${ORGANIZATION.name}::jsonb #- '{"$META_ESIDS"}'
-                WHERE ${ID.name} = '$orgId'
+                SET ${ORGANIZATION.name} = ${ORGANIZATION.name}::jsonb #- ('{"' || ? || '", "' || ? || '"}')::text[]
+                WHERE ${ID.name} = ?
             """.trimIndent()
+            val update = toolbox.hds.connection.use { connection ->
+                connection.prepareStatement(sql).use { ps ->
+                    ps.setString(1, META_ESIDS)
+                    ps.setString(2, key)
+                    ps.setObject(3, orgId)
+                    ps.executeUpdate()
+                }
+            }
+            return update == 1
+        } else {
             logger.info("deleting organization->$META_ESIDS - org $orgId")
+            val sql = """
+                UPDATE ${ORGANIZATIONS.name}
+                SET ${ORGANIZATION.name} = ${ORGANIZATION.name}::jsonb #- ('{"' || ? || '"}')::text[]
+                WHERE ${ID.name} = ?
+            """.trimIndent()
+            val update = toolbox.hds.connection.use { connection ->
+                connection.prepareStatement(sql).use { ps ->
+                    ps.setString(1, META_ESIDS)
+                    ps.setObject(2, orgId)
+                    ps.executeUpdate()
+                }
+            }
+            return update == 1
         }
-
-        val update = toolbox.hds.connection.use { connection -> connection.createStatement().executeUpdate(sql) }
-        return update == 1
     }
 
     override fun getSupportedVersion(): Long {
