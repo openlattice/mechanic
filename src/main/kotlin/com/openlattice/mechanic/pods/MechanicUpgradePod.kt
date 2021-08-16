@@ -60,7 +60,9 @@ import com.openlattice.linking.graph.PostgresLinkingQueryService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
+import com.openlattice.mechanic.upgrades.MigrateOrgPermissionsUpgrade
 import com.openlattice.postgres.PostgresTable
+import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.external.ExternalDatabasePermissioner
 import com.openlattice.postgres.external.ExternalDatabasePermissioningService
 import com.openlattice.scrunchie.search.ConductorElasticsearchImpl
@@ -101,8 +103,8 @@ class MechanicUpgradePod {
     @Inject
     private lateinit var executor: ListeningExecutorService
 
-    Inject
-    private lateinit var ExternalDatabaseConnectionManager externalDbConnMan
+    @Inject
+    private lateinit var externalDbConnMan: ExternalDatabaseConnectionManager 
 
     @Inject
     private lateinit var hazelcastClientProvider: HazelcastClientProvider
@@ -306,11 +308,6 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun principalsMapManager(): PrincipalsMapManager {
-        return HazelcastPrincipalsMapManager(hazelcastInstance, aclKeyReservationService())
-    }
-
-    @Bean
     fun externalDatabasePermissionsManager(): ExternalDatabasePermissioningService {
         return ExternalDatabasePermissioner(
             hazelcastInstance,
@@ -321,7 +318,7 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun migrateOrgPermissionsUpgrade(): SyncOrgPermissionsUpgrade {
+    fun migrateOrgPermissionsUpgrade(): MigrateOrgPermissionsUpgrade {
         return MigrateOrgPermissionsUpgrade(
             toolbox,
             externalDatabasePermissionsManager()

@@ -25,7 +25,7 @@ class MigrateOrgPermissionsUpgrade(
 
     val logger: Logger = LoggerFactory.getLogger(SyncOrgPermissionsUpgrade::class.java)
 
-    private val externalRoleNames = HazelcastMap.EXTERNAL_PERMISSION_ROLES.getMap(hazelcastInstance)
+    private val externalRoleNames = HazelcastMap.EXTERNAL_PERMISSION_ROLES.getMap(toolbox.hazelcast)
     private val permissions = HazelcastMap.PERMISSIONS.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
@@ -65,5 +65,9 @@ class MigrateOrgPermissionsUpgrade(
     private fun assignAllPermissions(acls: List<Acl>): Boolean {
         exDbPermMan.executePrivilegesUpdate(Action.SET, acls)
         return true
+    }
+
+    override fun getSupportedVersion(): Long {
+        return Version.V2021_07_23.value
     }
 }
