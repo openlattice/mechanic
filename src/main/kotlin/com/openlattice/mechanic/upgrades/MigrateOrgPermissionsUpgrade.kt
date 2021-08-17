@@ -46,7 +46,7 @@ class MigrateOrgPermissionsUpgrade(
             Acl(aclkey, aces)
         }
 
-        val dropOldPerms = dropOldRolePermissions(acls)
+        val dropOldPerms = dropOldPermissionRoles(acls)
         val assignPerms = assignAllPermissions(acls)
         if (dropOldPerms && assignPerms) {
             return true
@@ -57,12 +57,14 @@ class MigrateOrgPermissionsUpgrade(
         return false
     }
 
-    private fun dropOldRolePermissions(acls: List<Acl>): Boolean {
+    private fun dropOldPermissionRoles(acls: List<Acl>): Boolean {
+        logger.info("Revoking membership from old perms roles")
         exDbPermMan.executePrivilegesUpdate(Action.DROP, acls)
         return true
     }
 
     private fun assignAllPermissions(acls: List<Acl>): Boolean {
+        logger.info("Granting direct permissions")
         exDbPermMan.executePrivilegesUpdate(Action.SET, acls)
         return true
     }
