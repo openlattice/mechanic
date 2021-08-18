@@ -61,14 +61,14 @@ class MigrateOrgPermissionsUpgrade(
         }
 
         // actual permission migration
-        val dropOldPerms = dropOldPermissionRoles(acls)
+        val revokeOldPerms = revokeFromOldPermissionRoles(acls)
         val assignPerms = assignAllPermissions(acls)
-        if (dropOldPerms && assignPerms) {
+        if (revokeOldPerms && assignPerms) {
             return true
         }
         logger.error("Permissions migration upgrade failed, final status:\n" +
-                "dropOldRolePermissions: {}\n" +
-                "assignAllPermissions: {}\n", dropOldPerms, assignPerms)
+                "revokeFromOldPermissionRoles: {}\n" +
+                "assignAllPermissions: {}\n", revokeOldPerms, assignPerms)
         return false
     }
 
@@ -98,7 +98,7 @@ class MigrateOrgPermissionsUpgrade(
         }
     }
 
-    private fun dropOldPermissionRoles(acls: List<Acl>): Boolean {
+    private fun revokeFromOldPermissionRoles(acls: List<Acl>): Boolean {
         logger.info("Revoking membership from old perms roles")
         exDbPermMan.executePrivilegesUpdate(Action.DROP, acls)
         return true

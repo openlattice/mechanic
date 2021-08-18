@@ -61,6 +61,7 @@ import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
 import com.openlattice.mechanic.upgrades.MigrateOrgPermissionsUpgrade
+import com.openlattice.mechanic.upgrades.PostPermissionMigrationUpgrade
 import com.openlattice.postgres.PostgresTable
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.external.ExternalDatabasePermissioner
@@ -323,6 +324,14 @@ class MechanicUpgradePod {
             toolbox,
             externalDbConnMan,
             externalDatabasePermissionsManager()
+        )
+    }
+
+    @Bean
+    fun postPermissionMigrationUpgrade(): PostPermissionMigrationUpgrade {
+        return PostPermissionMigrationUpgrade(
+            toolbox,
+            externalDbConnMan
         )
     }
 
