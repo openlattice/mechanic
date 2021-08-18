@@ -321,6 +321,7 @@ class MechanicUpgradePod {
     fun migrateOrgPermissionsUpgrade(): MigrateOrgPermissionsUpgrade {
         return MigrateOrgPermissionsUpgrade(
             toolbox,
+            externalDbConnMan,
             externalDatabasePermissionsManager()
         )
     }
