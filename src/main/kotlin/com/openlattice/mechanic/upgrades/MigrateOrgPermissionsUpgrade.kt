@@ -32,17 +32,6 @@ class MigrateOrgPermissionsUpgrade(
     private val permissions = HazelcastMap.PERMISSIONS.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
-        // pre-migration population of external_permission_roles table
-        try {
-            logger.info("Populating external_permission_roles")
-            populateExternalPermissionRolesTable()
-        }
-        catch (e: Exception) {
-            logger.error("Error occurred while populating external_permission_roles", e)
-            // don't continue
-            return false
-        }
-
         val filteredPermissionEntries = permissions.entrySet(
                 Predicates.`in`<AceKey, AceValue>(PermissionMapstore.SECURABLE_OBJECT_TYPE_INDEX,
                         SecurableObjectType.PropertyTypeInEntitySet,
@@ -70,32 +59,6 @@ class MigrateOrgPermissionsUpgrade(
                 "revokeFromOldPermissionRoles: {}\n" +
                 "assignAllPermissions: {}\n", revokeOldPerms, assignPerms)
         return false
-    }
-
-    private fun populateExternalPermissionRolesTable() {
-        organizations.values.forEach { org ->
-            val orgID = org.id
-            try {
-                logger.info("populating external_permission_roles for org {}", orgID)
-                exConnMan.connectToOrg(orgID).use { hds ->
-                    hds.connection.use { conn ->
-                        conn.createStatement().use { stmt ->
-                            stmt.addBatch("""
-                                UPDATE external_permission_roles epr
-                                SET epr.column_name = oedc.name
-                                FROM organization_external_database_columns oedc
-                                WHERE epr.aclkey = ARRAY[oedc.table_id, oedc.id]
-                            """.trimIndent())
-                            stmt.executeBatch()
-                        }
-                    }
-                }
-            }
-            catch (ex: SQLException) {
-                logger.error("SQL error occurred while populating external_permission_roles for org {}", orgID, ex)
-                throw ex
-            }
-        }
     }
 
     private fun revokeFromOldPermissionRoles(acls: List<Acl>): Boolean {
