@@ -1,5 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
+import com.openlattice.ApiHelpers
 import com.openlattice.authorization.AccessTarget
 import com.openlattice.authorization.Acl
 import com.openlattice.authorization.AclKey
@@ -8,11 +9,14 @@ import com.openlattice.authorization.Permission
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.organization.ExternalColumn
+import com.openlattice.organization.ExternalTable
+import com.openlattice.postgres.PostgresPrivileges
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 import java.sql.SQLException
+import java.util.EnumSet
 
 /**
  * @author Drew Bailey (drew@openlattice.com)
@@ -26,9 +30,15 @@ class PostPermissionMigrationUpgrade(
     val logger: Logger = LoggerFactory.getLogger(SyncOrgPermissionsUpgrade::class.java)
 
     private val externalColumns = HazelcastMap.EXTERNAL_COLUMNS.getMap(toolbox.hazelcast)
+    private val externalTables = HazelcastMap.EXTERNAL_TABLES.getMap(toolbox.hazelcast)
     private val externalRoleNames = HazelcastMap.EXTERNAL_PERMISSION_ROLES.getMap(toolbox.hazelcast)
     private val organizations = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
 
+    private val olToPostgres = mapOf<Permission, Set<PostgresPrivileges>>(
+        Permission.READ to EnumSet.of(PostgresPrivileges.SELECT),
+        Permission.WRITE to EnumSet.of(PostgresPrivileges.INSERT, PostgresPrivileges.UPDATE),
+        Permission.OWNER to EnumSet.of(PostgresPrivileges.ALL)
+    )
     private val allTablePermissions = setOf(Permission.READ, Permission.WRITE, Permission.OWNER)
 
     override fun upgrade(): Boolean {
@@ -47,29 +57,44 @@ class PostPermissionMigrationUpgrade(
                     conn.createStatement().use { stmt ->
                         orgColumns.forEach { col ->
                             val colId = col.key
+                            val colName = col.value.name
                             val tableId = col.value.tableId
+                            val tableName = externalTables.getValue(tableId)?.name ?: String()
+                            val schemaName = externalTables.getValue(tableId)?.schema ?: String()
                             val aclKey = AclKey(tableId, colId)
 
                             logger.info("org {}: dropping column {} of table {} with acl_key {}", orgID, colId, tableId, aclKey)
                             allTablePermissions.mapNotNull { permission ->
-                                externalRoleNames[AccessTarget(aclKey, permission)]
-                            }.forEach { roleUUID ->
+                                externalRoleNames[AccessTarget(aclKey, permission)]?.let { 
+                                    permission to it
+                                }
+                            }.forEach { (permission, roleUUID) ->
                                 val roleName = roleUUID.toString()
+                                val sqls = mutableListOf<String>()
+
+                                // first reassign objects to admin
+                                sqls.add("""
+                                    REASSIGN OWNED BY $roleName TO $admin
+                                """.trimIndent())
+                                // then revoke all column privileges granted to role
+                                val privilegeString = olToPostgres.getValue(permission).joinToString { privilege ->
+                                    "$privilege ( ${ApiHelpers.dbQuote(colName)} )"
+                                }
+                                sqls.add("""
+                                    REVOKE $privilegeString 
+                                    ON $schemaName.${ApiHelpers.dbQuote(tableName)}
+                                    FROM $roleName
+                                """.trimIndent())
+                                // finally drop the role
+                                sqls.add("""
+                                    DROP ROLE $roleName
+                                """.trimIndent())
 
                                 logger.info("org {}, aclkey {}: dropping {}", orgID, aclKey, roleName)
                                 try {
-                                    // first reassign objects to admin
-                                    stmt.addBatch("""
-                                        REASSIGN OWNED BY $roleName TO $admin
-                                    """.trimIndent())
-                                    // then drop everything owned by rolename (needed or DROP ROLE will not go through)
-                                    stmt.addBatch("""
-                                        DROP OWNED BY $roleName
-                                    """.trimIndent())
-                                    // finally drop the role
-                                    stmt.addBatch("""
-                                        DROP ROLE $roleName
-                                    """.trimIndent())
+                                    sqls.forEach { sql ->
+                                        stmt.addBatch(sql)
+                                    }
 
                                     stmt.executeBatch()
                                     conn.commit()
