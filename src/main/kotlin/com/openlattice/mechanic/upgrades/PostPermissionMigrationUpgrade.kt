@@ -76,6 +76,7 @@ class PostPermissionMigrationUpgrade(
                                 sqls.add("""
                                     REASSIGN OWNED BY $roleName TO $admin
                                 """.trimIndent())
+
                                 // then revoke all column privileges granted to role
                                 val privilegeString = olToPostgres.getValue(permission).joinToString { privilege ->
                                     "$privilege ( ${ApiHelpers.dbQuote(colName)} )"
@@ -85,6 +86,10 @@ class PostPermissionMigrationUpgrade(
                                     ON $schemaName.${ApiHelpers.dbQuote(tableName)}
                                     FROM $roleName
                                 """.trimIndent())
+                                sqls.add("""
+                                    REVOKE USAGE ON SCHEMA $schemaName FROM $roleName
+                                """.trimIndent())
+                                
                                 // finally drop the role
                                 sqls.add("""
                                     DROP ROLE $roleName
