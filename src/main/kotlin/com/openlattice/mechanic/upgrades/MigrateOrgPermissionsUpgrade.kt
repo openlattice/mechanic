@@ -17,9 +17,6 @@ import org.slf4j.LoggerFactory
 
 import java.sql.SQLException
 
-/**
- * @author Drew Bailey (drew@openlattice.com)
- */
 class MigrateOrgPermissionsUpgrade(
         toolbox: Toolbox,
         private val exConnMan: ExternalDatabaseConnectionManager,

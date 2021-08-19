@@ -18,9 +18,6 @@ import org.slf4j.LoggerFactory
 import java.sql.SQLException
 import java.util.EnumSet
 
-/**
- * @author Drew Bailey (drew@openlattice.com)
- */
 class PostPermissionMigrationUpgrade(
         toolbox: Toolbox,
         private val exConnMan: ExternalDatabaseConnectionManager,
