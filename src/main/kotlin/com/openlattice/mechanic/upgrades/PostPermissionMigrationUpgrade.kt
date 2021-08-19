@@ -66,7 +66,7 @@ class PostPermissionMigrationUpgrade(
                             logger.info("org {}: dropping column {} of table {} with acl_key {}", orgID, colId, tableId, aclKey)
                             allTablePermissions.mapNotNull { permission ->
                                 externalRoleNames[AccessTarget(aclKey, permission)]?.let { 
-                                    permission to it
+                                    permission to it.second
                                 }
                             }.forEach { (permission, roleUUID) ->
                                 val roleName = roleUUID.toString()
@@ -89,7 +89,7 @@ class PostPermissionMigrationUpgrade(
                                 sqls.add("""
                                     REVOKE USAGE ON SCHEMA $schemaName FROM $roleName
                                 """.trimIndent())
-                                
+
                                 // finally drop the role
                                 sqls.add("""
                                     DROP ROLE $roleName
