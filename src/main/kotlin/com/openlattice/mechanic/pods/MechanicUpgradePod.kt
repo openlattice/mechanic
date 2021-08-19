@@ -331,7 +331,8 @@ class MechanicUpgradePod {
     fun postPermissionMigrationUpgrade(): PostPermissionMigrationUpgrade {
         return PostPermissionMigrationUpgrade(
             toolbox,
-            externalDbConnMan
+            externalDbConnMan,
+            dbCredService()
         )
     }
 

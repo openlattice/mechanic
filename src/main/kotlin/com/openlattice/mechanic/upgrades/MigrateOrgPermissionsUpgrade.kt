@@ -28,7 +28,6 @@ class MigrateOrgPermissionsUpgrade(
 
     val logger: Logger = LoggerFactory.getLogger(SyncOrgPermissionsUpgrade::class.java)
 
-    private val organizations = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
     private val permissions = HazelcastMap.PERMISSIONS.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
