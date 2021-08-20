@@ -108,10 +108,10 @@ class MechanicUpgradePod {
     private lateinit var externalDbConnMan: ExternalDatabaseConnectionManager 
 
     @Inject
-    private lateinit var hazelcastClientProvider: HazelcastClientProvider
+    private lateinit var hazelcastInstance: HazelcastInstance
 
     @Inject
-    private lateinit var hazelcastInstance: HazelcastInstance
+    private lateinit var hazelcastClientProvider: HazelcastClientProvider
 
     @Inject
     private lateinit var hikariDataSource: HikariDataSource
