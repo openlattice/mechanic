@@ -24,7 +24,7 @@ class MigrateOrgPermissionsUpgrade(
         private val exDbPermMan: ExternalDatabasePermissioningService
 ): Upgrade {
 
-    val logger: Logger = LoggerFactory.getLogger(SyncOrgPermissionsUpgrade::class.java)
+    val logger: Logger = LoggerFactory.getLogger(MigrateOrgPermissionsUpgrade::class.java)
 
     private val externalColumns = HazelcastMap.EXTERNAL_COLUMNS.getMap(toolbox.hazelcast)
     private val permissions = HazelcastMap.PERMISSIONS.getMap(toolbox.hazelcast)
