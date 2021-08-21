@@ -48,7 +48,13 @@ class PostPermissionMigrationUpgrade(
         val filterFlag = (input != null)
         logger.info("{}, {}", filterFlag, input)
         val filteringPredicate = if (filterFlag) {
-            Predicates.equal<UUID, ExternalColumn>(ORGANIZATION_ID_INDEX, UUID.fromString(input!!))
+            try {
+                Predicates.equal<UUID, ExternalColumn>(ORGANIZATION_ID_INDEX, UUID.fromString(input!!))
+            }
+            catch (ex: Exception) {
+                logger.error("Error processing user input. Probably not in the right format!", ex)
+                return false
+            }
         } else {
             Predicates.alwaysTrue()
         }

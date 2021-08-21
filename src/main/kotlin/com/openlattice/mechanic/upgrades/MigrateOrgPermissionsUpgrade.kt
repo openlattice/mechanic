@@ -35,7 +35,13 @@ class MigrateOrgPermissionsUpgrade(
         val input = readLine()?.ifBlank { null }
         val filterFlag = (input != null)
         val filteringOrgID = if (filterFlag) {
-            UUID.fromString(input!!)
+            try {
+                UUID.fromString(input!!)
+            }
+            catch (ex: Exception) {
+                logger.error("Error processing user input. Probably not in the right format!", ex)
+                return false
+            }
         } else {
             UUID(0, 0)
         }
