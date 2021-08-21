@@ -125,7 +125,6 @@ class PostPermissionMigrationUpgrade(
                                 catch (ex: SQLException) {
                                     logger.error("SQL error occurred while dropping role {} (column {}, table {}, acl_key {}) of org {}", roleName, colId, tableId, aclKey, orgID, ex)
                                     conn.rollback()
-                                    return false
                                 }
                             }
                         }
