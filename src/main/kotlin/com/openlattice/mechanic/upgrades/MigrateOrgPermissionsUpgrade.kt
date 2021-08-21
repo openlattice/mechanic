@@ -51,8 +51,16 @@ class MigrateOrgPermissionsUpgrade(
                         SecurableObjectType.PropertyTypeInEntitySet,
                         SecurableObjectType.OrganizationExternalDatabaseColumn
                 )
-        ).filter {
-            !filterFlag || externalColumns[it.key.aclKey[1]]!!.organizationId == filteringOrgID
+        ).filter { entry ->
+            try {
+                val columnId = entry.key.aclKey[1]
+                val column = externalColumns[columnId]
+                return !filterFlag || column?.organizationId == filteringOrgID
+            }
+            catch (e: Exception) {
+                logger.error("something went wrong filtering permissions", e)
+                return@filter false
+            }
         }
 
         val acls = filteredPermissionEntries.groupBy({
