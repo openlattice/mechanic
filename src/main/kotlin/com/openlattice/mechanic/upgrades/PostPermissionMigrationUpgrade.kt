@@ -1,5 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
+import com.hazelcast.query.Predicates
 import com.openlattice.ApiHelpers
 import com.openlattice.authorization.AccessTarget
 import com.openlattice.authorization.Acl
@@ -10,6 +11,7 @@ import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.organization.ExternalColumn
 import com.openlattice.organization.ExternalTable
+import com.openlattice.organizations.mapstores.ORGANIZATION_ID_INDEX
 import com.openlattice.postgres.PostgresPrivileges
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import org.slf4j.Logger
@@ -45,23 +47,23 @@ class PostPermissionMigrationUpgrade(
         val input = readLine()?.ifBlank { null }
         val filterFlag = (input != null)
         logger.info("{}, {}", filterFlag, input)
-        val filteringOrgID = if (filterFlag) {
-            UUID.fromString(input!!)
+        val filteringPredicate = if (filterFlag) {
+            Predicates.equal<UUID, ExternalColumn>(ORGANIZATION_ID_INDEX, UUID.fromString(input!!))
         } else {
-            UUID(0, 0)
+            Predicates.alwaysTrue()
         }
 
         if (filterFlag) {
-            logger.info("Filtering for org {}", filteringOrgID)
+            logger.info("Filtering for org {}", input)
         } else {
             logger.info("No filtering")
         }
 
         // Drop old permission roles
-        externalColumns.groupBy {
+        externalColumns.entrySet(
+            filteringPredicate
+        ).groupBy {
             it.value.organizationId
-        }.filter{ (orgID, _) ->
-            !filterFlag || orgID == filteringOrgID
         }.forEach { (orgID, orgColumns) ->
             logger.info("Searching for admin of org {}", orgID)
             val org = organizations[orgID]
