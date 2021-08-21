@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory
 
 import java.sql.SQLException
 import java.util.EnumSet
+import java.util.UUID
 
 class PostPermissionMigrationUpgrade(
         toolbox: Toolbox,
@@ -39,10 +40,30 @@ class PostPermissionMigrationUpgrade(
     private val allTablePermissions = setOf(Permission.READ, Permission.WRITE, Permission.OWNER)
 
     override fun upgrade(): Boolean {
+        // filtering for a specific org
+        println("Organization to filter: ")
+        val input = readLine()?.ifBlank { null }
+        val filterFlag = (input != null)
+        logger.info("{}, {}", filterFlag, input)
+        val filteringOrgID = if (filterFlag) {
+            UUID.fromString(input!!)
+        } else {
+            UUID(0, 0)
+        }
+
+        if (filterFlag) {
+            logger.info("Filtering for org {}", filteringOrgID)
+        } else {
+            logger.info("No filtering")
+        }
+
         // Drop old permission roles
         externalColumns.groupBy {
             it.value.organizationId
+        }.filter{ (orgID, _) ->
+            !filterFlag || orgID == filteringOrgID
         }.forEach { (orgID, orgColumns) ->
+            logger.info("Searching for admin of org {}", orgID)
             val org = organizations[orgID]
             // should be of the form "${org.securablePrincipal.id}|${org.securablePrincipal.name} - ADMIN"
             val admin = dbCreds.getDbUsername(org!!.adminRoleAclKey)

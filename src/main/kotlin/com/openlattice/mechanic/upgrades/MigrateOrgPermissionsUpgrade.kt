@@ -16,6 +16,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 import java.sql.SQLException
+import java.util.UUID
 
 class MigrateOrgPermissionsUpgrade(
         toolbox: Toolbox,
@@ -25,15 +26,35 @@ class MigrateOrgPermissionsUpgrade(
 
     val logger: Logger = LoggerFactory.getLogger(SyncOrgPermissionsUpgrade::class.java)
 
+    private val externalColumns = HazelcastMap.EXTERNAL_COLUMNS.getMap(toolbox.hazelcast)
     private val permissions = HazelcastMap.PERMISSIONS.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
+        // filtering for a specific org
+        println("Organization to filter: ")
+        val input = readLine()?.ifBlank { null }
+        val filterFlag = (input != null)
+        val filteringOrgID = if (filterFlag) {
+            UUID.fromString(input!!)
+        } else {
+            UUID(0, 0)
+        }
+
+        if (filterFlag) {
+            logger.info("Filtering for org {}", filteringOrgID)
+        } else {
+            logger.info("No filtering")
+        }
+
         val filteredPermissionEntries = permissions.entrySet(
                 Predicates.`in`<AceKey, AceValue>(PermissionMapstore.SECURABLE_OBJECT_TYPE_INDEX,
                         SecurableObjectType.PropertyTypeInEntitySet,
                         SecurableObjectType.OrganizationExternalDatabaseColumn
                 )
-        )
+        ).filter {
+            !filterFlag || externalColumns[it.key.aclKey[1]]!!.organizationId == filteringOrgID
+        }
+
         val acls = filteredPermissionEntries.groupBy({
             it.key.aclKey
         }, { (aceKey, aceVal) ->
