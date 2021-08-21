@@ -25,7 +25,7 @@ class PostPermissionMigrationUpgrade(
         private val dbCreds: DbCredentialService
 ): Upgrade {
 
-    val logger: Logger = LoggerFactory.getLogger(SyncOrgPermissionsUpgrade::class.java)
+    val logger: Logger = LoggerFactory.getLogger(PostPermissionMigrationUpgrade::class.java)
 
     private val externalColumns = HazelcastMap.EXTERNAL_COLUMNS.getMap(toolbox.hazelcast)
     private val externalTables = HazelcastMap.EXTERNAL_TABLES.getMap(toolbox.hazelcast)
