@@ -59,15 +59,7 @@ class MigrateOrgPermissionsUpgrade(
                         SecurableObjectType.OrganizationExternalDatabaseColumn
                 )
         ).filter { entry ->
-            try {
-                val columnId = entry.key.aclKey[1]
-                val column = externalColumns[columnId]
-                return !filterFlag || column?.organizationId == filteringOrgID
-            }
-            catch (e: Exception) {
-                logger.error("something went wrong filtering permissions", e)
-                return@filter false
-            }
+            !filterFlag || orgIdPredicate(entry, filteringOrgID)
         }
 
         val acls = filteredPermissionEntries.groupBy({
@@ -104,6 +96,29 @@ class MigrateOrgPermissionsUpgrade(
         logger.info("Granting direct permissions")
         exDbPermMan.executePrivilegesUpdate(Action.SET, acls)
         return true
+    }
+
+    private fun orgIdPredicate(entry: MutableMap.MutableEntry<AceKey, AceValue>, orgId: UUID): Boolean {
+        val tableId = entry.key.aclKey[0]
+        val securableObjectType = entry.value.securableObjectType
+        try {
+            when (securableObjectType) {
+                SecurableObjectType.OrganizationExternalDatabaseColumn -> {
+                    return externalTables[tableId]!!.organizationId == orgId
+                }
+                SecurableObjectType.PropertyTypeInEntitySet -> {
+                    return entitySets[tableId]!!.organizationId == orgId
+                }
+                else -> {
+                    logger.error("SecurableObjectType {} is unexpected, filtering out {}", securableObjectType, entry)
+                    return false
+                }
+            }
+        }
+        catch (e: Exception) {
+            logger.error("something went wrong filtering permissions for {}", entry, e)
+            return false
+        }
     }
 
     override fun getSupportedVersion(): Long {
