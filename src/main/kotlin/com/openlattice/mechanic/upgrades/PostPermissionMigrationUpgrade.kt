@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory
 import java.sql.SQLException
 import java.util.EnumSet
 import java.util.UUID
+import java.util.regex.Pattern
 
 class PostPermissionMigrationUpgrade(
         toolbox: Toolbox,
@@ -42,19 +43,17 @@ class PostPermissionMigrationUpgrade(
     private val allTablePermissions = setOf(Permission.READ, Permission.WRITE, Permission.OWNER)
 
     override fun upgrade(): Boolean {
+        val uuidRegex= Pattern.compile(
+            "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            Pattern.CASE_INSENSITIVE
+        )
+
         // filtering for a specific org
         println("Organization to filter: ")
-        val input = readLine()?.ifBlank { null }
-        val filterFlag = (input != null)
-        logger.info("{}, {}", filterFlag, input)
+        val input = readLine()
+        val filterFlag = uuidRegex.matcher(input).matches()
         val filteringPredicate = if (filterFlag) {
-            try {
-                Predicates.equal<UUID, ExternalColumn>(ORGANIZATION_ID_INDEX, UUID.fromString(input!!))
-            }
-            catch (ex: Exception) {
-                logger.error("Error processing user input. Probably not in the right format!", ex)
-                return false
-            }
+            Predicates.equal<UUID, ExternalColumn>(ORGANIZATION_ID_INDEX, UUID.fromString(input!!))
         } else {
             Predicates.alwaysTrue()
         }
@@ -65,6 +64,11 @@ class PostPermissionMigrationUpgrade(
             logger.info("No filtering")
         }
 
+        val adminUsernameRegex = Pattern.compile(
+            "ol-internal\\|role\\|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            Pattern.CASE_INSENSITIVE
+        )
+
         // Drop old permission roles
         externalColumns.entrySet(
             filteringPredicate
@@ -73,8 +77,14 @@ class PostPermissionMigrationUpgrade(
         }.forEach { (orgID, orgColumns) ->
             logger.info("Searching for admin of org {}", orgID)
             val org = organizations[orgID]
-            // should be of the form "${org.securablePrincipal.id}|${org.securablePrincipal.name} - ADMIN"
+
             val admin = dbCreds.getDbUsername(org!!.adminRoleAclKey)
+            if (!adminUsernameRegex.matcher(admin).matches()) {
+                logger.warn("Unexpected formatting of admin for org {}", orgID)
+                logger.warn("Admin found in db_creds: {}", admin)
+                logger.warn("Skipping org {}")
+                return@forEach
+            }
 
             logger.info("dropping column roles for org {}, with admin {}", orgID, admin)
             exConnMan.connectToOrg(orgID).use { hds ->

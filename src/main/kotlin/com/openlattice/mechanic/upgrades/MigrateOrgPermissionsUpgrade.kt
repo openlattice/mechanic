@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory
 
 import java.sql.SQLException
 import java.util.UUID
+import java.util.regex.Pattern
 
 class MigrateOrgPermissionsUpgrade(
         toolbox: Toolbox,
@@ -26,22 +27,22 @@ class MigrateOrgPermissionsUpgrade(
 
     val logger: Logger = LoggerFactory.getLogger(MigrateOrgPermissionsUpgrade::class.java)
 
-    private val externalColumns = HazelcastMap.EXTERNAL_COLUMNS.getMap(toolbox.hazelcast)
+    private val entitySets = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast)
+    private val externalTables = HazelcastMap.EXTERNAL_TABLES.getMap(toolbox.hazelcast)
     private val permissions = HazelcastMap.PERMISSIONS.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
+        val uuidRegex= Pattern.compile(
+            "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            Pattern.CASE_INSENSITIVE
+        )
+
         // filtering for a specific org
         println("Organization to filter: ")
-        val input = readLine()?.ifBlank { null }
-        val filterFlag = (input != null)
+        val input = readLine()
+        val filterFlag = uuidRegex.matcher(input).matches()
         val filteringOrgID = if (filterFlag) {
-            try {
-                UUID.fromString(input!!)
-            }
-            catch (ex: Exception) {
-                logger.error("Error processing user input. Probably not in the right format!", ex)
-                return false
-            }
+            UUID.fromString(input!!)
         } else {
             UUID(0, 0)
         }
@@ -93,6 +94,7 @@ class MigrateOrgPermissionsUpgrade(
     }
 
     private fun revokeFromOldPermissionRoles(acls: List<Acl>): Boolean {
+        logger.info("Number of acls to be processed: {}", acls.size)
         logger.info("Revoking membership from old perms roles")
         exDbPermMan.executePrivilegesUpdate(Action.DROP, acls)
         return true
