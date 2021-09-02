@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory
 
 import java.sql.SQLException
 import java.util.UUID
-import java.util.regex.Pattern
 
 class MigrateOrgPermissionsUpgrade(
         toolbox: Toolbox,
@@ -32,17 +31,11 @@ class MigrateOrgPermissionsUpgrade(
     private val permissions = HazelcastMap.PERMISSIONS.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
-        val uuidRegex= Pattern.compile(
-            "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-            Pattern.CASE_INSENSITIVE
-        )
-
         // filtering for a specific org
-        println("Organization to filter: ")
-        val input = readLine()
-        val filterFlag = uuidRegex.matcher(input).matches()
+        val input = "00000000-0000-0001-0000-000000000000" // change org id here
+        val filterFlag = true // set to true to filter, false to apply to all orgs
         val filteringOrgID = if (filterFlag) {
-            UUID.fromString(input!!)
+            UUID.fromString(input)
         } else {
             UUID(0, 0)
         }
