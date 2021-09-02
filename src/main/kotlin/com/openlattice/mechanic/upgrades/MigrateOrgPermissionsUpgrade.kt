@@ -1,5 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
+import com.google.common.base.Stopwatch
 import com.hazelcast.query.Predicates
 import com.openlattice.authorization.Ace
 import com.openlattice.authorization.AceKey
@@ -10,18 +11,16 @@ import com.openlattice.authorization.mapstores.PermissionMapstore
 import com.openlattice.authorization.securable.SecurableObjectType
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.external.ExternalDatabasePermissioningService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-import java.sql.SQLException
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 
 class MigrateOrgPermissionsUpgrade(
-        toolbox: Toolbox,
-        private val exConnMan: ExternalDatabaseConnectionManager,
-        private val exDbPermMan: ExternalDatabasePermissioningService
+    toolbox: Toolbox,
+    private val exDbPermMan: ExternalDatabasePermissioningService
 ): Upgrade {
 
     val logger: Logger = LoggerFactory.getLogger(MigrateOrgPermissionsUpgrade::class.java)
@@ -31,51 +30,55 @@ class MigrateOrgPermissionsUpgrade(
     private val permissions = HazelcastMap.PERMISSIONS.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
-        // filtering for a specific org
-        val input = "00000000-0000-0001-0000-000000000000" // change org id here
-        val filterFlag = true // set to true to filter, false to apply to all orgs
-        val filteringOrgID = if (filterFlag) {
-            UUID.fromString(input)
-        } else {
-            UUID(0, 0)
-        }
 
-        if (filterFlag) {
-            logger.info("Filtering for org {}", filteringOrgID)
-        } else {
-            logger.info("No filtering")
-        }
+        logger.info("starting migration")
 
-        val filteredPermissionEntries = permissions.entrySet(
-                Predicates.`in`<AceKey, AceValue>(PermissionMapstore.SECURABLE_OBJECT_TYPE_INDEX,
-                        SecurableObjectType.PropertyTypeInEntitySet,
-                        SecurableObjectType.OrganizationExternalDatabaseColumn
+        try {
+            val timer = Stopwatch.createStarted()
+            val targetOrgId: UUID? = null
+
+            val filteredPermissions = permissions.entrySet(
+                Predicates.`in`(
+                    PermissionMapstore.SECURABLE_OBJECT_TYPE_INDEX,
+                    SecurableObjectType.PropertyTypeInEntitySet,
+                    SecurableObjectType.OrganizationExternalDatabaseColumn
                 )
-        ).filter { entry ->
-            !filterFlag || orgIdPredicate(entry, filteringOrgID)
+            ).filter { entry ->
+                orgIdPredicate(entry, targetOrgId)
+            }
+
+            val acls = filteredPermissions
+                .groupBy({ it.key.aclKey }, { (aceKey, aceVal) ->
+                    Ace(aceKey.principal, aceVal.permissions, aceVal.expirationDate)
+                })
+                .map { (aclKey, aces) -> Acl(aclKey, aces) }
+
+            // actual permission migration
+            val revokeSuccess = revokeFromOldPermissionRoles(acls)
+            logger.info(
+                "revoking permissions took {} ms - {}",
+                timer.elapsed(TimeUnit.MILLISECONDS),
+                acls
+            )
+
+            val assignSuccess = assignAllPermissions(acls)
+            logger.info(
+                "granting permissions took {} ms - {}",
+                timer.elapsed(TimeUnit.MILLISECONDS),
+                acls
+            )
+
+            if (revokeSuccess && assignSuccess) {
+                return true
+            }
+
+            logger.error("migration failed - revoke {} grant {}", revokeSuccess, assignSuccess)
+            return false
+        } catch (e: Exception) {
+            logger.error("something went wrong with the migration", e)
         }
 
-        val acls = filteredPermissionEntries.groupBy({
-            it.key.aclKey
-        }, { (aceKey, aceVal) ->
-            val prin = aceKey.principal
-            val perms = aceVal.permissions
-            val exp = aceVal.expirationDate
-            Ace(prin, perms, exp)
-        }).map { (aclkey, aces) ->
-            Acl(aclkey, aces)
-        }
-
-        // actual permission migration
-        val revokeOldPerms = revokeFromOldPermissionRoles(acls)
-        val assignPerms = assignAllPermissions(acls)
-        if (revokeOldPerms && assignPerms) {
-            return true
-        }
-        logger.error("Permissions migration upgrade failed, final status:\n" +
-                "revokeFromOldPermissionRoles: {}\n" +
-                "assignAllPermissions: {}\n", revokeOldPerms, assignPerms)
-        return false
+        return true
     }
 
     private fun revokeFromOldPermissionRoles(acls: List<Acl>): Boolean {
@@ -91,20 +94,23 @@ class MigrateOrgPermissionsUpgrade(
         return true
     }
 
-    private fun orgIdPredicate(entry: MutableMap.MutableEntry<AceKey, AceValue>, orgId: UUID): Boolean {
-        val tableId = entry.key.aclKey[0]
-        val securableObjectType = entry.value.securableObjectType
+    private fun orgIdPredicate(entry: MutableMap.MutableEntry<AceKey, AceValue>, orgId: UUID?): Boolean {
+        if (orgId == null) {
+            return true
+        }
         try {
-            when (securableObjectType) {
+            val tableId = entry.key.aclKey[0]
+            val securableObjectType = entry.value.securableObjectType
+            return when (securableObjectType) {
                 SecurableObjectType.OrganizationExternalDatabaseColumn -> {
-                    return externalTables[tableId]!!.organizationId == orgId
+                    externalTables[tableId]!!.organizationId == orgId
                 }
                 SecurableObjectType.PropertyTypeInEntitySet -> {
-                    return entitySets[tableId]!!.organizationId == orgId
+                    entitySets[tableId]!!.organizationId == orgId
                 }
                 else -> {
                     logger.error("SecurableObjectType {} is unexpected, filtering out {}", securableObjectType, entry)
-                    return false
+                    false
                 }
             }
         }
