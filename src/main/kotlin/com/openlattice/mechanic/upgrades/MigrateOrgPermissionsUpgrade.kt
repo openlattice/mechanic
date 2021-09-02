@@ -76,9 +76,8 @@ class MigrateOrgPermissionsUpgrade(
             return false
         } catch (e: Exception) {
             logger.error("something went wrong with the migration", e)
+            return false
         }
-
-        return true
     }
 
     private fun revokeFromOldPermissionRoles(acls: List<Acl>): Boolean {

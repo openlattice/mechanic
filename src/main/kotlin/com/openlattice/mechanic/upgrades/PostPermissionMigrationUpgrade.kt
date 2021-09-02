@@ -1,31 +1,28 @@
 package com.openlattice.mechanic.upgrades
 
+import com.google.common.base.Stopwatch
 import com.hazelcast.query.Predicates
 import com.openlattice.ApiHelpers
 import com.openlattice.authorization.AccessTarget
-import com.openlattice.authorization.Acl
 import com.openlattice.authorization.AclKey
 import com.openlattice.authorization.DbCredentialService
 import com.openlattice.authorization.Permission
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.organization.ExternalColumn
-import com.openlattice.organization.ExternalTable
 import com.openlattice.organizations.mapstores.ORGANIZATION_ID_INDEX
 import com.openlattice.postgres.PostgresPrivileges
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-
-import java.sql.SQLException
-import java.util.EnumSet
-import java.util.UUID
+import java.util.*
+import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 
 class PostPermissionMigrationUpgrade(
-        toolbox: Toolbox,
-        private val exConnMan: ExternalDatabaseConnectionManager,
-        private val dbCreds: DbCredentialService
+    toolbox: Toolbox,
+    private val exConnMan: ExternalDatabaseConnectionManager,
+    private val dbCreds: DbCredentialService
 ): Upgrade {
 
     val logger: Logger = LoggerFactory.getLogger(PostPermissionMigrationUpgrade::class.java)
@@ -40,118 +37,153 @@ class PostPermissionMigrationUpgrade(
         Permission.WRITE to EnumSet.of(PostgresPrivileges.INSERT, PostgresPrivileges.UPDATE),
         Permission.OWNER to EnumSet.of(PostgresPrivileges.ALL)
     )
-    private val allTablePermissions = setOf(Permission.READ, Permission.WRITE, Permission.OWNER)
+    private val READ_WRITE_OWNER_PERMISSIONS = setOf(Permission.READ, Permission.WRITE, Permission.OWNER)
+
+    private val ADMIN_USERNAME_REGEX = Pattern.compile(
+        "ol-internal\\|role\\|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+        Pattern.CASE_INSENSITIVE
+    )
 
     override fun upgrade(): Boolean {
-        val uuidRegex= Pattern.compile(
-            "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-            Pattern.CASE_INSENSITIVE
-        )
 
-        // filtering for a specific org
-        println("Organization to filter: ")
-        val input = readLine()
-        val filterFlag = uuidRegex.matcher(input).matches()
-        val filteringPredicate = if (filterFlag) {
-            Predicates.equal<UUID, ExternalColumn>(ORGANIZATION_ID_INDEX, UUID.fromString(input!!))
-        } else {
-            Predicates.alwaysTrue()
-        }
+        logger.info("starting migration")
 
-        if (filterFlag) {
-            logger.info("Filtering for org {}", input)
-        } else {
-            logger.info("No filtering")
-        }
+        try {
+            val targetOrgId: UUID? = null
 
-        val adminUsernameRegex = Pattern.compile(
-            "ol-internal\\|role\\|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-            Pattern.CASE_INSENSITIVE
-        )
-
-        // Drop old permission roles
-        externalColumns.entrySet(
-            filteringPredicate
-        ).groupBy {
-            it.value.organizationId
-        }.forEach { (orgID, orgColumns) ->
-            logger.info("Searching for admin of org {}", orgID)
-            val org = organizations[orgID]
-
-            val admin = dbCreds.getDbUsername(org!!.adminRoleAclKey)
-            if (!adminUsernameRegex.matcher(admin).matches()) {
-                logger.warn("Unexpected formatting of admin for org {}", orgID)
-                logger.warn("Admin found in db_creds: {}", admin)
-                logger.warn("Skipping org {}")
-                return@forEach
+            val filteringPredicate = if (targetOrgId != null) {
+                Predicates.equal<UUID, ExternalColumn>(ORGANIZATION_ID_INDEX, targetOrgId)
+            } else {
+                Predicates.alwaysTrue()
             }
 
-            logger.info("dropping column roles for org {}, with admin {}", orgID, admin)
-            exConnMan.connectToOrg(orgID).use { hds ->
-                hds.connection.use { conn ->
-                    conn.autoCommit = false
-                    conn.createStatement().use { stmt ->
-                        orgColumns.forEach { col ->
-                            val colId = col.key
-                            val colName = col.value.name
-                            val tableId = col.value.tableId
-                            val tableName = externalTables.getValue(tableId)?.name ?: String()
-                            val schemaName = externalTables.getValue(tableId)?.schema ?: String()
-                            val aclKey = AclKey(tableId, colId)
+            // Drop old permission roles
+            externalColumns.entrySet(
+                filteringPredicate
+            ).groupBy {
+                it.value.organizationId
+            }.forEach { (orgId, orgColumns) ->
 
-                            logger.info("org {}: dropping column {} of table {} with acl_key {}", orgID, colId, tableId, aclKey)
-                            allTablePermissions.mapNotNull { permission ->
-                                externalRoleNames[AccessTarget(aclKey, permission)]?.let { 
-                                    permission to it.second
-                                }
-                            }.forEach { (permission, roleUUID) ->
-                                val roleName = roleUUID.toString()
-                                val sqls = mutableListOf<String>()
+                logger.info("================================")
+                logger.info("================================")
+                logger.info("starting to process org $orgId")
 
-                                // first reassign objects to admin
-                                sqls.add("""
-                                    REASSIGN OWNED BY $roleName TO $admin
-                                """.trimIndent())
+                val timer = Stopwatch.createStarted()
 
-                                // then revoke all column privileges granted to role
-                                val privilegeString = olToPostgres.getValue(permission).joinToString { privilege ->
-                                    "$privilege ( ${ApiHelpers.dbQuote(colName)} )"
-                                }
-                                sqls.add("""
-                                    REVOKE $privilegeString 
-                                    ON $schemaName.${ApiHelpers.dbQuote(tableName)}
-                                    FROM $roleName
-                                """.trimIndent())
-                                sqls.add("""
-                                    REVOKE USAGE ON SCHEMA $schemaName FROM $roleName
-                                """.trimIndent())
+                val admin = getOrgAdminUsername(orgId)
+                if (admin == null) {
+                    logger.warn("skipping org {}", orgId)
+                    return@forEach
+                }
 
-                                // finally drop the role
-                                sqls.add("""
-                                    DROP ROLE $roleName
-                                """.trimIndent())
+                exConnMan.connectToOrg(orgId).use { hds ->
+                    hds.connection.use { conn ->
+                        conn.autoCommit = false
+                        conn.createStatement().use { stmt ->
+                            orgColumns.forEachIndexed { index, col ->
+                                val colId = col.key
+                                val colName = col.value.name
+                                val tableId = col.value.tableId
+                                val tableName = externalTables.getValue(tableId)?.name ?: String()
+                                val schemaName = externalTables.getValue(tableId)?.schema ?: String()
+                                val aclKey = AclKey(tableId, colId)
 
-                                logger.info("org {}, aclkey {}: dropping {}", orgID, aclKey, roleName)
-                                try {
-                                    sqls.forEach { sql ->
-                                        stmt.addBatch(sql)
+                                READ_WRITE_OWNER_PERMISSIONS.mapNotNull { permission ->
+                                    externalRoleNames[AccessTarget(aclKey, permission)]?.let {
+                                        permission to it
                                     }
+                                }.forEach { (permission, roleId) ->
+                                    val role = roleId.toString()
+                                    val sqls = mutableListOf<String>()
+                                    try {
+                                        // first reassign objects to admin
+                                        sqls.add("""
+                                            REASSIGN OWNED BY $role TO $admin
+                                        """.trimIndent())
 
-                                    stmt.executeBatch()
-                                    conn.commit()
+                                        // then revoke all column privileges granted to role
+                                        val privilegeString = olToPostgres
+                                            .getValue(permission)
+                                            .joinToString { privilege ->
+                                                "$privilege ( ${ApiHelpers.dbQuote(colName)} )"
+                                            }
+
+                                        sqls.add("""
+                                            REVOKE $privilegeString 
+                                            ON $schemaName.${ApiHelpers.dbQuote(tableName)}
+                                            FROM $role
+                                        """.trimIndent())
+
+                                        sqls.add("""
+                                            REVOKE USAGE ON SCHEMA $schemaName FROM $role
+                                        """.trimIndent())
+
+                                        // finally drop the role
+                                        sqls.add("""
+                                            DROP ROLE $role
+                                        """.trimIndent())
+
+                                        logger.info(
+                                            "executing sql sequence - org {} table {} column {} role {}",
+                                            orgId,
+                                            tableId,
+                                            colId,
+                                            role
+                                        )
+
+                                        sqls.forEach { sql -> stmt.addBatch(sql) }
+                                        stmt.executeBatch()
+                                        conn.commit()
+                                    }
+                                    catch (e: Exception) {
+                                        logger.error(
+                                            "error dropping role - org {} table {} column {} role {}",
+                                            orgId,
+                                            tableId,
+                                            colId,
+                                            role,
+                                            e
+                                        )
+                                        conn.rollback()
+                                        return false
+                                    }
                                 }
-                                catch (ex: SQLException) {
-                                    logger.error("SQL error occurred while dropping role {} (column {}, table {}, acl_key {}) of org {}", roleName, colId, tableId, aclKey, orgID, ex)
-                                    conn.rollback()
-                                    return false
-                                }
+                                logger.info("progress ${index + 1}/${orgColumns.size}")
                             }
                         }
                     }
                 }
+
+                logger.info(
+                    "processing org took {} ms - org $orgId",
+                    timer.elapsed(TimeUnit.MILLISECONDS),
+                )
+                logger.info("================================")
+                logger.info("================================")
             }
+        } catch (e: Exception) {
+            logger.error("something went wrong with the migration", e)
+            return false
         }
+
         return true
+    }
+
+    private fun getOrgAdminUsername(orgId: UUID) :String? {
+
+        val org = organizations[orgId]
+        if (org == null) {
+            logger.error("org {} does not exist in mapstore", orgId)
+            return null
+        }
+
+        val admin = dbCreds.getDbUsername(org.adminRoleAclKey)
+        if (!ADMIN_USERNAME_REGEX.matcher(admin).matches()) {
+            logger.error("invalid org admin username - org {} username {}", orgId, admin)
+            return null
+        }
+
+        return admin
     }
 
     override fun getSupportedVersion(): Long {
