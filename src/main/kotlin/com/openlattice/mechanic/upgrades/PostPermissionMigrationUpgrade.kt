@@ -8,7 +8,9 @@ import com.openlattice.authorization.Acl
 import com.openlattice.authorization.AclKey
 import com.openlattice.authorization.DbCredentialService
 import com.openlattice.authorization.Permission
+import com.openlattice.edm.EdmConstants
 import com.openlattice.edm.EntitySet
+import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.edm.type.PropertyType
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
@@ -129,14 +131,27 @@ class PostPermissionMigrationUpgrade(
                 val aclKey = AclKey(table.key, column.key)
 
                 logger.info("org {}: dropping column {} of table {} with acl_key {}", orgId, column.key, table.key, aclKey)
-                reassignRevokeDrop(conn, stmt, orgId, admin, columnName, tableName, schemaName, aclKey)
+                reassignRevokeDrop(
+                    conn, 
+                    stmt, 
+                    orgId, 
+                    admin, 
+                    listOf(columnName), 
+                    tableName, 
+                    schemaName, 
+                    aclKey
+                )
             }
         }
     }
 
     private fun propertyTypesFilterAndProcess(conn: Connection, stmt: Statement, orgId: UUID, admin: String) {
         entitySets.entrySet(
-            Predicates.equal<UUID, EntitySet>(EntitySetMapstore.ORGANIZATION_INDEX, orgId)
+            Predicates.and(
+                Predicates.equal<UUID, EntitySet>(EntitySetMapstore.ORGANIZATION_INDEX, orgId),
+                Predicates.`in`<UUID, EntitySet>(EntitySetMapstore.FLAGS_INDEX, EntitySetFlag.TRANSPORTED)
+            )
+
         ).forEach { es ->
             val esName = es.value.name
             propertyTypes.entrySet(
@@ -146,7 +161,16 @@ class PostPermissionMigrationUpgrade(
                 val aclKey = AclKey(es.key, pt.key)
 
                 logger.info("org {}: dropping property type {} of entity set {} with acl_key {}", orgId, pt.key, es.key, aclKey)
-                reassignRevokeDrop(conn, stmt, orgId, admin, ptName, esName, Schemas.ASSEMBLED_ENTITY_SETS.toString(), aclKey)
+                reassignRevokeDrop(
+                    conn, 
+                    stmt, 
+                    orgId, 
+                    admin, 
+                    listOf(ptName, EdmConstants.ID_FQN.toString()), 
+                    esName, 
+                    Schemas.ASSEMBLED_ENTITY_SETS.toString(), 
+                    aclKey
+                )
             }
         }
     }
@@ -156,7 +180,7 @@ class PostPermissionMigrationUpgrade(
             stmt: Statement, 
             orgId: UUID, 
             admin: String, 
-            columnName: String, 
+            columnNameList: List<String>, 
             tableName: String, 
             schemaName: String, 
             aclKey: AclKey
@@ -168,35 +192,38 @@ class PostPermissionMigrationUpgrade(
         }.forEach { (permission, roleId) ->
             val role = roleId.toString()
             val sqls = mutableListOf<String>()
+            val quotedColumns = columnNameList.joinToString {
+                    ApiHelpers.dbQuote(it)
+            }
 
             // first reassign objects to admin
             sqls.add("""
-                REASSIGN OWNED BY $role TO $admin
+                REASSIGN OWNED BY ${ApiHelpers.dbQuote(role)} TO ${ApiHelpers.dbQuote(admin)}
             """.trimIndent())
 
             // then revoke all column privileges granted to role
             val privilegeString = olToPostgres.getValue(permission).joinToString { privilege ->
-                "$privilege ( ${ApiHelpers.dbQuote(columnName)} )"
+                "$privilege ( ${quotedColumns} )"
             }
             sqls.add("""
                 REVOKE $privilegeString 
                 ON $schemaName.${ApiHelpers.dbQuote(tableName)}
-                FROM $role
+                FROM ${ApiHelpers.dbQuote(role)}
             """.trimIndent())
             sqls.add("""
-                REVOKE USAGE ON SCHEMA $schemaName FROM $role
+                REVOKE USAGE ON SCHEMA $schemaName FROM ${ApiHelpers.dbQuote(role)}
             """.trimIndent())
 
             // finally drop the role
             sqls.add("""
-                DROP ROLE $role
+                DROP ROLE ${ApiHelpers.dbQuote(role)}
             """.trimIndent())
 
             logger.info(
                 "executing sql sequence - org {} table {} column {} role {}",
                 orgId,
                 tableName,
-                columnName,
+                columnNameList,
                 role
             )
             try {
@@ -211,7 +238,7 @@ class PostPermissionMigrationUpgrade(
                     "error dropping role - org {} table {} column {} role {}",
                     orgId,
                     tableName,
-                    columnName,
+                    columnNameList,
                     role,
                     e
                 )
