@@ -23,16 +23,14 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 import java.sql.Connection
-import java.sql.SQLException
 import java.sql.Statement
-import java.util.EnumSet
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.TimeUnit
 
 class PostPermissionMigrationUpgrade(
-        toolbox: Toolbox,
-        private val exConnMan: ExternalDatabaseConnectionManager,
-        private val dbCreds: DbCredentialService
+    toolbox: Toolbox,
+    private val exConnMan: ExternalDatabaseConnectionManager,
+    private val dbCreds: DbCredentialService
 ): Upgrade {
 
     val logger: Logger = LoggerFactory.getLogger(PostPermissionMigrationUpgrade::class.java)
@@ -49,20 +47,25 @@ class PostPermissionMigrationUpgrade(
         Permission.WRITE to EnumSet.of(PostgresPrivileges.INSERT, PostgresPrivileges.UPDATE),
         Permission.OWNER to EnumSet.of(PostgresPrivileges.ALL)
     )
-    private val allTablePermissions = setOf(Permission.READ, Permission.WRITE, Permission.OWNER)
+    private val READ_WRITE_OWNER_PERMISSIONS = setOf(Permission.READ, Permission.WRITE, Permission.OWNER)
 
     override fun upgrade(): Boolean {
 
         logger.info("starting post-migration")
 
         try {
-            val timer = Stopwatch.createStarted()
             val targetOrgId: UUID? = null
 
             // filter out org and apply old permission role dropping
             logger.info("Filtering out organizations")
             organizations.entrySet().forEach {
-                if (filterFlag && it.key != targetOrgId) return@forEach
+                if (targetOrgId != null && it.key != targetOrgId) return@forEach
+
+                logger.info("================================")
+                logger.info("================================")
+                logger.info("starting to process org ${it.key}")
+
+                val timer = Stopwatch.createStarted()
 
                 // Drop old permission roles
                 val admin = dbCreds.getDbUsername(it.value.adminRoleAclKey)
@@ -88,11 +91,18 @@ class PostPermissionMigrationUpgrade(
                         }
                     }
                 }
+
+                logger.info(
+                    "processing org took {} ms - org ${it.key}",
+                    timer.elapsed(TimeUnit.MILLISECONDS),
+                )
+                logger.info("================================")
+                logger.info("================================")
             }
         } catch (e: Exception) {
             logger.error("something went wrong with the post-migration", e)
         }
-        
+
         return true
     }
 
@@ -139,17 +149,17 @@ class PostPermissionMigrationUpgrade(
             schemaName: String, 
             aclKey: AclKey
     ) {
-        allTablePermissions.mapNotNull { permission ->
+        READ_WRITE_OWNER_PERMISSIONS.mapNotNull { permission ->
             externalRoleNames[AccessTarget(aclKey, permission)]?.let { 
                 permission to it.second
             }
-        }.forEach { (permission, roleUUID) ->
-            val roleName = roleUUID.toString()
+        }.forEach { (permission, roleId) ->
+            val role = roleId.toString()
             val sqls = mutableListOf<String>()
 
             // first reassign objects to admin
             sqls.add("""
-                REASSIGN OWNED BY $roleName TO $admin
+                REASSIGN OWNED BY $role TO $admin
             """.trimIndent())
 
             // then revoke all column privileges granted to role
@@ -159,18 +169,24 @@ class PostPermissionMigrationUpgrade(
             sqls.add("""
                 REVOKE $privilegeString 
                 ON $schemaName.${ApiHelpers.dbQuote(tableName)}
-                FROM $roleName
+                FROM $role
             """.trimIndent())
             sqls.add("""
-                REVOKE USAGE ON SCHEMA $schemaName FROM $roleName
+                REVOKE USAGE ON SCHEMA $schemaName FROM $role
             """.trimIndent())
 
             // finally drop the role
             sqls.add("""
-                DROP ROLE $roleName
+                DROP ROLE $role
             """.trimIndent())
 
-            logger.info("org {}, aclkey {}: dropping {}", orgId, aclKey, roleName)
+            logger.info(
+                "executing sql sequence - org {} table {} column {} role {}",
+                orgId,
+                tableId,
+                colId,
+                role
+            )
             try {
                 sqls.forEach { sql ->
                     stmt.addBatch(sql)
@@ -178,8 +194,15 @@ class PostPermissionMigrationUpgrade(
 
                 stmt.executeBatch()
                 conn.commit()
-            } catch (ex: SQLException) {
-                logger.error("SQL error occurred while dropping role {} (column {}, table {}, acl_key {}) of org {}", roleName, columnName, tableName, aclKey, orgId, ex)
+            } catch (e: Exception) {
+                logger.error(
+                    "error dropping role - org {} table {} column {} role {}",
+                    orgId,
+                    tableName,
+                    columnName
+                    role,
+                    e
+                )
                 conn.rollback()
             }
         }

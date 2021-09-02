@@ -116,8 +116,9 @@ class MigrateOrgPermissionsUpgrade(
         }
         catch (e: Exception) {
             logger.error("something went wrong filtering permissions for {}", entry, e)
-            return false
         }
+
+        return true
     }
 
     override fun getSupportedVersion(): Long {
