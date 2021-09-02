@@ -105,7 +105,7 @@ class MechanicUpgradePod {
     private lateinit var executor: ListeningExecutorService
 
     @Inject
-    private lateinit var externalDbConnMan: ExternalDatabaseConnectionManager 
+    private lateinit var externalDbConnMan: ExternalDatabaseConnectionManager
 
     @Inject
     private lateinit var hazelcastInstance: HazelcastInstance
@@ -322,7 +322,6 @@ class MechanicUpgradePod {
     fun migrateOrgPermissionsUpgrade(): MigrateOrgPermissionsUpgrade {
         return MigrateOrgPermissionsUpgrade(
             toolbox,
-            externalDbConnMan,
             externalDatabasePermissionsManager()
         )
     }
