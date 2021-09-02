@@ -9,6 +9,7 @@ import com.openlattice.authorization.Acl
 import com.openlattice.authorization.Action
 import com.openlattice.authorization.mapstores.PermissionMapstore
 import com.openlattice.authorization.securable.SecurableObjectType
+import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.external.ExternalDatabasePermissioningService
@@ -82,7 +83,6 @@ class MigrateOrgPermissionsUpgrade(
     }
 
     private fun revokeFromOldPermissionRoles(acls: List<Acl>): Boolean {
-        logger.info("Number of acls to be processed: {}", acls.size)
         logger.info("Revoking membership from old perms roles")
         exDbPermMan.executePrivilegesUpdate(Action.DROP, acls)
         return true
@@ -106,7 +106,7 @@ class MigrateOrgPermissionsUpgrade(
                     externalTables[tableId]!!.organizationId == orgId
                 }
                 SecurableObjectType.PropertyTypeInEntitySet -> {
-                    entitySets[tableId]!!.organizationId == orgId
+                    entitySets[tableId]!!.organizationId == orgId && entitySets[tableId]!!.flags.contains(EntitySetFlag.TRANSPORTED)
                 }
                 else -> {
                     logger.error("SecurableObjectType {} is unexpected, filtering out {}", securableObjectType, entry)
