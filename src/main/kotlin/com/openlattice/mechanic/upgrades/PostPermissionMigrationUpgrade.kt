@@ -9,10 +9,12 @@ import com.openlattice.authorization.AclKey
 import com.openlattice.authorization.DbCredentialService
 import com.openlattice.authorization.Permission
 import com.openlattice.edm.EntitySet
+import com.openlattice.edm.type.PropertyType
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.organization.ExternalColumn
 import com.openlattice.organization.ExternalTable
+import com.openlattice.organizations.Organization
 import com.openlattice.organizations.mapstores.ORGANIZATION_ID_INDEX
 import com.openlattice.organizations.mapstores.TABLE_ID_INDEX
 import com.openlattice.postgres.PostgresPrivileges
@@ -56,9 +58,17 @@ class PostPermissionMigrationUpgrade(
         try {
             val targetOrgId: UUID? = null
 
+            val filteringPredicate = if (targetOrgId != null) {
+                Predicates.equal<UUID, Organization>("__key", targetOrgId)
+            } else {
+                Predicates.alwaysTrue()
+            }
+
             // filter out org and apply old permission role dropping
             logger.info("Filtering out organizations")
-            organizations.entrySet().forEach {
+            organizations.entrySet(
+                filteringPredicate
+            ).forEach {
                 if (targetOrgId != null && it.key != targetOrgId) return@forEach
 
                 logger.info("================================")
@@ -129,8 +139,10 @@ class PostPermissionMigrationUpgrade(
             Predicates.equal<UUID, EntitySet>(EntitySetMapstore.ORGANIZATION_INDEX, orgId)
         ).forEach { es ->
             val esName = es.value.name
-            propertyTypes.forEach { pt ->
-                val ptName = pt.value.name
+            propertyTypes.entrySet(
+                Predicates.alwaysTrue()
+            ).forEach { pt ->
+                val ptName = pt.value.type.toString()
                 val aclKey = AclKey(es.key, pt.key)
 
                 logger.info("org {}: dropping property type {} of entity set {} with acl_key {}", orgId, pt.key, es.key, aclKey)
