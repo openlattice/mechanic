@@ -183,8 +183,8 @@ class PostPermissionMigrationUpgrade(
             logger.info(
                 "executing sql sequence - org {} table {} column {} role {}",
                 orgId,
-                tableId,
-                colId,
+                tableName,
+                columnName,
                 role
             )
             try {
@@ -199,7 +199,7 @@ class PostPermissionMigrationUpgrade(
                     "error dropping role - org {} table {} column {} role {}",
                     orgId,
                     tableName,
-                    columnName
+                    columnName,
                     role,
                     e
                 )
