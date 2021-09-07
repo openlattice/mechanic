@@ -39,7 +39,7 @@ class SyncOrgPermissionsUpgrade(
     private val propertyTypes = toolbox.propertyTypes
     private val transporterState = HazelcastMap.TRANSPORTER_DB_COLUMNS.getMap(toolbox.hazelcast)
     private val principalTrees = HazelcastMap.PRINCIPAL_TREES.getMap(toolbox.hazelcast)
-    private val princpals = HazelcastMap.PRINCIPALS.getMap(toolbox.hazelcast)
+    private val principals = HazelcastMap.PRINCIPALS.getMap(toolbox.hazelcast)
     private val permissions = HazelcastMap.PERMISSIONS.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
@@ -59,7 +59,7 @@ class SyncOrgPermissionsUpgrade(
     }
 
     private fun addRolesToDbCreds(): Boolean {
-        princpals.values(
+        principals.values(
                 Predicates.equal<AclKey, SecurablePrincipal>(PrincipalMapstore.PRINCIPAL_TYPE_INDEX, PrincipalType.ROLE)
         ).forEach { rolePrincipal ->
             dbCreds.getOrCreateRoleAccount(rolePrincipal)
