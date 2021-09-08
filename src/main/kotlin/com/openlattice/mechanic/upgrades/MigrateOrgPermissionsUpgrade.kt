@@ -95,18 +95,15 @@ class MigrateOrgPermissionsUpgrade(
     }
 
     private fun orgIdPredicate(entry: MutableMap.MutableEntry<AceKey, AceValue>, orgId: UUID?): Boolean {
-        if (orgId == null) {
-            return true
-        }
         try {
             val tableId = entry.key.aclKey[0]
             val securableObjectType = entry.value.securableObjectType
             return when (securableObjectType) {
                 SecurableObjectType.OrganizationExternalDatabaseColumn -> {
-                    externalTables[tableId]!!.organizationId == orgId
+                    externalTables[tableId]!!.organizationId == orgId || orgId == null
                 }
                 SecurableObjectType.PropertyTypeInEntitySet -> {
-                    entitySets[tableId]!!.organizationId == orgId && entitySets[tableId]!!.flags.contains(EntitySetFlag.TRANSPORTED)
+                    (entitySets[tableId]!!.organizationId == orgId || orgId == null) && entitySets[tableId]!!.flags.contains(EntitySetFlag.TRANSPORTED)
                 }
                 else -> {
                     logger.error("SecurableObjectType {} is unexpected, filtering out {}", securableObjectType, entry)
