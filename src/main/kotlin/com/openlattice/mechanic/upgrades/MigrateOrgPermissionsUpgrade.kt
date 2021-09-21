@@ -42,7 +42,6 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 const val SECURABLE_OBJECT_TYPE_INDEX = "securableObjectType"
-val LEGACY_PERMISSIONS_HZMAP = HazelcastMap<AceKey, AceValue>("LEGACY_PERMISSIONS")
 val LEGACY_PERMISSIONS_POSTGRES_TABLE = PostgresTableDefinition("legacy_permissions")
     .addColumns(
         ACL_KEY,
@@ -54,7 +53,7 @@ val LEGACY_PERMISSIONS_POSTGRES_TABLE = PostgresTableDefinition("legacy_permissi
     .primaryKey(ACL_KEY, PRINCIPAL_TYPE, PRINCIPAL_ID)
 
 class LegacyPermissionMapstore(hds: HikariDataSource) : AbstractBasePostgresMapstore<AceKey, AceValue>(
-    LEGACY_PERMISSIONS_HZMAP,
+    HazelcastMap.LEGACY_PERMISSIONS,
     LEGACY_PERMISSIONS_POSTGRES_TABLE,
     hds
 ) {
@@ -64,7 +63,7 @@ class LegacyPermissionMapstore(hds: HikariDataSource) : AbstractBasePostgresMaps
             value.getPermissions().stream().map(Permission::name)
         )
         val expirationDate = value.getExpirationDate()
-        val securableObjectType = value.getSecurableObjectType()
+        val securableObjectType = value.getSecurableObjectType().name
 
         var index = bind(ps, key, 1)
 
@@ -84,7 +83,7 @@ class LegacyPermissionMapstore(hds: HikariDataSource) : AbstractBasePostgresMaps
 
         val p = key.getPrincipal()
         ps.setArray(index++, createUuidArray(ps.getConnection(), key.getAclKey().stream()))
-        ps.setString(index++, p.getType());
+        ps.setString(index++, p.getType().name);
         ps.setString(index++, p.getId())
 
         return index
@@ -134,7 +133,7 @@ class MigrateOrgPermissionsUpgrade(
     val logger: Logger = LoggerFactory.getLogger(MigrateOrgPermissionsUpgrade::class.java)
 
     private val externalTables = HazelcastMap.EXTERNAL_TABLES.getMap(toolbox.hazelcast)
-    private val legacyPermissions = LEGACY_PERMISSIONS_HZMAP.getMap(toolbox.hazelcast)
+    private val legacyPermissions = HazelcastMap.LEGACY_PERMISSIONS.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
 
