@@ -1,23 +1,110 @@
 package com.openlattice.mechanic.upgrades
 
 import com.google.common.base.Stopwatch
+import com.hazelcast.config.InMemoryFormat
+import com.hazelcast.config.IndexConfig
+import com.hazelcast.config.IndexType
+import com.hazelcast.config.MapConfig
 import com.hazelcast.query.Predicates
 import com.openlattice.authorization.Ace
 import com.openlattice.authorization.AceKey
 import com.openlattice.authorization.AceValue
 import com.openlattice.authorization.Acl
 import com.openlattice.authorization.Action
-import com.openlattice.authorization.mapstores.PermissionMapstore
+import com.openlattice.authorization.Principal
+import com.openlattice.authorization.PrincipalType
 import com.openlattice.authorization.securable.SecurableObjectType
 import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.hazelcast.HazelcastMap
+import com.openlattice.mapstores.TestDataFactory
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.external.ExternalDatabasePermissioningService
+import com.openlattice.postgres.mapstores.AbstractBasePostgresMapstore
+import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+
+import static com.openlattice.postgres.PostgresArrays.createTextArray
+import static com.openlattice.postgres.PostgresArrays.createUuidArray
+
+const val SECURABLE_OBJECT_TYPE_INDEX = "securableObjectType"
+const val LEGACY_PERMISSIONS_HZMAP = HazelcastMap<AceKey, AceValue>("LEGACY_PERMISSIONS")
+
+class LegacyPermissionMapstore(hds: HikariDataSource) : AbstractBasePostgresMapstore<AceKey, AceValue>(
+    LEGACY_PERMISSIONS_HZMAP,
+    PostgresTable.LEGACY_PERMISSIONS,
+    hds
+) {
+    override fun bind(ps: PreparedStatement, key: AceKey, value: AceValue) {
+        val permissions = createTextArray(
+            ps.getConnection(),
+            value.getPermissions().stream().map(Permission::name)
+        )
+        val expirationDate = value.getExpirationDate()
+        val securableObjectType = value.getSecurableObjectType().name()
+
+        var index = bind(ps, key, 1)
+
+        //create
+        ps.setArray(index++, permissions);
+        ps.setObject(index++, expirationDate);
+        ps.setString(index++, securableObjectType);
+
+        //update
+        ps.setArray(index++, permissions);
+        ps.setObject(index++, expirationDate);
+        ps.setString(index++, securableObjectType);
+    }
+
+    override fun bind(ps: PreparedStatement, key: AceKey, offset: Int): Int {
+        var index = offset
+
+        val p = key.getPrincipal()
+        ps.setArray(index++, createUuidArray(ps.getConnection(), key.getAclKey().stream()))
+        ps.setString(index++, p.getType().name());
+        ps.setString(index++, p.getId())
+
+        return index
+    }
+
+    override fun mapToKey(rs: ResultSet): AceKey {
+        ResultSetAdapters.aceKey(rs);
+    }
+
+    override fun mapToValue(rs: ResultSet): AceValue {
+        // I am assuming there's no NULL securableObjectTypes
+        return AceValue(
+            ResultSetAdapters.permissions(rs),
+            ResultSetAdapters.securableObjectType(rs),
+            ResultSetAdapters.expirationDate(rs)
+        )
+    }
+
+    override fun getMapConfig(): MapConfig {
+        return super.getMapConfig()
+            // .addIndexConfig(IndexConfig(IndexType.HASH, ACL_KEY_INDEX))
+            // .addIndexConfig(IndexConfig(IndexType.HASH, PRINCIPAL_INDEX))
+            // .addIndexConfig(IndexConfig(IndexType.HASH, PRINCIPAL_TYPE_INDEX))
+            // .addIndexConfig(IndexConfig(IndexType.HASH, PERMISSIONS_INDEX))
+            // .addIndexConfig(IndexConfig(IndexType.SORTED, EXPIRATION_DATE_INDEX))
+            .addIndexConfig(IndexConfig(IndexType.HASH, SECURABLE_OBJECT_TYPE_INDEX))
+            .setInMemoryFormat(InMemoryFormat.OBJECT)
+    }
+
+    override fun generateTestKey(): AceKey {
+        return AceKey(
+            AclKey(UUID.randomUUID()),
+            TestDataFactory.userPrincipal()
+        )
+    }
+
+    override fun generateTestValue(): AceValue {
+        return TestDataFactory.aceValue()
+    }
+}
 
 class MigrateOrgPermissionsUpgrade(
     toolbox: Toolbox,
@@ -26,9 +113,8 @@ class MigrateOrgPermissionsUpgrade(
 
     val logger: Logger = LoggerFactory.getLogger(MigrateOrgPermissionsUpgrade::class.java)
 
-    private val entitySets = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast)
     private val externalTables = HazelcastMap.EXTERNAL_TABLES.getMap(toolbox.hazelcast)
-    private val permissions = HazelcastMap.PERMISSIONS.getMap(toolbox.hazelcast)
+    private val legacyPermissions = LEGACY_PERMISSIONS_HZMAP.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
 
@@ -38,30 +124,19 @@ class MigrateOrgPermissionsUpgrade(
             val timer = Stopwatch.createStarted()
             val targetOrgId: UUID? = null
 
-            val filteredPermissions = permissions.entrySet(
+            val acls = legacyPermissions.entrySet(
                 Predicates.`in`(
-                    PermissionMapstore.SECURABLE_OBJECT_TYPE_INDEX,
-                    SecurableObjectType.PropertyTypeInEntitySet,
+                    SECURABLE_OBJECT_TYPE_INDEX,
                     SecurableObjectType.OrganizationExternalDatabaseColumn
                 )
             ).filter { entry ->
                 orgIdPredicate(entry, targetOrgId)
-            }
-
-            val acls = filteredPermissions
-                .groupBy({ it.key.aclKey }, { (aceKey, aceVal) ->
-                    Ace(aceKey.principal, aceVal.permissions, aceVal.expirationDate)
-                })
-                .map { (aclKey, aces) -> Acl(aclKey, aces) }
+            }.groupBy({ it.key.aclKey }, { (aceKey, aceVal) ->
+                Ace(aceKey.principal, aceVal.permissions, aceVal.expirationDate)
+            })
+            .map { (aclKey, aces) -> Acl(aclKey, aces) }
 
             // actual permission migration
-            val revokeSuccess = revokeFromOldPermissionRoles(acls)
-            logger.info(
-                "revoking permissions took {} ms - {}",
-                timer.elapsed(TimeUnit.MILLISECONDS),
-                acls
-            )
-
             val assignSuccess = assignAllPermissions(acls)
             logger.info(
                 "granting permissions took {} ms - {}",
@@ -69,22 +144,16 @@ class MigrateOrgPermissionsUpgrade(
                 acls
             )
 
-            if (revokeSuccess && assignSuccess) {
+            if (assignSuccess) {
                 return true
             }
 
-            logger.error("migration failed - revoke {} grant {}", revokeSuccess, assignSuccess)
+            logger.error("migration failed - revoke {} grant {}", assignSuccess)
             return false
         } catch (e: Exception) {
             logger.error("something went wrong with the migration", e)
         }
 
-        return true
-    }
-
-    private fun revokeFromOldPermissionRoles(acls: List<Acl>): Boolean {
-        logger.info("Revoking membership from old perms roles")
-        exDbPermMan.executePrivilegesUpdate(Action.DROP, acls)
         return true
     }
 
@@ -101,9 +170,6 @@ class MigrateOrgPermissionsUpgrade(
             return when (securableObjectType) {
                 SecurableObjectType.OrganizationExternalDatabaseColumn -> {
                     externalTables[tableId]!!.organizationId == orgId || orgId == null
-                }
-                SecurableObjectType.PropertyTypeInEntitySet -> {
-                    (entitySets[tableId]!!.organizationId == orgId || orgId == null) && entitySets[tableId]!!.flags.contains(EntitySetFlag.TRANSPORTED)
                 }
                 else -> {
                     logger.error("SecurableObjectType {} is unexpected, filtering out {}", securableObjectType, entry)

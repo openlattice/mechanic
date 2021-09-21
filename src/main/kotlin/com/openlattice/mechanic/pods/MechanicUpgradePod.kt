@@ -328,6 +328,14 @@ class MechanicUpgradePod {
         )
     }
 
+    @Bean
+    fun migrateOrgPermissionsUpgrade(): MigrateOrgPermissionsUpgrade {
+        return MigrateOrgPermissionsUpgrade(
+            toolbox,
+            externalDatabasePermissionsManager()
+        )
+    }
+
     @PostConstruct
     fun post() {
         lateInitProvider.setDataSourceResolver(dataSourceResolver())
