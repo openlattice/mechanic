@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory
 
 import java.sql.Connection
 import java.sql.Statement
+import java.util.EnumSet
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 

@@ -10,6 +10,7 @@ import com.openlattice.authorization.Ace
 import com.openlattice.authorization.AceKey
 import com.openlattice.authorization.AceValue
 import com.openlattice.authorization.Acl
+import com.openlattice.authorization.AclKey
 import com.openlattice.authorization.Action
 import com.openlattice.authorization.Principal
 import com.openlattice.authorization.PrincipalType
@@ -27,12 +28,15 @@ import com.openlattice.postgres.PostgresColumn.PRINCIPAL_ID
 import com.openlattice.postgres.PostgresColumn.PRINCIPAL_TYPE
 import com.openlattice.postgres.PostgresColumn.SECURABLE_OBJECT_TYPE
 import com.openlattice.postgres.PostgresTableDefinition
+import com.openlattice.postgres.ResultSetAdapters
 import com.openlattice.postgres.external.ExternalDatabasePermissioningService
 import com.openlattice.postgres.mapstores.AbstractBasePostgresMapstore
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
+import java.sql.PreparedStatement
+import java.sql.ResultSet
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -86,7 +90,7 @@ class LegacyPermissionMapstore(hds: HikariDataSource) : AbstractBasePostgresMaps
     }
 
     override fun mapToKey(rs: ResultSet): AceKey {
-        ResultSetAdapters.aceKey(rs);
+        return ResultSetAdapters.aceKey(rs);
     }
 
     override fun mapToValue(rs: ResultSet): AceValue {
