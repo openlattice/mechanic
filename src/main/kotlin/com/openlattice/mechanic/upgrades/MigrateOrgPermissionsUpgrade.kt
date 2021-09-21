@@ -187,7 +187,7 @@ class MigrateOrgPermissionsUpgrade(
                     externalTables[tableId]!!.organizationId == orgId || orgId == null
                 }
                 else -> {
-                    logger.error("SecurableObjectType {} is unexpected, filtering out {}", securableObjectType, entry)
+                    logger.warn("Looking only for OrganizationExternalDatabaseColumn, filtering out {} of SecurableObjectType {}", entry, securableObjectType)
                     false
                 }
             }
