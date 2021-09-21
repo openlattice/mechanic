@@ -18,6 +18,15 @@ import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mapstores.TestDataFactory
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.postgres.PostgresArrays.createTextArray
+import com.openlattice.postgres.PostgresArrays.createUuidArray
+import com.openlattice.postgres.PostgresColumn.ACL_KEY
+import com.openlattice.postgres.PostgresColumn.EXPIRATION_DATE
+import com.openlattice.postgres.PostgresColumn.PERMISSIONS
+import com.openlattice.postgres.PostgresColumn.PRINCIPAL_ID
+import com.openlattice.postgres.PostgresColumn.PRINCIPAL_TYPE
+import com.openlattice.postgres.PostgresColumn.SECURABLE_OBJECT_TYPE
+import com.openlattice.postgres.PostgresTableDefinition
 import com.openlattice.postgres.external.ExternalDatabasePermissioningService
 import com.openlattice.postgres.mapstores.AbstractBasePostgresMapstore
 import com.zaxxer.hikari.HikariDataSource
@@ -27,15 +36,21 @@ import org.slf4j.LoggerFactory
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
-import static com.openlattice.postgres.PostgresArrays.createTextArray
-import static com.openlattice.postgres.PostgresArrays.createUuidArray
-
 const val SECURABLE_OBJECT_TYPE_INDEX = "securableObjectType"
 const val LEGACY_PERMISSIONS_HZMAP = HazelcastMap<AceKey, AceValue>("LEGACY_PERMISSIONS")
+const val LEGACY_PERMISSIONS_POSTGRES_TABLE = PostgresTableDefinition("legacy_permissions")
+    .addColumns(
+        ACL_KEY,
+        PRINCIPAL_TYPE,
+        PRINCIPAL_ID,
+        PERMISSIONS,
+        EXPIRATION_DATE,
+        SECURABLE_OBJECT_TYPE)
+    .primaryKey(ACL_KEY, PRINCIPAL_TYPE, PRINCIPAL_ID)
 
 class LegacyPermissionMapstore(hds: HikariDataSource) : AbstractBasePostgresMapstore<AceKey, AceValue>(
     LEGACY_PERMISSIONS_HZMAP,
-    PostgresTable.LEGACY_PERMISSIONS,
+    LEGACY_PERMISSIONS_POSTGRES_TABLE,
     hds
 ) {
     override fun bind(ps: PreparedStatement, key: AceKey, value: AceValue) {
