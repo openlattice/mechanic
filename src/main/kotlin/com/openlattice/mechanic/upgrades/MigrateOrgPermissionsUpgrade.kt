@@ -60,7 +60,7 @@ class LegacyPermissionMapstore(hds: HikariDataSource) : AbstractBasePostgresMaps
     override fun bind(ps: PreparedStatement, key: AceKey, value: AceValue) {
         val permissions = createTextArray(
             ps.getConnection(),
-            value.getPermissions().stream().map(Permission::name)
+            value.getPermissions().stream().map { it -> it.name }
         )
         val expirationDate = value.getExpirationDate()
         val securableObjectType = value.getSecurableObjectType().name
