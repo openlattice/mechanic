@@ -61,7 +61,6 @@ import com.openlattice.linking.graph.PostgresLinkingQueryService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
-import com.openlattice.mechanic.upgrades.LegacyPermissionMapstore
 import com.openlattice.mechanic.upgrades.MigrateOrgPermissionsUpgrade
 import com.openlattice.mechanic.upgrades.PrePermissionMigrationUpgrade
 import com.openlattice.postgres.PostgresTable
@@ -318,11 +317,6 @@ class MechanicUpgradePod {
             dbCredService(),
             principalsMapManager()
         )
-    }
-
-    @Bean
-    fun legacyPermissionMapstore(): SelfRegisteringMapStore<AceKey, AceValue> {
-        return LegacyPermissionMapstore(hikariDataSource)
     }
 
     @Bean
