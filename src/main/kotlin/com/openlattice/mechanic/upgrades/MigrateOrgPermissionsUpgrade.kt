@@ -75,7 +75,7 @@ class MigrateOrgPermissionsUpgrade(
 
     private fun assignAllPermissions(acls: List<Acl>): Boolean {
         logger.info("Granting direct permissions")
-        exDbPermMan.executePrivilegesUpdate(Action.SET, acls)
+        exDbPermMan.executePrivilegesUpdateOnOrgExternalDbColumns(Action.SET, acls)
         return true
     }
 
