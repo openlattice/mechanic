@@ -27,6 +27,7 @@ import com.google.common.eventbus.EventBus
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
 import com.kryptnostic.rhizome.configuration.RhizomeConfiguration
+import com.kryptnostic.rhizome.mapstores.SelfRegisteringMapStore
 import com.kryptnostic.rhizome.pods.ConfigurationLoader
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditRecordEntitySetsManager
@@ -60,6 +61,7 @@ import com.openlattice.linking.graph.PostgresLinkingQueryService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
+import com.openlattice.mechanic.upgrades.LegacyPermissionMapstore
 import com.openlattice.mechanic.upgrades.MigrateOrgPermissionsUpgrade
 import com.openlattice.mechanic.upgrades.PrePermissionMigrationUpgrade
 import com.openlattice.postgres.PostgresTable
@@ -316,6 +318,11 @@ class MechanicUpgradePod {
             dbCredService(),
             principalsMapManager()
         )
+    }
+
+    @Bean
+    fun legacyPermissionMapstore(): SelfRegisteringMapStore<AceKey, AceValue> {
+        return LegacyPermissionMapstore(hikariDataSource)
     }
 
     @Bean
