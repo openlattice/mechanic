@@ -46,7 +46,7 @@ class PrePermissionMigrationUpgrade(
     private val dbCreds: DbCredentialService
 ): Upgrade {
 
-    val logger: Logger = LoggerFactory.getLogger(MigrateOrgPermissionsUpgrade::class.java)
+    val logger: Logger = LoggerFactory.getLogger(PrePermissionMigrationUpgrade::class.java)
 
     private val propertyTypes = HazelcastMap.PROPERTY_TYPES.getMap(toolbox.hazelcast)
     private val entitySets = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast)
