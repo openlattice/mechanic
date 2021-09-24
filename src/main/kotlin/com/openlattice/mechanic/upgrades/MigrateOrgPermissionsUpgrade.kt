@@ -6,6 +6,7 @@ import com.openlattice.authorization.Ace
 import com.openlattice.authorization.AceKey
 import com.openlattice.authorization.AceValue
 import com.openlattice.authorization.Acl
+import com.openlattice.authorization.AclKey
 import com.openlattice.authorization.Action
 import com.openlattice.authorization.Permission
 import com.openlattice.authorization.Principal
@@ -31,6 +32,7 @@ class MigrateOrgPermissionsUpgrade(
 
     private val externalTables = HazelcastMap.EXTERNAL_TABLES.getMap(toolbox.hazelcast)
     private val legacyPermissions = HazelcastMap.LEGACY_PERMISSIONS.getMap(toolbox.hazelcast)
+    private val securableObjectTypes = HazelcastMap.SECURABLE_OBJECT_TYPES.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
 
@@ -50,7 +52,11 @@ class MigrateOrgPermissionsUpgrade(
             }.groupBy({ it.key.aclKey }, { (aceKey, aceVal) ->
                 Ace(aceKey.principal, aceVal.permissions, aceVal.expirationDate)
             })
-            .map { (aclKey, aces) -> Acl(aclKey, aces) }
+            .map { (aclKey, aces) ->
+                securableObjectTypes.putIfAbsent(AclKey(aclKey[0]), SecurableObjectType.OrganizationExternalDatabaseTable)
+                securableObjectTypes.putIfAbsent(aclKey, SecurableObjectType.OrganizationExternalDatabaseColumn)
+                Acl(aclKey, aces)
+            }
 
             // actual permission migration
             val assignSuccess = assignAllPermissions(acls)
@@ -75,7 +81,7 @@ class MigrateOrgPermissionsUpgrade(
 
     private fun assignAllPermissions(acls: List<Acl>): Boolean {
         logger.info("Granting direct permissions")
-        exDbPermMan.executePrivilegesUpdateOnOrgExternalDbColumns(Action.SET, acls)
+        exDbPermMan.executePrivilegesUpdate(Action.SET, acls)
         return true
     }
 
