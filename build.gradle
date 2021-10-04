@@ -58,7 +58,7 @@ if (MECHANIC_XMX == 'null' || MECHANIC_XMX == null || MECHANIC_XMX == "") {
 }
 
 if (MECHANIC_ARGS == 'null' || MECHANIC_ARGS == null || MECHANIC_ARGS == "") {
-    MECHANIC_ARGS = 'local postgres'
+    MECHANIC_ARGS = '--local --postgres'
 }
 
 if (PARALLEL == 'null' || PARALLEL == null || PARALLEL == "") {

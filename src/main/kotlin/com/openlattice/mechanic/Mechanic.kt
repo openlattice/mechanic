@@ -88,6 +88,7 @@ fun main(args: Array<String>) {
         ars.add(AWS_CONFIGURATION_PROFILE)
     } else if (cl.hasOption(LOCAL_CONFIGURATION_PROFILE)) {
         ars.add(LOCAL_CONFIGURATION_PROFILE)
+        ars.add("medialocal")
     }
 
     if (cl.hasOption(POSTGRES)) {
