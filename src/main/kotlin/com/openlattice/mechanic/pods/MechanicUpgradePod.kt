@@ -69,6 +69,7 @@ import com.openlattice.postgres.external.ExternalDatabasePermissioningService
 import com.openlattice.scrunchie.search.ConductorElasticsearchImpl
 import com.zaxxer.hikari.HikariDataSource
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
+import mechanic.src.main.kotlin.com.openlattice.mechanic.upgrades.AddPgAuditToExistingOrgs
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
@@ -332,6 +333,14 @@ class MechanicUpgradePod {
             toolbox,
             externalDbConnMan,
             dbCredService()
+        )
+    }
+
+    @Bean
+    fun addPgAuditToExistingOrgs(): AddPgAuditToExistingOrgs {
+        return AddPgAuditToExistingOrgs(
+            toolbox,
+            externalDbConnMan,
         )
     }
 
