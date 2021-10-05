@@ -1,15 +1,11 @@
 package mechanic.src.main.kotlin.com.openlattice.mechanic.upgrades
 
-import com.openlattice.authorization.Principal
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.mechanic.upgrades.CreateStagingSchemaForExistingOrgs
 import com.openlattice.mechanic.upgrades.Upgrade
 import com.openlattice.mechanic.upgrades.Version
 import com.openlattice.organizations.Organization
-import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
-import com.openlattice.postgres.external.Schemas
 import org.slf4j.LoggerFactory
 
 /**
@@ -30,21 +26,13 @@ class AddPgAuditToExistingOrgs(
 
     override fun upgrade(): Boolean {
         val allOrgs = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast).values.toList()
-        val allPrincipalsToDbIds = getAllUserPrincipals()
 
-        allOrgs.forEach { addPgAuditToOrg(it, allPrincipalsToDbIds) }
+        allOrgs.forEach { addPgAuditToOrg(it) }
         return true
     }
 
-    private fun getAllUserPrincipals(): Map<Principal, String> {
-        return HazelcastMap.PRINCIPALS.getMap(toolbox.hazelcast).values.associate {
-            it.principal to DataTables.quote("ol-internal|user|${it.id}")
-        }
-    }
-
-    private fun addPgAuditToOrg(org: Organization, allPrincipals: Map<Principal, String>) {
-        logger.info("Adding pg audit for org: ${org.title} [${org.id}]")
-        logger.info("Executing statement: ${CREATE_EXTENSION_SQL}")
+    private fun addPgAuditToOrg(org: Organization) {
+        logger.info("Adding pgaudit for org: ${org.title} [${org.id}]")
 
         extDbConnMan.connectToOrg(org.id).let { hds ->
             hds.connection.use { connection ->
@@ -55,7 +43,7 @@ class AddPgAuditToExistingOrgs(
                 }
             }
         }
-        logger.info("Finished creating and configuring staging schema for org ${org.title}")
+        logger.info("Finished adding pgaudit extension for org: ${org.title}")
     }
 
     private val CREATE_EXTENSION_SQL = "CREATE EXTENSION IF NOT EXISTS $PGAUDIT_EXTENSION SCHEMA $OPENLATTICE_SCHEMA"
