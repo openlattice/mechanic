@@ -220,13 +220,13 @@ class PrePermissionMigrationUpgrade(
 
                 logger.info("org {}: dropping column {} of table {} with acl_key {}", orgId, column.key, table.key, aclKey)
                 reassignRevokeDrop(
-                    conn, 
-                    stmt, 
-                    orgId, 
-                    admin, 
-                    listOf(columnName), 
-                    tableName, 
-                    schemaName, 
+                    conn,
+                    stmt,
+                    orgId,
+                    admin,
+                    listOf(columnName),
+                    tableName,
+                    schemaName,
                     aclKey
                 )
             }
@@ -250,13 +250,13 @@ class PrePermissionMigrationUpgrade(
 
                 logger.info("org {}: dropping property type {} of entity set {} with acl_key {}", orgId, pt.key, es.key, aclKey)
                 reassignRevokeDrop(
-                    conn, 
-                    stmt, 
-                    orgId, 
-                    admin, 
-                    listOf(ptName, EdmConstants.ID_FQN.toString()), 
-                    esName, 
-                    Schemas.ASSEMBLED_ENTITY_SETS.toString(), 
+                    conn,
+                    stmt,
+                    orgId,
+                    admin,
+                    listOf(ptName, EdmConstants.ID_FQN.toString()),
+                    esName,
+                    Schemas.ASSEMBLED_ENTITY_SETS.toString(),
                     aclKey
                 )
             }
@@ -264,17 +264,17 @@ class PrePermissionMigrationUpgrade(
     }
 
     private fun reassignRevokeDrop(
-            conn: Connection, 
-            stmt: Statement, 
-            orgId: UUID, 
-            admin: String, 
-            columnNameList: List<String>, 
-            tableName: String, 
-            schemaName: String, 
+            conn: Connection,
+            stmt: Statement,
+            orgId: UUID,
+            admin: String,
+            columnNameList: List<String>,
+            tableName: String,
+            schemaName: String,
             aclKey: AclKey
     ) {
         READ_WRITE_OWNER_PERMISSIONS.mapNotNull { permission ->
-            externalRoleNames[AccessTarget(aclKey, permission)]?.let { 
+            externalRoleNames[AccessTarget(aclKey, permission)]?.let {
                 permission to it.second
             }
         }.forEach { (permission, roleId) ->
