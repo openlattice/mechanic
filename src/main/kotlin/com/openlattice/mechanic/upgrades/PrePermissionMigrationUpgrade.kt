@@ -78,6 +78,8 @@ class PrePermissionMigrationUpgrade(
                     SecurableObjectType.OrganizationExternalDatabaseColumn
                 )
             ).filter { entry ->
+                entry.key.aclKey.size <= 2
+            }.filter { entry ->
                 orgIdPredicate(entry, targetOrgId)
             }
 
@@ -86,6 +88,8 @@ class PrePermissionMigrationUpgrade(
                     Ace(aceKey.principal, aceVal.permissions, aceVal.expirationDate)
                 })
                 .map { (aclKey, aces) -> Acl(aclKey, aces) }
+
+            logger.info("target acls {} {}", acls.size, acls)
 
             // revoke membership from column permission roles
             val revokeSuccess = revokeFromOldPermissionRoles(acls)

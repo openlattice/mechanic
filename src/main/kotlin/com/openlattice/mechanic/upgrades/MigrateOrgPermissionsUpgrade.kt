@@ -43,11 +43,13 @@ class MigrateOrgPermissionsUpgrade(
             val targetOrgId: UUID? = null
 
             val acls = legacyPermissions.entrySet(
-                Predicates.`in`(
+                Predicates.equal(
                     SECURABLE_OBJECT_TYPE_INDEX,
                     SecurableObjectType.OrganizationExternalDatabaseColumn
                 )
             ).filter { entry ->
+                entry.key.aclKey.size <= 2
+            }.filter { entry ->
                 orgIdPredicate(entry, targetOrgId)
             }.groupBy({ it.key.aclKey }, { (aceKey, aceVal) ->
                 Ace(aceKey.principal, aceVal.permissions, aceVal.expirationDate)
@@ -57,6 +59,8 @@ class MigrateOrgPermissionsUpgrade(
                 securableObjectTypes.putIfAbsent(aclKey, SecurableObjectType.OrganizationExternalDatabaseColumn)
                 Acl(aclKey, aces)
             }
+
+            logger.info("target acls {} {}", acls.size, acls)
 
             // actual permission migration
             val assignSuccess = assignAllPermissions(acls)
