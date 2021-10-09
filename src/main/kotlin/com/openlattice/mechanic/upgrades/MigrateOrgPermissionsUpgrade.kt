@@ -30,7 +30,6 @@ class MigrateOrgPermissionsUpgrade(
 
     val logger: Logger = LoggerFactory.getLogger(MigrateOrgPermissionsUpgrade::class.java)
 
-    private val propertyTypes = HazelcastMap.PROPERTY_TYPES.getMap(toolbox.hazelcast)
     private val externalColumns = HazelcastMap.EXTERNAL_COLUMNS.getMap(toolbox.hazelcast)
     private val externalTables = HazelcastMap.EXTERNAL_TABLES.getMap(toolbox.hazelcast)
     private val legacyPermissions = HazelcastMap.LEGACY_PERMISSIONS.getMap(toolbox.hazelcast)
@@ -53,8 +52,8 @@ class MigrateOrgPermissionsUpgrade(
                 entry.key.aclKey.size <= 2
             }.filter { entry ->
                 val columnId = entry.key.aclKey[1]
-                if (!propertyTypes.containsKey(columnId) && !externalColumns.containsKey(columnId)) {
-                    logger.warn("ignoring permission entry because neither properties nor columns contain the property/column id {}", entry)
+                if (!externalColumns.containsKey(columnId)) {
+                    logger.warn("ignoring permission entry because columns does not contain the column id {}", entry)
                     return@filter false
                 }
                 return@filter true
