@@ -82,7 +82,7 @@ class PrePermissionMigrationUpgrade(
             }.filter { entry ->
                 val columnId = entry.key.aclKey[1]
                 if (!propertyTypes.containsKey(columnId) && !externalColumns.containsKey(columnId)) {
-                    logger.warn("ignoring permission entry because neither properties nor columns contain the property/column id", entry)
+                    logger.warn("ignoring permission entry because neither properties nor columns contain the property/column id {}", entry)
                     return@filter false
                 }
                 return@filter true
