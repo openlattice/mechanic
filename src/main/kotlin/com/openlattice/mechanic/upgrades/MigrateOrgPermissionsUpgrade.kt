@@ -3,17 +3,11 @@ package com.openlattice.mechanic.upgrades
 import com.google.common.base.Stopwatch
 import com.hazelcast.query.Predicates
 import com.openlattice.authorization.Ace
-import com.openlattice.authorization.AceKey
-import com.openlattice.authorization.AceValue
 import com.openlattice.authorization.Acl
 import com.openlattice.authorization.AclKey
 import com.openlattice.authorization.Action
-import com.openlattice.authorization.Permission
-import com.openlattice.authorization.Principal
-import com.openlattice.authorization.PrincipalType
 import com.openlattice.authorization.mapstores.SECURABLE_OBJECT_TYPE_INDEX
 import com.openlattice.authorization.securable.SecurableObjectType
-import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.external.ExternalDatabasePermissioningService
@@ -34,6 +28,7 @@ class MigrateOrgPermissionsUpgrade(
     private val externalTables = HazelcastMap.EXTERNAL_TABLES.getMap(toolbox.hazelcast)
     private val legacyPermissions = HazelcastMap.LEGACY_PERMISSIONS.getMap(toolbox.hazelcast)
     private val securableObjectTypes = HazelcastMap.SECURABLE_OBJECT_TYPES.getMap(toolbox.hazelcast)
+    private val organizations = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
 
     override fun upgrade(): Boolean {
 
@@ -43,78 +38,102 @@ class MigrateOrgPermissionsUpgrade(
             val timer = Stopwatch.createStarted()
             val targetOrgId: UUID? = null
 
-            val acls = legacyPermissions.entrySet(
+            val entries = legacyPermissions.entrySet(
                 Predicates.equal(
                     SECURABLE_OBJECT_TYPE_INDEX,
                     SecurableObjectType.OrganizationExternalDatabaseColumn
                 )
-            ).filter { entry ->
-                entry.key.aclKey.size <= 2
-            }.filter { entry ->
-                val columnId = entry.key.aclKey[1]
-                if (!externalColumns.containsKey(columnId)) {
-                    logger.warn("ignoring permission entry because columns does not contain the column id {}", entry)
+            )
+            logger.info("getting permissions entry set took {} ms", timer.elapsed(TimeUnit.MILLISECONDS))
+            timer.reset().start()
+
+
+            val filtered = entries.filter {
+                if (
+                    it.key.aclKey.size > 2
+                    || !externalColumns.containsKey(it.key.aclKey[1])
+                    || it.value.securableObjectType != SecurableObjectType.OrganizationExternalDatabaseColumn
+                ) {
+                    logger.warn("ignoring permission entry {}", it)
                     return@filter false
                 }
                 return@filter true
-            }.filter { entry ->
-                orgIdPredicate(entry, targetOrgId)
-            }.groupBy({ it.key.aclKey }, { (aceKey, aceVal) ->
+            }
+            logger.info("filtering permissions took {} ms", timer.elapsed(TimeUnit.MILLISECONDS))
+            timer.reset().start()
+
+
+            val grouped = filtered.groupBy({ it.key.aclKey }, { (aceKey, aceVal) ->
                 Ace(aceKey.principal, aceVal.permissions, aceVal.expirationDate)
             })
-            .map { (aclKey, aces) ->
+            logger.info("grouping by acl key took {} ms", timer.elapsed(TimeUnit.MILLISECONDS))
+            timer.reset().start()
+
+
+            grouped.forEach { (aclKey) ->
                 securableObjectTypes.putIfAbsent(AclKey(aclKey[0]), SecurableObjectType.OrganizationExternalDatabaseTable)
                 securableObjectTypes.putIfAbsent(aclKey, SecurableObjectType.OrganizationExternalDatabaseColumn)
-                Acl(aclKey, aces)
+            }
+            logger.info("populating securableObjectTypes map store took {} ms", timer.elapsed(TimeUnit.MILLISECONDS))
+            timer.reset().start()
+
+
+            val aclsByOrg = grouped
+                .map { (aclKey, aces) -> Acl(aclKey, aces) }
+                .groupBy { externalTables[it.aclKey[0]]?.organizationId }
+                .toMutableMap()
+            logger.info("grouping by org took {} ms", timer.elapsed(TimeUnit.MILLISECONDS))
+            timer.stop()
+
+            if (aclsByOrg.containsKey(null)) {
+                logger.error("aclsByOrg contains null key with these acls", aclsByOrg[null])
+                aclsByOrg.remove(null)
             }
 
-            logger.info("target acls {} {}", acls.size, acls)
+            organizations.keys.forEachIndexed { index, orgId ->
+                if (targetOrgId != null && targetOrgId != orgId) {
+                    logger.info("skipping org $orgId")
+                    return@forEachIndexed
+                }
+                try {
+                    logger.info("================================")
+                    logger.info("================================")
+                    logger.info("starting to process org $orgId")
 
-            // actual permission migration
-            val assignSuccess = assignAllPermissions(acls)
-            logger.info(
-                "granting permissions took {} ms - {}",
-                timer.elapsed(TimeUnit.MILLISECONDS),
-                acls
-            )
+                    if (aclsByOrg.containsKey(orgId)) {
 
-            if (assignSuccess) {
-                return true
+                        val acls = aclsByOrg.getValue(orgId)
+                        logger.info("org acls {} {}", acls.size, acls)
+
+                        timer.reset().start()
+                        logger.info("granting permissions - org $orgId")
+                        exDbPermMan.executePrivilegesUpdate(Action.SET, acls)
+                        logger.info(
+                            "granting permissions took {} ms - org $orgId acls {}",
+                            timer.elapsed(TimeUnit.MILLISECONDS),
+                            acls.size
+                        )
+
+                        aclsByOrg.remove(orgId)
+                    }
+                    else {
+                        logger.warn("aclsByOrg does not contain org $orgId")
+                    }
+                } catch (e: Exception) {
+                    logger.error("something went wrong processing org $orgId", e)
+                } finally {
+                    logger.info("progress ${index + 1}/${organizations.size}")
+                    logger.info("================================")
+                    logger.info("================================")
+                }
             }
 
-            logger.error("migration failed - revoke {} grant {}", assignSuccess)
-            return false
         } catch (e: Exception) {
             logger.error("something went wrong with the migration", e)
-        }
-
-        return true
-    }
-
-    private fun assignAllPermissions(acls: List<Acl>): Boolean {
-        logger.info("Granting direct permissions")
-        exDbPermMan.executePrivilegesUpdate(Action.SET, acls)
-        return true
-    }
-
-    private fun orgIdPredicate(entry: MutableMap.MutableEntry<AceKey, AceValue>, orgId: UUID?): Boolean {
-        try {
-            val tableId = entry.key.aclKey[0]
-            val securableObjectType = entry.value.securableObjectType
-            return when (securableObjectType) {
-                SecurableObjectType.OrganizationExternalDatabaseColumn -> {
-                    externalTables[tableId]!!.organizationId == orgId || orgId == null
-                }
-                else -> {
-                    logger.warn("Looking only for OrganizationExternalDatabaseColumn, filtering out {} of SecurableObjectType {}", entry, securableObjectType)
-                    false
-                }
-            }
-        }
-        catch (e: Exception) {
-            logger.error("something went wrong filtering permissions for {}", entry, e)
             return false
         }
+
+        return true
     }
 
     override fun getSupportedVersion(): Long {
