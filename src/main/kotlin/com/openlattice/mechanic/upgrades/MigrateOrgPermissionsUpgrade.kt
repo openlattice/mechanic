@@ -87,12 +87,15 @@ class MigrateOrgPermissionsUpgrade(
             logger.info("grouping by org took {} ms", timer.elapsed(TimeUnit.MILLISECONDS))
             timer.stop()
 
+            val targetOrgIds = mutableListOf<UUID?>()
             aclsByOrg.forEach {
                 logger.info("org ${it.key} acls ${it.value.size}")
+                if (!processedOrgsIds.contains(it.key)) {
+                    targetOrgIds.add(it.key)
+                }
             }
-
-            val targetOrgIds = aclsByOrg.keys.filterNotNull().filterNot { processedOrgsIds.contains(it) }
             logger.info("sorted orgs $targetOrgIds")
+
             targetOrgIds.forEachIndexed { index, orgId ->
                 try {
                     logger.info("================================")
@@ -102,7 +105,7 @@ class MigrateOrgPermissionsUpgrade(
                     if (aclsByOrg.containsKey(orgId)) {
 
                         val acls = aclsByOrg.getValue(orgId)
-                        logger.info("org acls {} {}", acls.size, acls)
+                        logger.info("org acls {}", acls.size)
 
                         timer.reset().start()
                         logger.info("granting permissions - org $orgId")
