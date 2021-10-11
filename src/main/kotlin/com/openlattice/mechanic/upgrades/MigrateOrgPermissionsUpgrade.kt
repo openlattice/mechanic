@@ -112,7 +112,7 @@ class MigrateOrgPermissionsUpgrade(
                         acls.forEach { acl ->
                             // prevents from rolling back everything in case of error(s)
                             // by feeding it one acl at a time
-                            exDbPermMan.executePrivilegesUpdate(Action.SET, listOf(acls))
+                            exDbPermMan.executePrivilegesUpdate(Action.SET, listOf(acl))
                         }
                         logger.info(
                             "granting permissions took {} ms - org $orgId acls {}",
