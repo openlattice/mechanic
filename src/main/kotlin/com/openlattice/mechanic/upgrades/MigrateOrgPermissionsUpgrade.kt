@@ -36,7 +36,7 @@ class MigrateOrgPermissionsUpgrade(
 
         try {
             val timer = Stopwatch.createStarted()
-            val targetOrgId: UUID? = null
+            val processedOrgsIds = setOf<UUID>()
 
             val entries = legacyPermissions.entrySet(
                 Predicates.equal(
@@ -81,20 +81,19 @@ class MigrateOrgPermissionsUpgrade(
             val aclsByOrg = grouped
                 .map { (aclKey, aces) -> Acl(aclKey, aces) }
                 .groupBy { externalTables[it.aclKey[0]]?.organizationId }
-                .toMutableMap()
+                .toList()
+                .sortedBy { it.second.size }
+                .toMap()
             logger.info("grouping by org took {} ms", timer.elapsed(TimeUnit.MILLISECONDS))
             timer.stop()
 
-            if (aclsByOrg.containsKey(null)) {
-                logger.error("aclsByOrg contains null key with these acls", aclsByOrg[null])
-                aclsByOrg.remove(null)
+            aclsByOrg.forEach {
+                logger.info("org ${it.key} acls ${it.value.size}")
             }
 
-            organizations.keys.forEachIndexed { index, orgId ->
-                if (targetOrgId != null && targetOrgId != orgId) {
-                    logger.info("skipping org $orgId")
-                    return@forEachIndexed
-                }
+            val targetOrgIds = aclsByOrg.keys.filterNotNull().filterNot { processedOrgsIds.contains(it) }
+            logger.info("sorted orgs $targetOrgIds")
+            targetOrgIds.forEachIndexed { index, orgId ->
                 try {
                     logger.info("================================")
                     logger.info("================================")
@@ -113,8 +112,6 @@ class MigrateOrgPermissionsUpgrade(
                             timer.elapsed(TimeUnit.MILLISECONDS),
                             acls.size
                         )
-
-                        aclsByOrg.remove(orgId)
                     }
                     else {
                         logger.warn("aclsByOrg does not contain org $orgId")
