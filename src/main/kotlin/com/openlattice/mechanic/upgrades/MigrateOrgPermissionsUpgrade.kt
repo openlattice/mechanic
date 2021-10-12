@@ -112,7 +112,7 @@ class MigrateOrgPermissionsUpgrade(
                         acls.chunked(128).forEach { aclChunk ->
                             // prevents from rolling back everything in case of error(s)
                             // by feeding it one acl at a time
-                            chunkedPrivilegesUpdate(aclChunk)
+                            exDbPermMan.executePrivilegesUpdate(Action.SET, chunkedAcl)
                         }
                         logger.info(
                             "granting permissions took {} ms - org $orgId acls {}",
@@ -138,22 +138,6 @@ class MigrateOrgPermissionsUpgrade(
         }
 
         return true
-    }
-
-    private fun chunkedPrivilegesUpdate(List<Acl> chunkedAcl) {
-        if (chunkedAcl.size < 2) {
-            exDbPermMan.executePrivilegesUpdate(Action.SET, chunkedAcl)
-        } else {
-            try {
-                exDbPermMan.executePrivilegesUpdate(Action.SET, chunkedAcl)
-            } catch (e: Exception) {
-                logger.info("something went wrong, breaking into smaller chunks")
-                val halfSize = chunkedAcl.size / 2
-                chunkedAcl.chunked(halfSize).forEach { aclChunk ->
-                    chunkedPrivilegesUpdate(aclChunk)
-                }
-            }
-        }
     }
 
     override fun getSupportedVersion(): Long {
