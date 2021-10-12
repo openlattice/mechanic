@@ -110,7 +110,7 @@ class MigrateOrgPermissionsUpgrade(
                         timer.reset().start()
                         logger.info("granting permissions - org $orgId")
                         acls.chunked(128).forEach { aclChunk ->
-                            keysInChunk = aclChunk.map { it -> it.aclKey }
+                            val keysInChunk = aclChunk.map { it -> it.aclKey }
                             logger.info("processing chunk {}", keysInChunk)
 
                             // prevents from rolling back everything in case of error(s)
