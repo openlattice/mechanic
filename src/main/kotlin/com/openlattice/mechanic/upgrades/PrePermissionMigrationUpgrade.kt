@@ -168,43 +168,48 @@ class PrePermissionMigrationUpgrade(
             organizations.entrySet(
                 filteringPredicate
             ).forEach {
-                logger.info("================================")
-                logger.info("================================")
-                logger.info("starting to process org ${it.key}")
+                try {
+                    logger.info("================================")
+                    logger.info("================================")
+                    logger.info("starting to process org ${it.key}")
 
-                val timer = Stopwatch.createStarted()
+                    val timer = Stopwatch.createStarted()
 
-                // Drop old permission roles
-                val admin = dbCreds.getDbUsername(it.value.adminRoleAclKey)
+                    // Drop old permission roles
+                    val admin = dbCreds.getDbUsername(it.value.adminRoleAclKey)
 
-                logger.info("dropping column/propertyType roles for org {}, with admin {}", it.key, admin)
-                exConnMan.connectToOrg(it.key).use { hds ->
-                    hds.connection.use { conn ->
-                        conn.autoCommit = false
-                        conn.createStatement().use { stmt ->
-                            // drop old column permission roles
-                            columnsFilterAndProcess(conn, stmt, it.key, admin)
-                            logger.info(
-                                "dropping columns took {} ms",
-                                timer.elapsed(TimeUnit.MILLISECONDS)
-                            )
+                    logger.info("dropping column/propertyType roles for org {}, with admin {}", it.key, admin)
+                    exConnMan.connectToOrg(it.key).use { hds ->
+                        hds.connection.use { conn ->
+                            conn.autoCommit = false
+                            conn.createStatement().use { stmt ->
+                                // drop old column permission roles
+                                columnsFilterAndProcess(conn, stmt, it.key, admin)
+                                logger.info(
+                                    "dropping columns took {} ms",
+                                    timer.elapsed(TimeUnit.MILLISECONDS)
+                                )
 
-                            // drop old property type permission roles
-                            propertyTypesFilterAndProcess(conn, stmt, it.key, admin)
-                            logger.info(
-                                "dropping property types took {} ms",
-                                timer.elapsed(TimeUnit.MILLISECONDS)
-                            )
+                                // drop old property type permission roles
+                                propertyTypesFilterAndProcess(conn, stmt, it.key, admin)
+                                logger.info(
+                                    "dropping property types took {} ms",
+                                    timer.elapsed(TimeUnit.MILLISECONDS)
+                                )
+                            }
                         }
                     }
-                }
 
-                logger.info(
-                    "processing org took {} ms - org ${it.key}",
-                    timer.elapsed(TimeUnit.MILLISECONDS),
-                )
-                logger.info("================================")
-                logger.info("================================")
+                    logger.info(
+                        "processing org took {} ms - org ${it.key}",
+                        timer.elapsed(TimeUnit.MILLISECONDS),
+                    )
+                    logger.info("================================")
+                    logger.info("================================")
+                }
+                catch (e: Exception) {
+                    logger.error("something went wrong dropping roles for org {}", it.key, e)
+                }
             }
         } catch (e: Exception) {
             logger.error("something went wrong with the role dropping", e)
@@ -217,25 +222,34 @@ class PrePermissionMigrationUpgrade(
         externalTables.entrySet(
             Predicates.equal<UUID, ExternalTable>(ORGANIZATION_ID_INDEX, orgId)
         ).forEach { table ->
-            val tableName = table.value.name
-            val schemaName = table.value.schema
-            externalColumns.entrySet(
-                Predicates.equal<UUID, ExternalColumn>(TABLE_ID_INDEX, table.key)
-            ).forEach { column ->
-                val columnName = column.value.name
-                val aclKey = AclKey(table.key, column.key)
-
-                logger.info("org {}: dropping column {} of table {} with acl_key {}", orgId, column.key, table.key, aclKey)
-                reassignRevokeDrop(
-                    conn,
-                    stmt,
-                    orgId,
-                    admin,
-                    listOf(columnName),
-                    tableName,
-                    schemaName,
-                    aclKey
-                )
+            try {
+                val tableName = table.value.name
+                val schemaName = table.value.schema
+                externalColumns.entrySet(
+                    Predicates.equal<UUID, ExternalColumn>(TABLE_ID_INDEX, table.key)
+                ).forEach { column ->
+                    try {
+                        val columnName = column.value.name
+                        val aclKey = AclKey(table.key, column.key)
+                        logger.info("org {}: dropping column {} of table {} with acl_key {}", orgId, column.key, table.key, aclKey)
+                        reassignRevokeDrop(
+                            conn,
+                            stmt,
+                            orgId,
+                            admin,
+                            listOf(columnName),
+                            tableName,
+                            schemaName,
+                            aclKey
+                        )
+                    }
+                    catch (e: Exception) {
+                        logger.error("something went wrong - org {} table {} column {}", orgId, table.key, column.key, e)
+                    }
+                }
+            }
+            catch (e: Exception) {
+                logger.error("something went wrong - org {} table {}", orgId, table.key, e)
             }
         }
     }
@@ -246,26 +260,35 @@ class PrePermissionMigrationUpgrade(
                 Predicates.equal<UUID, EntitySet>(EntitySetMapstore.ORGANIZATION_INDEX, orgId),
                 Predicates.`in`<UUID, EntitySet>(EntitySetMapstore.FLAGS_INDEX, EntitySetFlag.TRANSPORTED)
             )
-
         ).forEach { es ->
-            val esName = es.value.name
-            propertyTypes.entrySet(
-                Predicates.alwaysTrue()
-            ).forEach { pt ->
-                val ptName = pt.value.type.toString()
-                val aclKey = AclKey(es.key, pt.key)
+            try {
+                val esName = es.value.name
+                propertyTypes.entrySet(
+                    Predicates.alwaysTrue()
+                ).forEach { pt ->
+                    try {
+                        val ptName = pt.value.type.toString()
+                        val aclKey = AclKey(es.key, pt.key)
 
-                logger.info("org {}: dropping property type {} of entity set {} with acl_key {}", orgId, pt.key, es.key, aclKey)
-                reassignRevokeDrop(
-                    conn,
-                    stmt,
-                    orgId,
-                    admin,
-                    listOf(ptName, EdmConstants.ID_FQN.toString()),
-                    esName,
-                    Schemas.ASSEMBLED_ENTITY_SETS.toString(),
-                    aclKey
-                )
+                        logger.info("org {}: dropping property type {} of entity set {} with acl_key {}", orgId, pt.key, es.key, aclKey)
+                        reassignRevokeDrop(
+                            conn,
+                            stmt,
+                            orgId,
+                            admin,
+                            listOf(ptName, EdmConstants.ID_FQN.toString()),
+                            esName,
+                            Schemas.ASSEMBLED_ENTITY_SETS.toString(),
+                            aclKey
+                        )
+                    }
+                    catch (e: Exception) {
+                        logger.error("something went wrong - org {} entity set {} property {}", orgId, es.key, pt.key, e)
+                    }
+                }
+            }
+            catch (e: Exception) {
+                logger.error("something went wrong - org {} entity set {}", orgId, es.key, e)
             }
         }
     }
