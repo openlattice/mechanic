@@ -77,12 +77,12 @@ class PrePermissionMigrationUpgrade(
                     SecurableObjectType.PropertyTypeInEntitySet,
                     SecurableObjectType.OrganizationExternalDatabaseColumn
                 )
-            ).filter { entry ->
-                entry.key.aclKey.size <= 2
-            }.filter { entry ->
-                val columnId = entry.key.aclKey[1]
-                if (!propertyTypes.containsKey(columnId) && !externalColumns.containsKey(columnId)) {
-                    logger.warn("ignoring permission entry because neither properties nor columns contain the property/column id {}", entry)
+            ).filter{
+                if (
+                    it.key.aclKey.size > 2
+                    || (!propertyTypes.containsKey(it.key.aclKey[1]) && !externalColumns.containsKey(it.key.aclKey[1]))
+                ) {
+                    logger.warn("ignoring permission entry {}", it)
                     return@filter false
                 }
                 return@filter true
