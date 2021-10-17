@@ -17,12 +17,10 @@ import com.openlattice.authorization.securable.SecurableObjectType
 import com.openlattice.edm.EdmConstants
 import com.openlattice.edm.EntitySet
 import com.openlattice.edm.set.EntitySetFlag
-import com.openlattice.edm.type.PropertyType
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.organization.ExternalColumn
 import com.openlattice.organization.ExternalTable
-import com.openlattice.organizations.Organization
 import com.openlattice.organizations.mapstores.ORGANIZATION_ID_INDEX
 import com.openlattice.organizations.mapstores.TABLE_ID_INDEX
 import com.openlattice.postgres.PostgresPrivileges
@@ -71,151 +69,167 @@ class PrePermissionMigrationUpgrade(
             val timer = Stopwatch.createStarted()
             val targetOrgId: UUID? = null
 
-            val filteredPermissions = permissions.entrySet(
+            val filtered = permissions.entrySet(
                 Predicates.`in`(
                     PermissionMapstore.SECURABLE_OBJECT_TYPE_INDEX,
                     SecurableObjectType.PropertyTypeInEntitySet,
                     SecurableObjectType.OrganizationExternalDatabaseColumn
                 )
-            ).filter{
-                if (
-                    it.key.aclKey.size > 2
-                    || (!propertyTypes.containsKey(it.key.aclKey[1]) && !externalColumns.containsKey(it.key.aclKey[1]))
-                ) {
-                    logger.warn("ignoring permission entry {}", it)
-                    return@filter false
-                }
-                return@filter true
-            }.filter { entry ->
-                orgIdPredicate(entry, targetOrgId)
-            }
+            ).filter { filterPermissions(it) }
+            logger.info("filtering permissions took {} ms", timer.elapsed(TimeUnit.MILLISECONDS))
+            timer.reset().start()
 
-            val acls = filteredPermissions
-                .groupBy({ it.key.aclKey }, { (aceKey, aceVal) ->
-                    Ace(aceKey.principal, aceVal.permissions, aceVal.expirationDate)
-                })
+            val grouped = filtered.groupBy({ it.key.aclKey }, { (aceKey, aceVal) ->
+                Ace(aceKey.principal, aceVal.permissions, aceVal.expirationDate)
+            })
+            logger.info("grouping by acl key took {} ms", timer.elapsed(TimeUnit.MILLISECONDS))
+            timer.reset().start()
+
+            val aclsByOrg = grouped
                 .map { (aclKey, aces) -> Acl(aclKey, aces) }
+                .groupBy { externalTables[it.aclKey[0]]?.organizationId }
+                .toList()
+                .sortedBy { it.second.size }
+                .toMap()
+            logger.info("grouping by org took {} ms", timer.elapsed(TimeUnit.MILLISECONDS))
+            timer.stop()
 
-            logger.info("target acls {} {}", acls.size, acls)
-
-            // revoke membership from column permission roles
-            val revokeSuccess = revokeFromOldPermissionRoles(acls)
-            logger.info(
-                "revoking role membership took {} ms - {}",
-                timer.elapsed(TimeUnit.MILLISECONDS),
-                acls
-            )
-
-            // reassign & revoke all objs owned by column permission roles, then drop
-            val dropSuccess = dropOldPermissionRoles(targetOrgId)
-            logger.info(
-                "dropping permission roles took {} ms",
-                timer.elapsed(TimeUnit.MILLISECONDS)
-            )
-
-            if (revokeSuccess && dropSuccess) {
-                return true
+            val targetOrgIds = mutableListOf<UUID?>()
+            aclsByOrg.forEach {
+                logger.info("org ${it.key} acls ${it.value.size}")
+                targetOrgIds.add(it.key)
             }
 
-            logger.error("pre-migration failed - revoke {} drop {}", revokeSuccess, dropSuccess)
-            return false
+            timer.reset().start()
+            logger.info("starting part 1")
+            revokeFromOldPermissionRoles(targetOrgIds, aclsByOrg)
+            logger.info("part 1 took {} ms", timer.elapsed(TimeUnit.MILLISECONDS))
+            timer.reset().start()
+
+            logger.info("starting part 2")
+            dropOldPermissionRoles()
+            logger.info("part 2 took {} ms", timer.elapsed(TimeUnit.MILLISECONDS))
         } catch (e: Exception) {
-            logger.error("something went wrong with the pre-migration", e)
+            logger.error("something went wrong with the migration", e)
+            return false
         }
 
         return true
     }
 
-    private fun orgIdPredicate(entry: MutableMap.MutableEntry<AceKey, AceValue>, orgId: UUID?): Boolean {
+    private fun filterPermissions(entry: MutableMap.MutableEntry<AceKey, AceValue>): Boolean {
         try {
-            val tableId = entry.key.aclKey[0]
-            val securableObjectType = entry.value.securableObjectType
-            return when (securableObjectType) {
-                SecurableObjectType.OrganizationExternalDatabaseColumn -> {
-                    orgId == null || externalTables[tableId]!!.organizationId == orgId
-                }
+            val columnId = entry.key.aclKey[1]
+            if (
+                entry.key.aclKey.size > 2
+                || (!propertyTypes.containsKey(columnId) && !externalColumns.containsKey(columnId))
+            ) {
+                logger.warn("ignoring permission entry {}", entry)
+                return false
+            }
+            return when (entry.value.securableObjectType) {
                 SecurableObjectType.PropertyTypeInEntitySet -> {
-                    (orgId == null || entitySets[tableId]!!.organizationId == orgId) && entitySets[tableId]!!.flags.contains(EntitySetFlag.TRANSPORTED)
+                    val entitySetId = entry.key.aclKey[0]
+                    val entitySetFlags = entitySets[entitySetId]?.flags ?: setOf()
+                    if (entitySetFlags.contains(EntitySetFlag.TRANSPORTED)) {
+                        true
+                    }
+                    else {
+                        logger.warn("ignoring permission entry {}", entry)
+                        false
+                    }
+                }
+                SecurableObjectType.OrganizationExternalDatabaseColumn -> {
+                    true
                 }
                 else -> {
-                    logger.error("SecurableObjectType {} is unexpected, filtering out {}", securableObjectType, entry)
+                    logger.warn("ignoring permission entry {}", entry)
                     false
                 }
             }
         }
         catch (e: Exception) {
-            logger.error("something went wrong filtering permissions for {}", entry, e)
+            logger.error("something went wrong filtering permission entry {}", entry)
             return false
         }
     }
 
-    private fun revokeFromOldPermissionRoles(acls: List<Acl>): Boolean {
-        logger.info("Revoking membership from old perms roles")
-        exDbPermMan.executePrivilegesUpdate(Action.DROP, acls)
-        return true
+    private fun revokeFromOldPermissionRoles(targetOrgIds: List<UUID?>, aclsByOrg: Map<UUID?, List<Acl>>) {
+        targetOrgIds.forEachIndexed { index, orgId ->
+            try {
+                logger.info("================================")
+                logger.info("================================")
+                logger.info("starting to process org $orgId")
+                if (aclsByOrg.containsKey(orgId)) {
+
+                    val orgTimer = Stopwatch.createStarted()
+                    val acls = aclsByOrg.getValue(orgId)
+                    logger.info("org acls {}", acls.size)
+
+                    logger.info("revoking permissions - org $orgId")
+                    acls.chunked(128).forEach { aclChunk ->
+                        val keysInChunk = aclChunk.map { it.aclKey }
+                        logger.info("processing chunk {}", keysInChunk)
+                        exDbPermMan.executePrivilegesUpdate(Action.DROP, aclChunk)
+                    }
+                    logger.info(
+                        "revoking permissions took {} ms - org $orgId acls {}",
+                        orgTimer.elapsed(TimeUnit.MILLISECONDS),
+                        acls.size
+                    )
+                }
+                else {
+                    logger.warn("aclsByOrg does not contain org $orgId")
+                }
+            } catch (e: Exception) {
+                logger.error("something went wrong processing org $orgId", e)
+            } finally {
+                logger.info("progress ${index + 1}/${targetOrgIds.size}")
+                logger.info("================================")
+                logger.info("================================")
+            }
+        }
     }
 
-    private fun dropOldPermissionRoles(orgId : UUID?): Boolean {
-        try {
-            logger.info("Dropping old perms roles")
+    private fun dropOldPermissionRoles() {
+        organizations.forEachIndexed { index, it ->
+            try {
+                logger.info("================================")
+                logger.info("================================")
+                logger.info("starting to process org ${it.key}")
 
-            val filteringPredicate = if (orgId != null) {
-                Predicates.equal<UUID, Organization>("__key", orgId)
-            } else {
-                Predicates.alwaysTrue()
-            }
+                val orgTimer = Stopwatch.createStarted()
 
-            organizations.entrySet(
-                filteringPredicate
-            ).forEach {
-                try {
-                    logger.info("================================")
-                    logger.info("================================")
-                    logger.info("starting to process org ${it.key}")
+                // Drop old permission roles
+                val admin = dbCreds.getDbUsername(it.value.adminRoleAclKey)
 
-                    val timer = Stopwatch.createStarted()
+                logger.info("dropping column/propertyType roles for org {}, with admin {}", it.key, admin)
+                exConnMan.connectToOrg(it.key).use { hds ->
+                    hds.connection.use { conn ->
+                        conn.autoCommit = false
+                        conn.createStatement().use { stmt ->
+                            val timer = Stopwatch.createStarted()
+                            // drop old column permission roles
+                            columnsFilterAndProcess(conn, stmt, it.key, admin)
+                            logger.info("dropping columns took {} ms", timer.elapsed(TimeUnit.MILLISECONDS))
+                            timer.reset().start()
 
-                    // Drop old permission roles
-                    val admin = dbCreds.getDbUsername(it.value.adminRoleAclKey)
-
-                    logger.info("dropping column/propertyType roles for org {}, with admin {}", it.key, admin)
-                    exConnMan.connectToOrg(it.key).use { hds ->
-                        hds.connection.use { conn ->
-                            conn.autoCommit = false
-                            conn.createStatement().use { stmt ->
-                                // drop old column permission roles
-                                columnsFilterAndProcess(conn, stmt, it.key, admin)
-                                logger.info(
-                                    "dropping columns took {} ms",
-                                    timer.elapsed(TimeUnit.MILLISECONDS)
-                                )
-
-                                // drop old property type permission roles
-                                propertyTypesFilterAndProcess(conn, stmt, it.key, admin)
-                                logger.info(
-                                    "dropping property types took {} ms",
-                                    timer.elapsed(TimeUnit.MILLISECONDS)
-                                )
-                            }
+                            // drop old property type permission roles
+                            propertyTypesFilterAndProcess(conn, stmt, it.key, admin)
+                            logger.info("dropping property types took {} ms", timer.elapsed(TimeUnit.MILLISECONDS))
                         }
                     }
-
-                    logger.info(
-                        "processing org took {} ms - org ${it.key}",
-                        timer.elapsed(TimeUnit.MILLISECONDS),
-                    )
-                    logger.info("================================")
-                    logger.info("================================")
                 }
-                catch (e: Exception) {
-                    logger.error("something went wrong dropping roles for org {}", it.key, e)
-                }
+                logger.info("processing org took {} ms - org ${it.key}", orgTimer.elapsed(TimeUnit.MILLISECONDS))
             }
-        } catch (e: Exception) {
-            logger.error("something went wrong with the role dropping", e)
+            catch (e: Exception) {
+                logger.error("something went wrong dropping roles for org {}", it.key, e)
+            } finally {
+                logger.info("progress ${index + 1}/${organizations.size}")
+                logger.info("================================")
+                logger.info("================================")
+            }
         }
-
-        return true
     }
 
     private fun columnsFilterAndProcess(conn: Connection, stmt: Statement, orgId: UUID, admin: String) {
