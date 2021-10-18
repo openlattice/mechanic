@@ -32,14 +32,14 @@ class AddPgAuditToExistingOrgs(
         allOrgs.forEachIndexed { index, it ->
             try {
                 logger.info("================================")
-                logger.info("Starting to add PGAUDIT for org ${it.id}")
+                logger.info("Starting to add $PGAUDIT_EXTENSION for org ${it.id}")
                 val timer = Stopwatch.createStarted()
 
                 addPgAuditToOrg(it)
 
                 logger.info("Adding PGAUDIT took ${timer.elapsed(TimeUnit.MILLISECONDS)} for org ${it.id}")
             } catch (e: Exception) {
-                logger.error("Failed to add PGAUDIT for org ${it.id}", e)
+                logger.error("Failed to add $PGAUDIT_EXTENSION for org ${it.id}", e)
             } finally {
                 logger.info("Progress ${index + 1}/${allOrgs.size}")
                 logger.info("================================")
