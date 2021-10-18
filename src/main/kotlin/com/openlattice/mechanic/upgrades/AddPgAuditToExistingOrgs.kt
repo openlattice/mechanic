@@ -37,7 +37,7 @@ class AddPgAuditToExistingOrgs(
 
                 addPgAuditToOrg(it)
 
-                logger.info("Adding PGAUDIT took ${timer.elapsed(TimeUnit.MILLISECONDS)} for org ${it.id}")
+                logger.info("Adding PGAUDIT took ${timer.elapsed(TimeUnit.MILLISECONDS)} ms for org ${it.id}")
             } catch (e: Exception) {
                 logger.error("Failed to add $PGAUDIT_EXTENSION for org ${it.id}", e)
             } finally {
