@@ -6,7 +6,9 @@ import com.openlattice.mechanic.upgrades.Upgrade
 import com.openlattice.mechanic.upgrades.Version
 import com.openlattice.organizations.Organization
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
+import com.google.common.base.Stopwatch
 import org.slf4j.LoggerFactory
+import java.util.concurrent.TimeUnit
 
 /**
  * @author Andrew Carter andrew@openlattice.com
@@ -25,9 +27,24 @@ class AddPgAuditToExistingOrgs(
     }
 
     override fun upgrade(): Boolean {
-        val allOrgs = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast).values.toList()
+        val allOrgs = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast).values
 
-        allOrgs.forEach { addPgAuditToOrg(it) }
+        allOrgs.forEachIndexed { index, it ->
+            try {
+                logger.info("================================")
+                logger.info("Starting to add PGAUDIT for org ${it.id}")
+                val timer = Stopwatch.createStarted()
+
+                addPgAuditToOrg(it)
+
+                logger.info("Adding PGAUDIT took ${timer.elapsed(TimeUnit.MILLISECONDS)} for org ${it.id}")
+            } catch (e: Exception) {
+                logger.error("Failed to add PGAUDIT for org ${it.id}", e)
+            } finally {
+                logger.info("Progress ${index + 1}/${allOrgs.size}")
+                logger.info("================================")
+            }
+        }
         return true
     }
 
