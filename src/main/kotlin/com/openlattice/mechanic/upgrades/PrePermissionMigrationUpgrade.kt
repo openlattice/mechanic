@@ -192,38 +192,38 @@ class PrePermissionMigrationUpgrade(
     }
 
     private fun dropOldPermissionRoles() {
-        organizations.forEachIndexed { index, it ->
+        organizations.values.forEachIndexed { index, it ->
             try {
                 logger.info("================================")
                 logger.info("================================")
-                logger.info("starting to process org ${it.key}")
+                logger.info("starting to process org ${it.id}")
 
                 val orgTimer = Stopwatch.createStarted()
 
                 // Drop old permission roles
-                val admin = dbCreds.getDbUsername(it.value.adminRoleAclKey)
+                val admin = dbCreds.getDbUsername(it.adminRoleAclKey)
 
-                logger.info("dropping column/propertyType roles for org {}, with admin {}", it.key, admin)
-                exConnMan.connectToOrg(it.key).use { hds ->
+                logger.info("dropping column/propertyType roles for org {}, with admin {}", it.id, admin)
+                exConnMan.connectToOrg(it.id).use { hds ->
                     hds.connection.use { conn ->
                         conn.autoCommit = false
                         conn.createStatement().use { stmt ->
                             val timer = Stopwatch.createStarted()
                             // drop old column permission roles
-                            columnsFilterAndProcess(conn, stmt, it.key, admin)
+                            columnsFilterAndProcess(conn, stmt, it.id, admin)
                             logger.info("dropping columns took {} ms", timer.elapsed(TimeUnit.MILLISECONDS))
                             timer.reset().start()
 
                             // drop old property type permission roles
-                            propertyTypesFilterAndProcess(conn, stmt, it.key, admin)
+                            propertyTypesFilterAndProcess(conn, stmt, it.id, admin)
                             logger.info("dropping property types took {} ms", timer.elapsed(TimeUnit.MILLISECONDS))
                         }
                     }
                 }
-                logger.info("processing org took {} ms - org ${it.key}", orgTimer.elapsed(TimeUnit.MILLISECONDS))
+                logger.info("processing org took {} ms - org ${it.id}", orgTimer.elapsed(TimeUnit.MILLISECONDS))
             }
             catch (e: Exception) {
-                logger.error("something went wrong dropping roles for org {}", it.key, e)
+                logger.error("something went wrong dropping roles for org {}", it.id, e)
             } finally {
                 logger.info("progress ${index + 1}/${organizations.size}")
                 logger.info("================================")
