@@ -27,6 +27,7 @@ import com.google.common.eventbus.EventBus
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
 import com.kryptnostic.rhizome.configuration.RhizomeConfiguration
+import com.kryptnostic.rhizome.mapstores.SelfRegisteringMapStore
 import com.kryptnostic.rhizome.pods.ConfigurationLoader
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditRecordEntitySetsManager
@@ -61,7 +62,7 @@ import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
 import com.openlattice.mechanic.upgrades.MigrateOrgPermissionsUpgrade
-import com.openlattice.mechanic.upgrades.PostPermissionMigrationUpgrade
+import com.openlattice.mechanic.upgrades.PrePermissionMigrationUpgrade
 import com.openlattice.postgres.PostgresTable
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.external.ExternalDatabasePermissioner
@@ -319,19 +320,20 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun migrateOrgPermissionsUpgrade(): MigrateOrgPermissionsUpgrade {
-        return MigrateOrgPermissionsUpgrade(
+    fun prePermissionMigrationUpgrade(): PrePermissionMigrationUpgrade {
+        return PrePermissionMigrationUpgrade(
             toolbox,
-            externalDatabasePermissionsManager()
+            externalDatabasePermissionsManager(),
+            externalDbConnMan,
+            dbCredService()
         )
     }
 
     @Bean
-    fun postPermissionMigrationUpgrade(): PostPermissionMigrationUpgrade {
-        return PostPermissionMigrationUpgrade(
+    fun migrateOrgPermissionsUpgrade(): MigrateOrgPermissionsUpgrade {
+        return MigrateOrgPermissionsUpgrade(
             toolbox,
-            externalDbConnMan,
-            dbCredService()
+            externalDatabasePermissionsManager()
         )
     }
 
