@@ -84,20 +84,6 @@ class SyncOrgPermissionsUpgrade(
             }
         }.toCompletableFuture().get()
 
-        // final shape is etid -> Set<PtIdFqn>
-        assembliesByOrg.map { (orgId, entitySets) ->
-            exConnMan.connectToOrg(orgId).use { hds ->
-                entitySets.forEach { es ->
-                    // this will create all permission roles for transporter use
-                    exDbPermMan.initializeAssemblyPermissions(
-                        hds,
-                        es.id,
-                        es.name,
-                        etIdsToPtFqns.getValue(es.entityTypeId)
-                    )
-                }
-            }
-        }
         return true
     }
 
