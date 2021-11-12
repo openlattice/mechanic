@@ -27,7 +27,6 @@ import com.google.common.eventbus.EventBus
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
 import com.kryptnostic.rhizome.configuration.RhizomeConfiguration
-import com.kryptnostic.rhizome.mapstores.SelfRegisteringMapStore
 import com.kryptnostic.rhizome.pods.ConfigurationLoader
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditRecordEntitySetsManager
@@ -41,6 +40,8 @@ import com.openlattice.data.EntityKeyIdService
 import com.openlattice.data.ids.PostgresEntityKeyIdService
 import com.openlattice.data.storage.*
 import com.openlattice.data.storage.partitions.PartitionManager
+import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
+import com.openlattice.data.storage.postgres.PostgresEntityDatastore
 import com.openlattice.datasets.DataSetService
 import com.openlattice.datastore.pods.ByteBlobServicePod
 import com.openlattice.datastore.services.EdmManager
