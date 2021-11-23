@@ -27,7 +27,6 @@ import com.google.common.eventbus.EventBus
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
 import com.kryptnostic.rhizome.configuration.RhizomeConfiguration
-import com.kryptnostic.rhizome.mapstores.SelfRegisteringMapStore
 import com.kryptnostic.rhizome.pods.ConfigurationLoader
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditRecordEntitySetsManager
@@ -40,7 +39,8 @@ import com.openlattice.data.DataDeletionManager
 import com.openlattice.data.EntityKeyIdService
 import com.openlattice.data.ids.PostgresEntityKeyIdService
 import com.openlattice.data.storage.*
-import com.openlattice.data.storage.partitions.PartitionManager
+import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
+import com.openlattice.data.storage.postgres.PostgresEntityDatastore
 import com.openlattice.datasets.DataSetService
 import com.openlattice.datastore.pods.ByteBlobServicePod
 import com.openlattice.datastore.services.EdmManager
@@ -150,11 +150,6 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun partitionManager(): PartitionManager {
-        return PartitionManager(hazelcastInstance, hikariDataSource)
-    }
-
-    @Bean
     fun postgresTypeManager(): PostgresTypeManager {
         return PostgresTypeManager(hikariDataSource, hazelcastInstance)
     }
@@ -189,27 +184,26 @@ class MechanicUpgradePod {
     @Bean
     fun edmManager(): EdmManager {
         return EdmService(
-            hazelcastInstance,
-            aclKeyReservationService(),
-            authorizationService(),
-            postgresTypeManager(),
-            schemaManager(),
-            dataSetService()
+                hazelcastInstance,
+                aclKeyReservationService(),
+                authorizationService(),
+                postgresTypeManager(),
+                schemaManager(),
+                dataSetService()
         )
     }
 
     @Bean
     fun entitySetService(): EntitySetManager {
         return EntitySetService(
-            hazelcastInstance,
-            eventBus,
-            aclKeyReservationService(),
-            authorizationService(),
-            partitionManager(),
-            edmManager(),
-            hikariDataSource,
-            dataSetService(),
-            auditingConfiguration
+                hazelcastInstance,
+                eventBus,
+                aclKeyReservationService(),
+                authorizationService(),
+                edmManager(),
+                hikariDataSource,
+                dataSetService(),
+                auditingConfiguration
         )
     }
 
@@ -221,9 +215,8 @@ class MechanicUpgradePod {
     @Bean
     fun dataQueryService(): PostgresEntityDataQueryService {
         return PostgresEntityDataQueryService(
-            dataSourceResolver(),
-            byteBlobDataManager,
-            partitionManager()
+                dataSourceResolver(),
+                byteBlobDataManager
         )
     }
 
@@ -235,38 +228,37 @@ class MechanicUpgradePod {
     @Bean
     fun idService(): EntityKeyIdService {
         return PostgresEntityKeyIdService(
-            dataSourceResolver(),
-            idGenerationService(),
-            partitionManager())
+                dataSourceResolver(),
+                idGenerationService()
+        )
     }
 
     @Bean
     fun graphService(): GraphService {
         return Graph(
-            dataSourceResolver(),
-            entitySetService(),
-            partitionManager(),
-            dataQueryService(),
-            idService(),
-            MetricRegistry()
+                dataSourceResolver(),
+                entitySetService(),
+                dataQueryService(),
+                idService(),
+                MetricRegistry()
         )
     }
 
     @Bean
     fun lqs(): LinkingQueryService {
-        return PostgresLinkingQueryService(hikariDataSource, partitionManager())
+        return PostgresLinkingQueryService(hikariDataSource)
     }
 
     @Bean
     fun entityDatastore(entitySetManager: EntitySetManager): EntityDatastore {
         return PostgresEntityDatastore(
-            dataQueryService(),
-            edmManager(),
-            entitySetManager,
-            metricRegistry,
-            eventBus,
-            postgresLinkingFeedbackQueryService(),
-            lqs()
+                dataQueryService(),
+                edmManager(),
+                entitySetManager,
+                metricRegistry,
+                eventBus,
+                postgresLinkingFeedbackQueryService(),
+                lqs()
         )
     }
 
@@ -274,23 +266,22 @@ class MechanicUpgradePod {
     fun dataDeletionService(): DataDeletionManager {
         val entitySetService = entitySetService()
         return DataDeletionService(
-            entitySetService,
-            authorizationService(),
-            entityDatastore(entitySetService),
-            graphService(),
-            jobService(),
-            partitionManager()
+                entitySetService,
+                authorizationService(),
+                entityDatastore(entitySetService),
+                graphService(),
+                jobService(),
         )
     }
 
     @Bean
     fun deleteOrgMetadataEntitySets(): DeleteOrgMetadataEntitySets {
         return DeleteOrgMetadataEntitySets(
-            toolbox,
-            auditRecordEntitySetsManager(),
-            dataDeletionService(),
-            entitySetService(),
-            jobService()
+                toolbox,
+                auditRecordEntitySetsManager(),
+                dataDeletionService(),
+                entitySetService(),
+                jobService()
         )
     }
 
