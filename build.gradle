@@ -78,6 +78,7 @@ applicationDefaultJvmArgs += [ "--add-modules", "java.base",
                                "--add-opens","java.base/java.nio=ALL-UNNAMED",
                                "--add-opens","java.base/sun.nio.ch=ALL-UNNAMED",
                                "--add-opens","java.management/sun.management=ALL-UNNAMED",
+                               "--add-opens", "jdk.management/com.ibm.lang.management.internal=ALL-UNNAMED",
                                "--add-opens","jdk.management/com.sun.management.internal=ALL-UNNAMED"]
 sourceCompatibility = JavaVersion.VERSION_11
 targetCompatibility = JavaVersion.VERSION_11
@@ -187,6 +188,7 @@ tasks.withType(Test) {
                  "--add-opens","java.base/java.nio=ALL-UNNAMED",
                  "--add-opens","java.base/sun.nio.ch=ALL-UNNAMED",
                  "--add-opens","java.management/sun.management=ALL-UNNAMED",
+                 "--add-opens", "jdk.management/com.ibm.lang.management.internal=ALL-UNNAMED",
                  "--add-opens","jdk.management/com.sun.management.internal=ALL-UNNAMED"]
 }
 
