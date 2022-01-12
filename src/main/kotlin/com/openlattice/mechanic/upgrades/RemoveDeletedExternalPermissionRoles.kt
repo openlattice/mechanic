@@ -17,38 +17,38 @@ class RemoveDeletedExternalPermissionRoles(
     }
 
     override fun upgrade(): Boolean {
-        logger.info("About to remove deleted external permission roles")
-        val propertyTypeAndColumnIds = toolbox.propertyTypes.keys + HazelcastMap.EXTERNAL_COLUMNS.getMap(toolbox.hazelcast).keys.toSet()
+        // logger.info("About to remove deleted external permission roles")
+        // val propertyTypeAndColumnIds = toolbox.propertyTypes.keys + HazelcastMap.EXTERNAL_COLUMNS.getMap(toolbox.hazelcast).keys.toSet()
 
-        val hds = externalDbConnMan.connectAsSuperuser()
+        // val hds = externalDbConnMan.connectAsSuperuser()
 
-        val externalPermissionRoles = HazelcastMap.EXTERNAL_PERMISSION_ROLES.getMap(toolbox.hazelcast)
+        // val externalPermissionRoles = HazelcastMap.EXTERNAL_PERMISSION_ROLES.getMap(toolbox.hazelcast)
 
-        var batchCounter = 1
-        externalPermissionRoles.entries.chunked(BATCH_SIZE).forEach { chunk ->
-            logger.info("Processing batch #{}", batchCounter)
+        // var batchCounter = 1
+        // externalPermissionRoles.entries.chunked(BATCH_SIZE).forEach { chunk ->
+        //     logger.info("Processing batch #{}", batchCounter)
 
-            val toDelete = chunk.filter { !propertyTypeAndColumnIds.contains(it.key.aclKey.last()) }
+        //     val toDelete = chunk.filter { !propertyTypeAndColumnIds.contains(it.key.aclKey.last()) }
 
-            hds.connection.use { conn ->
-                conn.createStatement().use { stmt ->
-                    toDelete.forEach { (accessTarget, roleName) ->
-                        try {
-                            stmt.execute("DROP ROLE ${quote(roleName.toString())}")
-                            externalPermissionRoles.delete(accessTarget)
-                        } catch (e: Exception) {
-                            logger.error("Unable to delete role {} for AccessTarget {}", roleName, accessTarget)
-                        }
-                    }
-                }
-            }
+        //     hds.connection.use { conn ->
+        //         conn.createStatement().use { stmt ->
+        //             toDelete.forEach { (accessTarget, roleName) ->
+        //                 try {
+        //                     stmt.execute("DROP ROLE ${quote(roleName.toString())}")
+        //                     externalPermissionRoles.delete(accessTarget)
+        //                 } catch (e: Exception) {
+        //                     logger.error("Unable to delete role {} for AccessTarget {}", roleName, accessTarget)
+        //                 }
+        //             }
+        //         }
+        //     }
 
-            logger.info("Deleted {} unused entries.", toDelete.size)
+        //     logger.info("Deleted {} unused entries.", toDelete.size)
 
-            batchCounter++
-        }
+        //     batchCounter++
+        // }
 
-        logger.info("Finished removing deleted external permission roles")
+        // logger.info("Finished removing deleted external permission roles")
         return true
     }
 
