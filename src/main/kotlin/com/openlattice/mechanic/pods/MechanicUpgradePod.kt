@@ -27,7 +27,7 @@ import com.google.common.eventbus.EventBus
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
 import com.geekbeast.rhizome.configuration.RhizomeConfiguration
-import com.kryptnostic.rhizome.pods.ConfigurationLoader
+import com.geekbeast.rhizome.pods.ConfigurationLoader
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditRecordEntitySetsManager
 import com.openlattice.auditing.AuditingConfiguration

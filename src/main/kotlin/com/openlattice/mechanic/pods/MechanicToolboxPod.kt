@@ -2,7 +2,7 @@ package com.openlattice.mechanic.pods
 
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
-import com.kryptnostic.rhizome.pods.ConfigurationLoader
+import com.geekbeast.rhizome.pods.ConfigurationLoader
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.mechanic.Toolbox
 import com.geekbeast.postgres.PostgresTableManager

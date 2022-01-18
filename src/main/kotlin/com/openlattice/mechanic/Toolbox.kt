@@ -24,7 +24,7 @@ package com.openlattice.mechanic
 import com.google.common.base.Stopwatch
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
-import com.kryptnostic.rhizome.pods.ConfigurationLoader
+import com.geekbeast.rhizome.pods.ConfigurationLoader
 import com.geekbeast.postgres.CitusDistributedTableDefinition
 import com.geekbeast.postgres.PostgresTableDefinition
 import com.geekbeast.postgres.PostgresTableManager
