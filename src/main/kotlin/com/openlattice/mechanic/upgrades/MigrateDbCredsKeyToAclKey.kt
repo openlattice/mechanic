@@ -9,8 +9,8 @@ import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn
 import com.openlattice.postgres.PostgresTable
 import com.openlattice.postgres.ResultSetAdapters
-import com.openlattice.postgres.streams.BasePostgresIterable
-import com.openlattice.postgres.streams.StatementHolderSupplier
+import com.geekbeast.postgres.streams.BasePostgresIterable
+import com.geekbeast.postgres.streams.StatementHolderSupplier
 import org.slf4j.LoggerFactory
 
 class MigrateDbCredsKeyToAclKey(private val toolbox: Toolbox) : Upgrade {

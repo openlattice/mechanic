@@ -27,8 +27,8 @@ import com.openlattice.datastore.configuration.DatastoreConfiguration
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.DataTables.quote
-import com.openlattice.postgres.streams.BasePostgresIterable
-import com.openlattice.postgres.streams.StatementHolderSupplier
+import com.geekbeast.postgres.streams.BasePostgresIterable
+import com.geekbeast.postgres.streams.StatementHolderSupplier
 import org.postgresql.util.PSQLException
 import org.slf4j.LoggerFactory
 import java.util.*

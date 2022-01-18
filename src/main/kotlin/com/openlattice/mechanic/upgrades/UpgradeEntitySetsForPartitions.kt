@@ -5,7 +5,7 @@ import com.openlattice.edm.type.PropertyType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.propertyTableName
 import com.openlattice.postgres.DataTables.quote
-import com.openlattice.postgres.IndexType
+import com.geekbeast.postgres.IndexType
 import com.openlattice.postgres.PostgresColumn.ORIGIN_ID
 import com.openlattice.postgres.PostgresDataTables
 import com.openlattice.postgres.PostgresDataTables.Companion.getColumnDefinition

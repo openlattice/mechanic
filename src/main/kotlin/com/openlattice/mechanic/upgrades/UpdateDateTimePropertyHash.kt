@@ -1,5 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
+import com.geekbeast.postgres.*
 import com.google.common.base.Stopwatch
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.*

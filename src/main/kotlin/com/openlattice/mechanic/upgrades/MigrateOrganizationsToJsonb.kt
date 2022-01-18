@@ -1,6 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
-import com.dataloom.mappers.ObjectMappers
+import com.geekbeast.mappers.mappers.ObjectMappers
 import com.hazelcast.query.Predicates
 import com.openlattice.IdConstants
 import com.openlattice.authorization.AclKey
@@ -18,8 +18,8 @@ import com.openlattice.organizations.Organization
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresTable.ORGANIZATIONS
 import com.openlattice.postgres.ResultSetAdapters.*
-import com.openlattice.postgres.streams.BasePostgresIterable
-import com.openlattice.postgres.streams.StatementHolderSupplier
+import com.geekbeast.postgres.streams.BasePostgresIterable
+import com.geekbeast.postgres.streams.StatementHolderSupplier
 import org.slf4j.LoggerFactory
 import java.util.*
 

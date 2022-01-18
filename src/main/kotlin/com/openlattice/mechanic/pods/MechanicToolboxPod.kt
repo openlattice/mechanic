@@ -5,7 +5,7 @@ import com.hazelcast.core.HazelcastInstance
 import com.kryptnostic.rhizome.pods.ConfigurationLoader
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.PostgresTableManager
+import com.geekbeast.postgres.PostgresTableManager
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.postgres.mapstores.EntityTypeMapstore

@@ -1,6 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
-import com.dataloom.mappers.ObjectMappers
+import com.geekbeast.mappers.mappers.ObjectMappers
 import com.google.common.collect.ImmutableSet
 import com.google.common.collect.Sets
 import com.google.common.eventbus.EventBus
@@ -26,8 +26,8 @@ import com.openlattice.mechanic.pods.legacy.LegacyApp
 import com.openlattice.postgres.PostgresTable.APPS
 import com.openlattice.postgres.PostgresTable.APP_CONFIGS
 import com.openlattice.postgres.ResultSetAdapters
-import com.openlattice.postgres.streams.BasePostgresIterable
-import com.openlattice.postgres.streams.StatementHolderSupplier
+import com.geekbeast.postgres.streams.BasePostgresIterable
+import com.geekbeast.postgres.streams.StatementHolderSupplier
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.apache.olingo.commons.api.edm.FullQualifiedName
 import org.slf4j.LoggerFactory
