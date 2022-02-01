@@ -66,7 +66,7 @@ class V3StudyMigrationUpgrade(
         )
 
         entitySets.entrySet(
-            Predicates.like<UUID, EntitySet>(EntitySetMapstore.ENTITY_TYPE_ID_INDEX, UUID.fromString("80c86a96-0e3f-46eb-9fbb-60d9174566a5"))
+            Predicates.equal<UUID, EntitySet>(EntitySetMapstore.ENTITY_TYPE_ID_INDEX, UUID.fromString("80c86a96-0e3f-46eb-9fbb-60d9174566a5"))
         )
             .groupBy { it.value.organizationId }
             .forEachIndexed { index, orgIdToStudiesESSet ->
