@@ -1,11 +1,9 @@
 package com.openlattice.mechanic.upgrades
 
-import com.dataloom.mappers.ObjectMappers
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresTable.APPS
 import com.openlattice.postgres.PostgresTable.APP_CONFIGS
-import com.openlattice.postgres.PostgresTableDefinition
+import com.geekbeast.postgres.PostgresTableDefinition
 import org.slf4j.LoggerFactory
 
 class UpdateAppTables(private val toolbox: Toolbox) : Upgrade {

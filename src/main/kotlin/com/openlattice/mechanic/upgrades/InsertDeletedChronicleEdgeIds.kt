@@ -5,8 +5,8 @@ import com.openlattice.IdConstants
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables
 import com.openlattice.postgres.PostgresColumn
-import com.openlattice.postgres.PostgresColumnDefinition
-import com.openlattice.postgres.PostgresDatatype
+import com.geekbeast.postgres.PostgresColumnDefinition
+import com.geekbeast.postgres.PostgresDatatype
 import com.openlattice.postgres.PostgresTable.*
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -21,8 +21,8 @@ class InsertDeletedChronicleEdgeIds(val toolbox: Toolbox) : Upgrade {
     }
 
     private val PARTITIONS_VERSION = PostgresColumnDefinition(
-            "partitions_version",
-            PostgresDatatype.INTEGER).notNull()
+        "partitions_version",
+        PostgresDatatype.INTEGER).notNull()
 
     override fun upgrade(): Boolean {
 

@@ -3,8 +3,8 @@ package com.openlattice.mechanic.retired
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.Upgrade
 import com.openlattice.mechanic.upgrades.Version
-import com.openlattice.postgres.streams.BasePostgresIterable
-import com.openlattice.postgres.streams.StatementHolderSupplier
+import com.geekbeast.postgres.streams.BasePostgresIterable
+import com.geekbeast.postgres.streams.StatementHolderSupplier
 import java.util.*
 
 /**

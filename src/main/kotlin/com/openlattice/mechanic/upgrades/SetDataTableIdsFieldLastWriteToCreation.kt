@@ -4,7 +4,7 @@ import com.openlattice.IdConstants
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.LAST_WRITE
 import com.openlattice.postgres.PostgresColumn.*
-import com.openlattice.postgres.PostgresColumnDefinition
+import com.geekbeast.postgres.PostgresColumnDefinition
 import com.openlattice.postgres.PostgresTable.DATA
 import com.openlattice.postgres.PostgresTable.IDS
 import org.slf4j.LoggerFactory

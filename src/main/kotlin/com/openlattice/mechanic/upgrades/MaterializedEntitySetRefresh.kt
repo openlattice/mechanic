@@ -20,6 +20,8 @@
  */
 package com.openlattice.mechanic.upgrades
 
+import com.geekbeast.postgres.IndexType
+import com.geekbeast.postgres.PostgresColumnsIndexDefinition
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.*
 import org.slf4j.LoggerFactory
