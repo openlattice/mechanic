@@ -1,11 +1,13 @@
 package com.openlattice.mechanic.upgrades
 
+import com.openlattice.chronicle.constants.EdmConstants
 import com.openlattice.chronicle.storage.StorageResolver
 import com.openlattice.chronicle.study.Study
 import com.openlattice.chronicle.study.StudyApi
 
+import com.openlattice.data.storage.MetadataOption
 import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
-import com.openlattice.edm.EdmConstants
+import com.openlattice.edm.EdmConstants.Companion.LAST_WRITE_FQN
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore
@@ -83,7 +85,7 @@ class V3StudyMigrationUpgrade(
                         studyEntityKeyIds,
                         studyAuthorizedPropertyTypes,
                         emptyMap(),
-                        EnumSet.noneOf(MetadataOption::class.java),
+                        EnumSet.of(MetadataOption.LAST_WRITE),
                         Optional.empty(),
                         false
                 ).forEach { id, FQNtoValue ->
@@ -94,6 +96,7 @@ class V3StudyMigrationUpgrade(
                                 studyId = FQNtoValue[EdmConstants.STRING_ID_FQN],
                                 title = FQNtoValue[EdmConstants.FULL_NAME_FQN],
                                 description = FQNtoValue[FullQualifiedName("diagnosis.Description")],
+                                updatedAt = FQNtoValue[EdmConstants.Companion.LAST_WRITE_FQN]
                                 lat = FQNtoValue[FullQualifiedName("location.latitude")],
                                 lon = FQNtoValue[FullQualifiedName("location.longitude")],
                                 group = FQNtoValue[FullQualifiedName("sharing.name")]
