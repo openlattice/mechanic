@@ -7,6 +7,8 @@ import com.openlattice.chronicle.study.StudyApi
 import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
 import com.openlattice.edm.EdmConstants
 import com.openlattice.hazelcast.HazelcastMap
+import com.openlattice.postgres.mapstores.EntitySetMapstore
+import com.openlattice.postgres.mapstores.PropertyTypeMapstore
 
 import org.apache.olingo.commons.api.edm.FullQualifiedName
 import org.slf4j.Logger
@@ -49,17 +51,24 @@ class V3StudyMigrationUpgrade(
         check(flavor == PostgresFlavor.VANILLA) { "Only vanilla postgres supported for studies." }
 
         // Property Types of ol.study
-        val authorizedPropertyTypes = UUID.randomUUID() to propertyTypes.entrySet(
-            Predicates.`in`<UUID, PropertyType>("id", ??)
+        val studiesPropertyTypes = propertyTypes.entrySet(
+            Predicates.`in`<UUID, PropertyType>(PropertyTypeMapstore.ID_INDEX,
+                                                UUID.fromString("70d2ff1c-2450-4a47-a954-a7641b7399ae"), // general.fullname
+                                                UUID.fromString("c502df5b-ec63-4f15-b529-d38695366c75"), // diagnosis.Description
+                                                UUID.fromString("06083695-aebe-4a56-9b98-da6013e93a5e"), // location.latitude
+                                                UUID.fromString("e8f9026a-2494-4749-84bb-1499cb7f215c"), // location.longitude
+                                                UUID.fromString("0011bbfe-d5d4-4f88-97a8-cdeb821deb6f") //ol.version
+                                                )
         )
 
         entitySets.entrySet(
-            Predicates.like<UUID, EntitySet>("name", "chronicle%studies")
+            Predicates.like<UUID, EntitySet>(EntitySetMapstore.ENTITY_TYPE_ID_INDEX, UUID.fromString("80c86a96-0e3f-46eb-9fbb-60d9174566a5"))
         )
             .groupBy { it.value.organizationId }
             .forEachIndexed { index, orgIdToStudiesESSet ->
                 val orgId = orgIdToStudiesESSet.key
-                val studyEntitySetIds = orgIdToStudiesESSet.value.flatMap { it.value.id to Optional.empty() }
+                val studyEntityKeyIds = orgIdToStudiesESSet.value.flatMap { it.value.id to Optional.empty() }
+                val studyAuthorizedPropertyTypes = orgIdToStudiesESSet.value.flatMap { it.value.id to studiesPropertyTypes }
 
                 logger.info("================================")
                 logger.info("================================")
@@ -67,8 +76,8 @@ class V3StudyMigrationUpgrade(
 
                 // get all studies
                 val studyEntities = dataQueryService.getEntitiesWithPropertyTypeFqns(
-                        studyEntitySetIds,
-                        authorizedPropertyTypes,
+                        studyEntityKeyIds,
+                        studyAuthorizedPropertyTypes,
                         emptyMap(),
                         EnumSet.noneOf(MetadataOption::class.java),
                         Optional.empty(),
