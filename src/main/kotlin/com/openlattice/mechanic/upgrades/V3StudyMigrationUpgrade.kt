@@ -21,6 +21,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 import java.sql.Connection
+import java.time.OffsetDateTime
 import java.util.EnumSet
 import java.util.Optional
 import java.util.UUID
@@ -97,15 +98,15 @@ class V3StudyMigrationUpgrade(
                         studyService.createStudy(
                             connection,
                             Study(
-                                studyId = FQNtoValue[EdmConstants.STRING_ID_FQN],
-                                title = FQNtoValue[EdmConstants.FULL_NAME_FQN],
-                                description = FQNtoValue[FullQualifiedName("diagnosis.Description")],
-                                updatedAt = FQNtoValue[EdmConstants.Companion.LAST_WRITE_FQN],
-                                lat = FQNtoValue[FullQualifiedName("location.latitude")],
-                                lon = FQNtoValue[FullQualifiedName("location.longitude")],
-                                group = FQNtoValue[FullQualifiedName("sharing.name")],
-                                version = FQNtoValue[EdmConstants.VERSION_FQN],
-                                contact = FQNtoValue[FullQualifiedName("contact.Email")],
+                                studyId = FQNtoValue[EdmConstants.STRING_ID_FQN] as UUID,
+                                title = FQNtoValue[EdmConstants.FULL_NAME_FQN] as String,
+                                description = FQNtoValue[FullQualifiedName("diagnosis.Description")] as String,
+                                updatedAt = FQNtoValue[LAST_WRITE_FQN] as OffsetDateTime,
+                                lat = FQNtoValue[FullQualifiedName("location.latitude")] as Double,
+                                lon = FQNtoValue[FullQualifiedName("location.longitude")] as Double,
+                                group = FQNtoValue[FullQualifiedName("sharing.name")] as String,
+                                version = FQNtoValue[EdmConstants.VERSION_FQN] as String,
+                                contact = FQNtoValue[FullQualifiedName("contact.Email")] as String,
                                 organizationIds = setOf(orgId)
                             )
                         )
