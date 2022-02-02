@@ -8,16 +8,20 @@ import com.openlattice.chronicle.study.StudyApi
 import com.openlattice.data.storage.MetadataOption
 import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
 import com.openlattice.edm.EdmConstants.Companion.LAST_WRITE_FQN
+import com.openlattice.edm.EntitySet
+import com.openlattice.edm.type.PropertyType
 import com.openlattice.hazelcast.HazelcastMap
+import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore
 
+import com.hazelcast.query.Predicates
 import org.apache.olingo.commons.api.edm.FullQualifiedName
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 import java.sql.Connection
-import java.util.LinkedHashSet
+import java.util.EnumSet
 import java.util.Optional
 import java.util.UUID
 
@@ -27,24 +31,23 @@ class V3StudyMigrationUpgrade(
     private val storageResolver: StorageResolver,
     private val studyService: StudyService
 ): Upgrade {
-    companion object {
-        private val logger = LoggerFactory.getLogger(V3StudyMigrationUpgrade::class.java)
 
-        private val propertyTypes = HazelcastMap.PROPERTY_TYPES.getMap(toolbox.hazelcast)
-        private val entitySets = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast)
-        private val organizations = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
+    private val logger = LoggerFactory.getLogger(V3StudyMigrationUpgrade::class.java)
 
-        // private val GET_V2_STUDIES_SQL = """
-        //     SELECT id, ? AS ? FROM
-        //     (SELECT id, ? AS ? FROM data WHERE entity_set_id = ANY(?) AND property_type_id = ? ORDER BY id) AS ?
-        // """.trimIndent()
+    private val propertyTypes = HazelcastMap.PROPERTY_TYPES.getMap(toolbox.hazelcast)
+    private val entitySets = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast)
+    private val organizations = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
 
-        // private val V2_DATA_INNERJOIN_SQL = """
-        //     INNER JOIN
-        //     (SELECT id, ? AS ? FROM data WHERE entity_set_id = ANY(?) AND property_type_id = ? ORDER BY id) AS ?
-        //     USING (id)
-        // """.trimIndent()
-    }
+    // private val GET_V2_STUDIES_SQL = """
+    //     SELECT id, ? AS ? FROM
+    //     (SELECT id, ? AS ? FROM data WHERE entity_set_id = ANY(?) AND property_type_id = ? ORDER BY id) AS ?
+    // """.trimIndent()
+
+    // private val V2_DATA_INNERJOIN_SQL = """
+    //     INNER JOIN
+    //     (SELECT id, ? AS ? FROM data WHERE entity_set_id = ANY(?) AND property_type_id = ? ORDER BY id) AS ?
+    //     USING (id)
+    // """.trimIndent()
 
     override fun upgrade(): Boolean {
         logger.info("starting migration of studies to v3")
@@ -66,21 +69,22 @@ class V3StudyMigrationUpgrade(
                 "contact.Email" // UUID.fromString("6a1f7cf6-80eb-4fe9-a9f4-49cad15c6154"
             )
         )
+            // need to do this silly conversion or entrySet will return Set<Map.Entry<,>>
+            .map { it.key to it.value }.toMap()
 
         entitySets.entrySet(
             Predicates.equal<UUID, EntitySet>(EntitySetMapstore.ENTITY_TYPE_ID_INDEX, UUID.fromString("80c86a96-0e3f-46eb-9fbb-60d9174566a5"))
         )
             .groupBy { it.value.organizationId }
-            .forEachIndexed { index, orgIdToStudiesESSet ->
-                val orgId = orgIdToStudiesESSet.key
-                val studyEntityKeyIds = orgIdToStudiesESSet.value.flatMap { it.value.id to Optional.empty() }
-                val studyAuthorizedPropertyTypes = orgIdToStudiesESSet.value.flatMap { it.value.id to studiesPropertyTypes }
+            .forEach { orgId, orgStudyEntitySets ->
+                val studyEntityKeyIds = orgStudyEntitySets.associate { it.key to Optional.of(setOf<UUID>()) }.toMap()
+                val studyAuthorizedPropertyTypes = orgStudyEntitySets.associate { it.key to studiesPropertyTypes }.toMap()
 
                 logger.info("================================")
                 logger.info("================================")
-                logger.info("starting to process org $orgId")
+                logger.info("starting to process studies belonging to org $orgId")
 
-                // get all studies
+                // get all studies for the org
                 val studyEntities = dataQueryService.getEntitiesWithPropertyTypeFqns(
                         studyEntityKeyIds,
                         studyAuthorizedPropertyTypes,
@@ -88,7 +92,7 @@ class V3StudyMigrationUpgrade(
                         EnumSet.of(MetadataOption.LAST_WRITE),
                         Optional.empty(),
                         false
-                ).forEach { id, FQNtoValue ->
+                ).forEach { _, FQNtoValue ->
                     hds.connection.use { connection ->
                         studyService.createStudy(
                             connection,
@@ -96,23 +100,27 @@ class V3StudyMigrationUpgrade(
                                 studyId = FQNtoValue[EdmConstants.STRING_ID_FQN],
                                 title = FQNtoValue[EdmConstants.FULL_NAME_FQN],
                                 description = FQNtoValue[FullQualifiedName("diagnosis.Description")],
-                                updatedAt = FQNtoValue[EdmConstants.Companion.LAST_WRITE_FQN]
+                                updatedAt = FQNtoValue[EdmConstants.Companion.LAST_WRITE_FQN],
                                 lat = FQNtoValue[FullQualifiedName("location.latitude")],
                                 lon = FQNtoValue[FullQualifiedName("location.longitude")],
-                                group = FQNtoValue[FullQualifiedName("sharing.name")]
+                                group = FQNtoValue[FullQualifiedName("sharing.name")],
                                 version = FQNtoValue[EdmConstants.VERSION_FQN],
-                                contact = FQNtoValue[FullQualifiedName("contact.Email")]
+                                contact = FQNtoValue[FullQualifiedName("contact.Email")],
                                 organizationIds = setOf(orgId)
                             )
                         )
                     }
                 }
 
-                logger.info("progress ${index + 1}/${organizations.size}")
+                // logger.info("progress ${index + 1}/${organizations.size}")
                 logger.info("================================")
                 logger.info("================================")
             }
 
         return true
+    }
+
+    override fun getSupportedVersion(): Long {
+        return Version.V2021_07_23.value
     }
 }
