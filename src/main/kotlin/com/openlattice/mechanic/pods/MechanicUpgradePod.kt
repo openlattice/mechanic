@@ -60,6 +60,7 @@ import com.openlattice.linking.graph.PostgresLinkingQueryService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
+import com.openlattice.mechanic.upgrades.V3StudyMigrationUpgrade
 import com.openlattice.postgres.PostgresTable
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.scrunchie.search.ConductorElasticsearchImpl
@@ -291,6 +292,14 @@ class MechanicUpgradePod {
         return AddPgAuditToExistingOrgs(
             toolbox,
             externalDbConnMan,
+        )
+    }
+
+    @Bean
+    fun v3StudyMigration(): V3StudyMigrationUpgrade {
+        return V3StudyMigrationUpgrade(
+            toolbox,
+            dataQueryService()
         )
     }
 
