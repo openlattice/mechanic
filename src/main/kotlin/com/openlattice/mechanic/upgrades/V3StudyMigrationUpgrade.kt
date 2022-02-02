@@ -1,9 +1,11 @@
 package com.openlattice.mechanic.upgrades
 
+import com.geekbeast.configuration.postgres.PostgresFlavor
 import com.openlattice.chronicle.constants.EdmConstants
 import com.openlattice.chronicle.storage.StorageResolver
 import com.openlattice.chronicle.study.Study
 import com.openlattice.chronicle.study.StudyApi
+import com.openlattice.chronicle.services.studies.StudyService
 
 import com.openlattice.data.storage.MetadataOption
 import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
@@ -52,7 +54,7 @@ class V3StudyMigrationUpgrade(
     override fun upgrade(): Boolean {
         logger.info("starting migration of studies to v3")
 
-        val (flavor, hds) = storageResolver.getPlatformStorage()
+        val (flavor, hds) = storageResolver.getDefaultPlatformStorage()
         check(flavor == PostgresFlavor.VANILLA) { "Only vanilla postgres supported for studies." }
 
         // Property Types of ol.study
