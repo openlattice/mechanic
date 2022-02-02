@@ -33,6 +33,8 @@ import com.openlattice.auditing.AuditRecordEntitySetsManager
 import com.openlattice.auditing.AuditingConfiguration
 import com.openlattice.auditing.pods.AuditingConfigurationPod
 import com.openlattice.authorization.*
+import com.openlattice.chronicle.services.studies.StudyService
+import com.openlattice.chronicle.storage.StorageResolver
 import com.openlattice.conductor.rpc.ConductorConfiguration
 import com.openlattice.conductor.rpc.ConductorElasticsearchApi
 import com.openlattice.data.DataDeletionManager
@@ -125,6 +127,13 @@ class MechanicUpgradePod {
 
     @Inject
     private lateinit var toolbox: Toolbox
+
+    // v3 Chronicle
+    @Inject
+    private lateinit var storageResolver: StorageResolver
+
+    @Inject
+    private lateinit var studyService: StudyService
 
     @Bean
     fun conductorConfiguration(): ConductorConfiguration {
@@ -299,7 +308,9 @@ class MechanicUpgradePod {
     fun v3StudyMigration(): V3StudyMigrationUpgrade {
         return V3StudyMigrationUpgrade(
             toolbox,
-            dataQueryService()
+            dataQueryService(),
+            storageResolver,
+            studyService
         )
     }
 

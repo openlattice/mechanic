@@ -149,6 +149,8 @@ dependencies {
         logger.info(project.name + " using project dependencies.")
         implementation project(":rhizome")
         implementation project(":conductor-client")
+        implementation project(":chronicle-api")
+        implementation project(":chronicle-server")
         implementation project(":courier")
     } else {
         logger.info(project.name + " using jar dependencies.")
