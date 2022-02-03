@@ -34,8 +34,8 @@ import com.geekbeast.rhizome.startup.Requirement
 import com.openlattice.assembler.pods.AssemblerConfigurationPod
 import com.openlattice.auditing.pods.AuditingConfigurationPod
 import com.geekbeast.auth0.Auth0Pod
+import com.openlattice.chronicle.pods.ChronicleConfigurationPod
 import com.openlattice.chronicle.pods.ChronicleServerServicesPod
-import com.openlattice.chronicle.pods.ChronicleStoragePod
 import com.openlattice.datastore.pods.ByteBlobServicePod
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.hazelcast.pods.SharedStreamSerializersPod
@@ -138,8 +138,8 @@ class Mechanic {
             AuditingConfigurationPod::class.java,
             Auth0Pod::class.java,
             ByteBlobServicePod::class.java,
+            ChronicleConfigurationPod::class.java,
             ChronicleServerServicesPod::class.java,
-            ChronicleStoragePod::class.java,
             JdbcPod::class.java,
             MapstoresPod::class.java,
             MechanicIntegrityPod::class.java,
