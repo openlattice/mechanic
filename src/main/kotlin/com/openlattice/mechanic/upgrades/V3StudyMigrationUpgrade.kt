@@ -86,7 +86,7 @@ class V3StudyMigrationUpgrade(
                 logger.info("starting to process studies belonging to org $orgId")
 
                 // get all studies for the org
-                val studyEntities = dataQueryService.getEntitiesWithPropertyTypeFqns(
+                dataQueryService.getEntitiesWithPropertyTypeFqns(
                         studyEntityKeyIds,
                         studyAuthorizedPropertyTypes,
                         emptyMap(),
