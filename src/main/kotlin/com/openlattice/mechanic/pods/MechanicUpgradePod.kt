@@ -29,7 +29,7 @@ import com.hazelcast.core.HazelcastInstance
 import com.geekbeast.rhizome.configuration.RhizomeConfiguration
 import com.geekbeast.rhizome.pods.ConfigurationLoader
 import com.openlattice.assembler.AssemblerConfiguration
-import com.openlattice.auditing.AuditRecordEntitySetsManager
+// import com.openlattice.auditing.AuditRecordEntitySetsManager
 import com.openlattice.auditing.AuditingConfiguration
 import com.openlattice.auditing.pods.AuditingConfigurationPod
 import com.openlattice.authorization.*
@@ -37,23 +37,23 @@ import com.openlattice.chronicle.services.studies.StudyService
 import com.openlattice.chronicle.storage.StorageResolver
 import com.openlattice.conductor.rpc.ConductorConfiguration
 import com.openlattice.conductor.rpc.ConductorElasticsearchApi
-import com.openlattice.data.DataDeletionManager
-import com.openlattice.data.EntityKeyIdService
-import com.openlattice.data.ids.PostgresEntityKeyIdService
+// import com.openlattice.data.DataDeletionManager
+// import com.openlattice.data.EntityKeyIdService
+// import com.openlattice.data.ids.PostgresEntityKeyIdService
 import com.openlattice.data.storage.*
 import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
-import com.openlattice.data.storage.postgres.PostgresEntityDatastore
+// import com.openlattice.data.storage.postgres.PostgresEntityDatastore
 import com.openlattice.datasets.DataSetService
 import com.openlattice.datastore.pods.ByteBlobServicePod
-import com.openlattice.datastore.services.EdmManager
+// import com.openlattice.datastore.services.EdmManager
 import com.openlattice.datastore.services.EdmService
-import com.openlattice.datastore.services.EntitySetManager
+// import com.openlattice.datastore.services.EntitySetManager
 import com.openlattice.datastore.services.EntitySetService
 import com.openlattice.edm.properties.PostgresTypeManager
 import com.openlattice.edm.schemas.manager.HazelcastSchemaManager
 import com.openlattice.graph.Graph
-import com.openlattice.graph.core.GraphService
-import com.openlattice.ids.HazelcastIdGenerationService
+// import com.openlattice.graph.core.GraphService
+// import com.openlattice.ids.HazelcastIdGenerationService
 import com.openlattice.ioc.providers.LateInitProvider
 import com.geekbeast.jdbc.DataSourceManager
 import com.openlattice.linking.LinkingQueryService
@@ -61,14 +61,12 @@ import com.openlattice.linking.PostgresLinkingFeedbackService
 import com.openlattice.linking.graph.PostgresLinkingQueryService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
 import com.openlattice.mechanic.upgrades.V3StudyMigrationUpgrade
 import com.openlattice.postgres.PostgresTable
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.scrunchie.search.ConductorElasticsearchImpl
 import com.zaxxer.hikari.HikariDataSource
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
-import mechanic.src.main.kotlin.com.openlattice.mechanic.upgrades.AddPgAuditToExistingOrgs
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
@@ -140,10 +138,10 @@ class MechanicUpgradePod {
         return configurationLoader.logAndLoad("conductor", ConductorConfiguration::class.java)
     }
 
-    @Bean
-    fun aclKeyReservationService(): HazelcastAclKeyReservationService {
-        return HazelcastAclKeyReservationService(hazelcastInstance)
-    }
+    // @Bean
+    // fun aclKeyReservationService(): HazelcastAclKeyReservationService {
+    //     return HazelcastAclKeyReservationService(hazelcastInstance)
+    // }
 
     @Bean
     fun jobService(): HazelcastJobService {
@@ -165,10 +163,10 @@ class MechanicUpgradePod {
         return PostgresTypeManager(hikariDataSource, hazelcastInstance)
     }
 
-    @Bean
-    fun postgresLinkingFeedbackQueryService(): PostgresLinkingFeedbackService {
-        return PostgresLinkingFeedbackService(hikariDataSource, hazelcastInstance)
-    }
+    // @Bean
+    // fun postgresLinkingFeedbackQueryService(): PostgresLinkingFeedbackService {
+    //     return PostgresLinkingFeedbackService(hikariDataSource, hazelcastInstance)
+    // }
 
     @Bean
     fun dataSourceResolver(): DataSourceResolver {
@@ -177,51 +175,51 @@ class MechanicUpgradePod {
         return DataSourceResolver(hazelcastInstance, dataSourceManager)
     }
 
-    @Bean
-    fun principalsMapManager(): PrincipalsMapManager {
-        return HazelcastPrincipalsMapManager(hazelcastInstance, aclKeyReservationService())
-    }
+    // @Bean
+    // fun principalsMapManager(): PrincipalsMapManager {
+    //     return HazelcastPrincipalsMapManager(hazelcastInstance, aclKeyReservationService())
+    // }
 
-    @Bean
-    fun authorizationService(): AuthorizationManager {
-        return HazelcastAuthorizationService(hazelcastInstance, eventBus, principalsMapManager())
-    }
+    // @Bean
+    // fun authorizationService(): AuthorizationManager {
+    //     return HazelcastAuthorizationService(hazelcastInstance, eventBus, principalsMapManager())
+    // }
 
-    @Bean
-    fun schemaManager(): HazelcastSchemaManager {
-        return HazelcastSchemaManager(hazelcastInstance, postgresTypeManager())
-    }
+    // @Bean
+    // fun schemaManager(): HazelcastSchemaManager {
+    //     return HazelcastSchemaManager(hazelcastInstance, postgresTypeManager())
+    // }
 
-    @Bean
-    fun edmManager(): EdmManager {
-        return EdmService(
-                hazelcastInstance,
-                aclKeyReservationService(),
-                authorizationService(),
-                postgresTypeManager(),
-                schemaManager(),
-                dataSetService()
-        )
-    }
+    // @Bean
+    // fun edmManager(): EdmManager {
+    //     return EdmService(
+    //             hazelcastInstance,
+    //             aclKeyReservationService(),
+    //             authorizationService(),
+    //             postgresTypeManager(),
+    //             schemaManager(),
+    //             dataSetService()
+    //     )
+    // }
 
-    @Bean
-    fun entitySetService(): EntitySetManager {
-        return EntitySetService(
-                hazelcastInstance,
-                eventBus,
-                aclKeyReservationService(),
-                authorizationService(),
-                edmManager(),
-                hikariDataSource,
-                dataSetService(),
-                auditingConfiguration
-        )
-    }
+    // @Bean
+    // fun entitySetService(): EntitySetManager {
+    //     return EntitySetService(
+    //             hazelcastInstance,
+    //             eventBus,
+    //             aclKeyReservationService(),
+    //             authorizationService(),
+    //             edmManager(),
+    //             hikariDataSource,
+    //             dataSetService(),
+    //             auditingConfiguration
+    //     )
+    // }
 
-    @Bean
-    fun auditRecordEntitySetsManager(): AuditRecordEntitySetsManager {
-        return entitySetService().getAuditRecordEntitySetsManager()
-    }
+    // @Bean
+    // fun auditRecordEntitySetsManager(): AuditRecordEntitySetsManager {
+    //     return entitySetService().getAuditRecordEntitySetsManager()
+    // }
 
     @Bean
     fun dataQueryService(): PostgresEntityDataQueryService {
@@ -231,78 +229,59 @@ class MechanicUpgradePod {
         )
     }
 
-    @Bean
-    fun idGenerationService(): HazelcastIdGenerationService {
-        return HazelcastIdGenerationService(hazelcastClientProvider)
-    }
+    // @Bean
+    // fun idGenerationService(): HazelcastIdGenerationService {
+    //     return HazelcastIdGenerationService(hazelcastClientProvider)
+    // }
 
-    @Bean
-    fun idService(): EntityKeyIdService {
-        return PostgresEntityKeyIdService(
-                dataSourceResolver(),
-                idGenerationService()
-        )
-    }
+    // @Bean
+    // fun idService(): EntityKeyIdService {
+    //     return PostgresEntityKeyIdService(
+    //             dataSourceResolver(),
+    //             idGenerationService()
+    //     )
+    // }
 
-    @Bean
-    fun graphService(): GraphService {
-        return Graph(
-                dataSourceResolver(),
-                entitySetService(),
-                dataQueryService(),
-                idService(),
-                MetricRegistry()
-        )
-    }
+    // @Bean
+    // fun graphService(): GraphService {
+    //     return Graph(
+    //             dataSourceResolver(),
+    //             entitySetService(),
+    //             dataQueryService(),
+    //             idService(),
+    //             MetricRegistry()
+    //     )
+    // }
 
-    @Bean
-    fun lqs(): LinkingQueryService {
-        return PostgresLinkingQueryService(hikariDataSource)
-    }
+    // @Bean
+    // fun lqs(): LinkingQueryService {
+    //     return PostgresLinkingQueryService(hikariDataSource)
+    // }
 
-    @Bean
-    fun entityDatastore(entitySetManager: EntitySetManager): EntityDatastore {
-        return PostgresEntityDatastore(
-                dataQueryService(),
-                edmManager(),
-                entitySetManager,
-                metricRegistry,
-                eventBus,
-                postgresLinkingFeedbackQueryService(),
-                lqs()
-        )
-    }
+    // @Bean
+    // fun entityDatastore(entitySetManager: EntitySetManager): EntityDatastore {
+    //     return PostgresEntityDatastore(
+    //             dataQueryService(),
+    //             edmManager(),
+    //             entitySetManager,
+    //             metricRegistry,
+    //             eventBus,
+    //             postgresLinkingFeedbackQueryService(),
+    //             lqs()
+    //     )
+    // }
 
-    @Bean
-    fun dataDeletionService(): DataDeletionManager {
-        val entitySetService = entitySetService()
-        return DataDeletionService(
-                entitySetService,
-                authorizationService(),
-                entityDatastore(entitySetService),
-                graphService(),
-                jobService(),
-        )
-    }
-
-    @Bean
-    fun deleteOrgMetadataEntitySets(): DeleteOrgMetadataEntitySets {
-        return DeleteOrgMetadataEntitySets(
-                toolbox,
-                auditRecordEntitySetsManager(),
-                dataDeletionService(),
-                entitySetService(),
-                jobService()
-        )
-    }
-
-    @Bean
-    fun addPgAuditToExistingOrgs(): AddPgAuditToExistingOrgs {
-        return AddPgAuditToExistingOrgs(
-            toolbox,
-            externalDbConnMan,
-        )
-    }
+    // @Bean
+    // fun dataDeletionService(): DataDeletionManager {
+    //     val entitySetService = entitySetService()
+    //     return DataDeletionService(
+    //             entitySetService,
+    //             authorizationService(),
+    //             entityDatastore(entitySetService),
+    //             graphService(),
+    //             jobService(),
+    //     )
+    // }
 
     @Bean
     fun v3StudyMigration(): V3StudyMigrationUpgrade {
