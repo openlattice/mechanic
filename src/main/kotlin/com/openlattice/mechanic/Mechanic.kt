@@ -49,6 +49,7 @@ import com.openlattice.mechanic.MechanicCli.Companion.POSTGRES
 import com.openlattice.mechanic.MechanicCli.Companion.REINDEX
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.integrity.Check
+import com.openlattice.mechanic.pods.MechanicChronicleByteBlobServicePod
 import com.openlattice.mechanic.pods.MechanicChronicleMapstoresPod
 import com.openlattice.mechanic.pods.MechanicChronicleSharedStreamSerializersPod
 import com.openlattice.mechanic.pods.MechanicIntegrityPod
@@ -144,6 +145,7 @@ class Mechanic {
             ChronicleServerServicesPod::class.java,
             JdbcPod::class.java,
             MapstoresPod::class.java,
+            MechanicChronicleByteBlobServicePod::class.java,
             MechanicChronicleMapstoresPod::class.java,
             MechanicIntegrityPod::class.java,
             MechanicRetireePod::class.java,
