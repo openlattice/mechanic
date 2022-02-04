@@ -50,6 +50,7 @@ import com.openlattice.mechanic.MechanicCli.Companion.REINDEX
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.integrity.Check
 import com.openlattice.mechanic.pods.MechanicChronicleByteBlobServicePod
+import com.openlattice.mechanic.pods.MechanicChronicleLateInitProvidersPod
 import com.openlattice.mechanic.pods.MechanicChronicleMapstoresPod
 import com.openlattice.mechanic.pods.MechanicChronicleSharedStreamSerializersPod
 import com.openlattice.mechanic.pods.MechanicIntegrityPod
@@ -155,7 +156,8 @@ class Mechanic {
             PostgresPod::class.java,
             SharedStreamSerializersPod::class.java,
             MechanicChronicleSharedStreamSerializersPod::class.java,
-            LateInitProvidersPod::class.java
+            LateInitProvidersPod::class.java,
+            MechanicChronicleLateInitProvidersPod::class.java
             )
     )
 
