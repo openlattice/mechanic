@@ -1,10 +1,5 @@
 package com.openlattice.mechanic.upgrades
 
-import com.openlattice.chronicle.constants.EdmConstants
-import com.openlattice.chronicle.storage.StorageResolver
-import com.openlattice.chronicle.study.Study
-import com.openlattice.chronicle.study.StudyApi
-
 import com.openlattice.data.storage.MetadataOption
 import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
 import com.openlattice.edm.EdmConstants.Companion.LAST_WRITE_FQN
@@ -28,9 +23,7 @@ import java.util.UUID
 
 class V3StudyMigrationUpgrade(
     toolbox: Toolbox,
-    private val dataQueryService: PostgresEntityDataQueryService,
-    private val storageResolver: StorageResolver,
-    private val studyService: StudyService
+    private val dataQueryService: PostgresEntityDataQueryService
 ): Upgrade {
 
     private val logger = LoggerFactory.getLogger(V3StudyMigrationUpgrade::class.java)
@@ -53,9 +46,6 @@ class V3StudyMigrationUpgrade(
     override fun upgrade(): Boolean {
         logger.info("starting migration of studies to v3")
 
-        val (flavor, hds) = storageResolver.getPlatformStorage()
-        check(flavor == PostgresFlavor.VANILLA) { "Only vanilla postgres supported for studies." }
-
         // Property Types of ol.study
         val studiesPropertyTypes = propertyTypes.entrySet(
             Predicates.`in`<UUID, PropertyType>(
@@ -74,6 +64,7 @@ class V3StudyMigrationUpgrade(
             .map { it.key to it.value }.toMap()
 
         entitySets.entrySet(
+            // filter out entity set of entity type ol.study
             Predicates.equal<UUID, EntitySet>(EntitySetMapstore.ENTITY_TYPE_ID_INDEX, UUID.fromString("80c86a96-0e3f-46eb-9fbb-60d9174566a5"))
         )
             .groupBy { it.value.organizationId }
@@ -94,23 +85,7 @@ class V3StudyMigrationUpgrade(
                         Optional.empty(),
                         false
                 ).forEach { _, FQNtoValue ->
-                    hds.connection.use { connection ->
-                        studyService.createStudy(
-                            connection,
-                            Study(
-                                studyId = FQNtoValue[EdmConstants.STRING_ID_FQN] as UUID,
-                                title = FQNtoValue[EdmConstants.FULL_NAME_FQN] as String,
-                                description = FQNtoValue[FullQualifiedName("diagnosis.Description")] as String,
-                                updatedAt = FQNtoValue[LAST_WRITE_FQN] as OffsetDateTime,
-                                lat = FQNtoValue[FullQualifiedName("location.latitude")] as Double,
-                                lon = FQNtoValue[FullQualifiedName("location.longitude")] as Double,
-                                group = FQNtoValue[FullQualifiedName("sharing.name")] as String,
-                                version = FQNtoValue[EdmConstants.VERSION_FQN] as String,
-                                contact = FQNtoValue[FullQualifiedName("contact.Email")] as String,
-                                organizationIds = setOf(orgId)
-                            )
-                        )
-                    }
+                    // process study entities into a Study table
                 }
 
                 // logger.info("progress ${index + 1}/${organizations.size}")
