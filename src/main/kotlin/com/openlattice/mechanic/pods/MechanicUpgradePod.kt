@@ -299,6 +299,7 @@ class MechanicUpgradePod {
     fun v3StudyMigration(): V3StudyMigrationUpgrade {
         return V3StudyMigrationUpgrade(
             toolbox,
+            hikariDataSource,
             dataQueryService()
         )
     }
