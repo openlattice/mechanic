@@ -76,9 +76,8 @@ class V3StudyMigrationUpgrade(
         logger.info("starting migration of studies to v3")
 
         // Property Types of ol.study
-        val studiesPropertyTypes = propertyTypes.entrySet(
-            Predicates.`in`<UUID, PropertyType>(
-                "id",
+        val studiesPropertyTypes = propertyTypes.getAll(
+            setOf(
                 // "general.stringid",
                 UUID.fromString("ee3a7573-aa70-4afb-814d-3fad27cda988"),
                 // "general.fullname",
@@ -96,9 +95,7 @@ class V3StudyMigrationUpgrade(
                 // "contact.Email"
                 UUID.fromString("6a1f7cf6-80eb-4fe9-a9f4-49cad15c6154")
             )
-        )
-            // need to do this silly conversion or entrySet will return Set<Map.Entry<,>>
-            .map { it.key to it.value }.toMap()
+        ).toMap()
 
         hds.connection.use { connection ->
             connection.autoCommit = false
