@@ -46,15 +46,15 @@ class V3StudyMigrationUpgrade(
     private val EMAIL_FQN = FullQualifiedName("contact.Email")
 
     private val fqnToColumnName = mapOf(
-        STRING_ID_FQN to  "study_id",
-        FULL_NAME_FQN to "fullname",
+        STRING_ID_FQN to "study_id",
+        FULL_NAME_FQN to "title",
         DESCRIPTION_FQN to "description",
+        LAST_WRITE_FQN to "updated_at",
         LAT_FQN to "latitude",
         LON_FQN to "longitude",
         SHARING_NAME_FQN to "study_group",
         VERSION_FQN to "study_version",
-        EMAIL_FQN to "contact",
-        LAST_WRITE_FQN to "updated_at"
+        EMAIL_FQN to "contact"
     )
 
     // private val GET_V2_STUDIES_SQL = """
@@ -69,7 +69,7 @@ class V3StudyMigrationUpgrade(
     // """.trimIndent()
 
     // private val INSERT_INTO_STUDY_TABLE_SQL = """
-    //     INSERT INTO studies (id, fullname, description, latitude, longitude, sharing, version, email) VALUES (?,?,?,?,?,?,?,?)
+    //     INSERT INTO studies (id, title, description, latitude, longitude, sharing, version, email) VALUES (?,?,?,?,?,?,?,?)
     // """.trimIndent()
 
     override fun upgrade(): Boolean {
@@ -125,10 +125,13 @@ class V3StudyMigrationUpgrade(
                             false
                     ).values.forEach { fqnToValue ->
                         // process study entities into a Study table
-                        logger.info("Processing study ${fqnToValue}")
+                        logger.info("Processing study ${fqnToValue[STRING_ID_FQN]}")
 
                         logger.info("Inserting study ${fqnToValue} into studies")
                         insertIntoStudies(connection, orgId, fqnToValue)
+
+                        // process participants of studies
+                        logger.info("Processing all participants of ${fqnToValue[STRING_ID_FQN]}")
                     }
 
                     // logger.info("progress ${index + 1}/${organizations.size}")
@@ -157,7 +160,7 @@ class V3StudyMigrationUpgrade(
                     when (fqn.getNamespace()) {
                         "location" -> ps.setDouble(index++, fqnToValue[fqn]!!.first() as Double)
                         "openlattice" -> ps.setObject(index++, fqnToValue[fqn]!!.first() as OffsetDateTime)
-                        else -> ps.setString(index++, fqnToValue[fqn]!!.first()  as String)
+                        else -> ps.setString(index++, fqnToValue[fqn]!!.first() as String)
                     }
                 }
 
