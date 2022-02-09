@@ -88,31 +88,6 @@ class V3StudyMigrationUpgrade(
         )
     ).toMap()
 
-    // Property Types of general.person
-    private val participantPropertyTypes = propertyTypes.getAll(
-        setOf(
-            // "nc.SubjectIdentification",
-            UUID.fromString("5260cfbd-bfa4-40c1-ade5-cd83cc9f99b2"),
-            // "general.fullname",
-            UUID.fromString("70d2ff1c-2450-4a47-a954-a7641b7399ae")
-        )
-    ).toMap()
-
-    // private val GET_V2_STUDIES_SQL = """
-    //     SELECT id, ? AS ? FROM
-    //     (SELECT id, ? AS ? FROM data WHERE entity_set_id = ANY(?) AND property_type_id = ? ORDER BY id) AS ?
-    // """.trimIndent()
-
-    // private val V2_DATA_INNERJOIN_SQL = """
-    //     INNER JOIN
-    //     (SELECT id, ? AS ? FROM data WHERE entity_set_id = ANY(?) AND property_type_id = ? ORDER BY id) AS ?
-    //     USING (id)
-    // """.trimIndent()
-
-    // private val INSERT_INTO_STUDY_TABLE_SQL = """
-    //     INSERT INTO studies (id, title, description, latitude, longitude, sharing, version, email) VALUES (?,?,?,?,?,?,?,?)
-    // """.trimIndent()
-
     override fun upgrade(): Boolean {
         logger.info("starting migration of studies to v3")
 
