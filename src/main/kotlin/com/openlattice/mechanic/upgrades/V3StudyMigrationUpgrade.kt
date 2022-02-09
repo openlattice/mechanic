@@ -138,7 +138,7 @@ class V3StudyMigrationUpgrade(
                         logger.info("Processing study ${fqnToValue[STRING_ID_FQN]} with entity_key_id ${ekid}")
 
                         logger.info("Inserting study ${fqnToValue} into studies")
-                        val v3Id = insertIntoStudiesTable(connection, fqnToValue)
+                        val v3Id = insertIntoStudiesTable(connection, orgId, fqnToValue)
 
                         if (v3Id != null) {
                             // process participants of studies
@@ -156,7 +156,7 @@ class V3StudyMigrationUpgrade(
         return true
     }
 
-    private fun insertIntoStudiesTable(conn: Connection, fqnToValue: MutableMap<FullQualifiedName, MutableSet<Any>>): UUID? {
+    private fun insertIntoStudiesTable(conn: Connection, orgId: UUID, fqnToValue: MutableMap<FullQualifiedName, MutableSet<Any>>): UUID? {
         val columns = fqnToStudiesColumnName.filter { fqnToValue.containsKey(it.key) }
         if (columns.size == 0) {
             return null
@@ -187,6 +187,25 @@ class V3StudyMigrationUpgrade(
                 conn.commit()
             } catch (ex: Exception) {
                 logger.error("Exception occurred inserting study ${fqnToValue}", ex)
+                conn.rollback()
+            }
+        }
+
+        val INSERT_INTO_ORGANIZATION_STUDIES_SQL = """
+            INSERT INTO organization_studies (organization_id, study_id) VALUES (?,?)
+        """.trimIndent()
+
+        conn.prepareStatement(INSERT_INTO_ORGANIZATION_STUDIES_SQL).use { ps ->
+            try {
+                ps.setObject(1, orgId)
+                ps.setObject(2, studyId)
+
+                logger.debug(ps.toString())
+                ps.addBatch()
+                ps.executeBatch()
+                conn.commit()
+            } catch (ex: Exception) {
+                logger.error("Exception occurred inserting participant ${fqnToValue} into study_participants", ex)
                 conn.rollback()
             }
         }
