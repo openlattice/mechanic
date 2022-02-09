@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory
 import com.zaxxer.hikari.HikariDataSource
 
 import java.sql.Connection
+import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.EnumSet
 import java.util.Optional
@@ -45,25 +46,32 @@ class V3StudyMigrationUpgrade(
     private val entitySets = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast)
     private val organizations = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
 
-    private val STRING_ID_FQN = FullQualifiedName( "general.stringid" )
-    private val FULL_NAME_FQN = FullQualifiedName( "general.fullname" )
+    private val STRING_ID_FQN = FullQualifiedName("general.stringid")
+    private val FULL_NAME_FQN = FullQualifiedName("general.fullname")
     private val DESCRIPTION_FQN = FullQualifiedName("diagnosis.Description")
     private val LAT_FQN = FullQualifiedName("location.latitude")
     private val LON_FQN = FullQualifiedName("location.longitude")
-    private val SHARING_NAME_FQN =FullQualifiedName("sharing.name")
+    private val SHARING_NAME_FQN = FullQualifiedName("sharing.name")
     private val VERSION_FQN = FullQualifiedName( "ol.version")
     private val EMAIL_FQN = FullQualifiedName("contact.Email")
 
-    private val fqnToColumnName = mapOf(
-        STRING_ID_FQN to "study_id",
-        FULL_NAME_FQN to "title",
-        DESCRIPTION_FQN to "description",
+    private val fqnToStudiesColumnName = mapOf(
+        // FullQualifiedName("general.stringid") to "study_id",
+        FullQualifiedName("general.fullname") to "title",
+        FullQualifiedName("diagnosis.Description") to "description",
         LAST_WRITE_FQN to "updated_at",
-        LAT_FQN to "latitude",
-        LON_FQN to "longitude",
-        SHARING_NAME_FQN to "study_group",
-        VERSION_FQN to "study_version",
-        EMAIL_FQN to "contact"
+        FullQualifiedName("location.latitude") to "latitude",
+        FullQualifiedName("location.longitude") to "longitude",
+        FullQualifiedName("sharing.name") to "study_group",
+        FullQualifiedName( "ol.version") to "study_version",
+        FullQualifiedName("contact.Email") to "contact"
+    )
+
+    private val fqnToCandidatesColumnName = mapOf(
+        FullQualifiedName("Person.GivenName") to "first_name",
+        FullQualifiedName("Person.SurName") to "last_name",
+        FullQualifiedName("general.fullname") to "name",
+        FullQualifiedName("nc.PersonBirthDate") to "dob"
     )
 
     // Property Types of ol.study
@@ -106,6 +114,14 @@ class V3StudyMigrationUpgrade(
                     logger.info("================================")
                     logger.info("================================")
                     logger.info("starting to process studies belonging to org $orgId")
+
+                    val orgParticipantEntitySetIds = entitySets.keySet(
+                        // filter out entity sets of {orgId} of entity type general.person
+                        Predicates.and(
+                            Predicates.equal<UUID, EntitySet>(EntitySetMapstore.ORGANIZATION_INDEX, orgId),
+                            Predicates.equal<UUID, EntitySet>(EntitySetMapstore.ENTITY_TYPE_ID_INDEX, UUID.fromString("31cf5595-3fe9-4d3e-a9cf-39355a4b8cab"))
+                        )
+                    ).toSet()
 
                     // get all studies for the org
                     dataQueryService.getEntitiesWithPropertyTypeFqns(
@@ -175,33 +191,64 @@ class V3StudyMigrationUpgrade(
         }
     }
 
-    private fun processParticipantsOfStudy(conn: Connection, orgId: UUID, ekid: UUID, orgStudyEntitySetIds: Set<UUID>, orgParticipantEntitySetIds: Set<UUID>) {
+    private fun processParticipantsOfStudy(conn: Connection, orgId: UUID, v2Id: UUID, studyId: UUID, orgStudyEntitySetIds: Set<UUID>, orgParticipantEntitySetIds: Set<UUID>) {
         val adminRoleAclKey = organizations.getValue(orgId).adminRoleAclKey
-        val principal = principalsMapManager.getSecurablePrincipal(adminRoleAclKey).principal
+        val principal = principalsMapManager.getSecurablePrincipal(adminRoleAclKey)!!.principal
         logger.info("Using principal ${principal} to execute neighbour search")
 
-        val filter = EntityNeighborsFilter(setOf(ekid), Optional.of(orgParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
+        val filter = EntityNeighborsFilter(setOf(v2Id), Optional.of(orgParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
 
+        // get all participants for the study
         val searchResult = searchService.executeEntityNeighborSearch(
             orgStudyEntitySetIds,
             PagedNeighborRequest(filter),
             setOf(principal)
-        ).neighbors.getOrDefault(ekid, listOf())
+        ).neighbors.getOrDefault(v2Id, listOf())
 
         if (searchResult.isNotEmpty()) {
-            val neighborIds = searchResult.filter { it.getNeighborId().isPresent }.map { it.getNeighborId().get() }.toSet()
-            val neighborEntitySetId = searchResult.first().getNeighborEntitySet().get().getId()
+            searchResult.filter { it.getNeighborId().isPresent && it.getAssociationEntitySet().entityTypeId == UUID.fromString("34836b35-76b1-4ecf-b588-c22ad19e2378") }
+                .forEach {
+                    // logger.info("Neighbour ${it.getNeighborId()} details:")
+                    // logger.info("Association Entity Set:${it.getAssociationEntitySet()}")
+                    // logger.info("Association Details: ${it.getAssociationDetails()}")
+                    // logger.info("Neighbour Entity Set: ${it.getNeighborEntitySet()}")
+                    logger.info("Inserting participant: ${it.getNeighborDetails().get()} into study_participants")
+                    insertIntoCandidatesTable(conn, orgId, studyId, it.getNeighborDetails().get())
+                }
+        }
+    }
 
-            // get all participants for the org
-            dataQueryService.getEntitiesWithPropertyTypeFqns(
-                    mapOf(neighborEntitySetId to Optional.of(neighborIds)),
-                    mapOf(neighborEntitySetId to participantPropertyTypes),
-                    emptyMap(),
-                    EnumSet.noneOf(MetadataOption::class.java),
-                    Optional.empty(),
-                    false
-            ).forEach {
-                logger.info("Inserting participant: ${it} into study_participants")
+    private fun insertIntoCandidatesTable(conn: Connection, orgId: UUID, studyId: UUID, fqnToValue: MutableMap<FullQualifiedName, Set<Any>>) {
+        val columns = fqnToCandidatesColumnName.filter { fqnToValue.containsKey(it.key) }
+        if (columns.size == 0) {
+            return
+        }
+
+        val candidateId = UUID.randomUUID() // temp, need to use id generation service
+        val INSERT_INTO_CANDIDATE_SQL = """
+            INSERT INTO candidates (candidate_id, ${columns.values.joinToString()}) VALUES (?${",?".repeat(columns.size)})
+        """.trimIndent()
+        logger.debug(INSERT_INTO_CANDIDATE_SQL)
+
+        conn.prepareStatement(INSERT_INTO_CANDIDATE_SQL).use { ps ->
+            try {
+                var index = 1
+
+                ps.setObject(index++, candidateId)
+                columns.keys.forEach {
+                    when (it.getNamespace()) {
+                        "nc" -> ps.setObject(index++, fqnToValue[it]!!.first() as LocalDate)
+                        else -> ps.setString(index++, fqnToValue[it]!!.first() as String)
+                    }
+                }
+
+                logger.debug(ps.toString())
+                ps.addBatch()
+                ps.executeBatch()
+                conn.commit()
+            } catch (ex: Exception) {
+                logger.error("Exception occurred inserting participant ${fqnToValue}", ex)
+                conn.rollback()
             }
         }
     }
