@@ -249,7 +249,26 @@ class V3StudyMigrationUpgrade(
                 ps.executeBatch()
                 conn.commit()
             } catch (ex: Exception) {
-                logger.error("Exception occurred inserting participant ${fqnToValue}", ex)
+                logger.error("Exception occurred inserting participant ${fqnToValue} into candidates", ex)
+                conn.rollback()
+            }
+        }
+
+        val INSERT_INTO_STUDY_PARTICIPANT_SQL = """
+            INSERT INTO study_participants (study_id, candidate_id) VALUES (?,?)
+        """.trimIndent()
+
+        conn.prepareStatement(INSERT_INTO_STUDY_PARTICIPANT_SQL).use { ps ->
+            try {
+                ps.setObject(1, studyId)
+                ps.setObject(2, candidateId)
+
+                logger.debug(ps.toString())
+                ps.addBatch()
+                ps.executeBatch()
+                conn.commit()
+            } catch (ex: Exception) {
+                logger.error("Exception occurred inserting participant ${fqnToValue} into study_participants", ex)
                 conn.rollback()
             }
         }
