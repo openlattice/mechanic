@@ -136,19 +136,13 @@ class V3StudyMigrationUpgrade(
                         logger.info("Processing study ${fqnToValue[STRING_ID_FQN]} with entity_key_id ${ekid}")
 
                         logger.info("Inserting study ${fqnToValue} into studies")
-                        insertIntoStudies(connection, fqnToValue)
+                        val v3Id = insertIntoStudiesTable(connection, fqnToValue)
 
-                        val orgParticipantEntitySetIds = entitySets.keySet(
-                            // filter out entity sets of {orgId} of entity type general.person
-                            Predicates.and(
-                                Predicates.equal<UUID, EntitySet>(EntitySetMapstore.ORGANIZATION_INDEX, orgId),
-                                Predicates.equal<UUID, EntitySet>(EntitySetMapstore.ENTITY_TYPE_ID_INDEX, UUID.fromString("31cf5595-3fe9-4d3e-a9cf-39355a4b8cab"))
-                            )
-                        ).toSet()
-
-                        // process participants of studies
-                        logger.info("Processing all participants of ${fqnToValue[STRING_ID_FQN]}")
-                        processParticipantsOfStudy(connection, orgId, ekid, orgStudyEntitySetIds, orgParticipantEntitySetIds)
+                        if (v3Id != null) {
+                            // process participants of studies
+                            logger.info("Processing all participants of ${fqnToValue[STRING_ID_FQN]}")
+                            processParticipantsOfStudy(connection, orgId, ekid, v3Id, orgStudyEntitySetIds, orgParticipantEntitySetIds)
+                        }
                     }
 
                     // logger.info("progress ${index + 1}/${organizations.size}")
@@ -160,23 +154,28 @@ class V3StudyMigrationUpgrade(
         return true
     }
 
-    private fun insertIntoStudies(conn: Connection, fqnToValue: MutableMap<FullQualifiedName, MutableSet<Any>>) {
-        val binder = "(?" + ",?".repeat(fqnToValue.size-2) + ")"
-        val columns = fqnToColumnName.filter { fqnToValue.containsKey(it.key) }.values.joinToString()
-        val INSERT_SQL = """
-            INSERT INTO studies (${columns}) VALUES ${binder}
-        """.trimIndent()
-        logger.debug(INSERT_SQL)
+    private fun insertIntoStudiesTable(conn: Connection, fqnToValue: MutableMap<FullQualifiedName, MutableSet<Any>>): UUID? {
+        val columns = fqnToStudiesColumnName.filter { fqnToValue.containsKey(it.key) }
+        if (columns.size == 0) {
+            return null
+        }
 
-        conn.prepareStatement(INSERT_SQL).use { ps ->
+        val studyId = UUID.randomUUID() // temp, need to use id generation service
+        val INSERT_INTO_STUDY_SQL = """
+            INSERT INTO studies (study_id, ${columns.values.joinToString()}) VALUES (?${",?".repeat(columns.size)})
+        """.trimIndent()
+        logger.debug(INSERT_INTO_STUDY_SQL)
+
+        conn.prepareStatement(INSERT_INTO_STUDY_SQL).use { ps ->
             try {
                 var index = 1
 
-                fqnToColumnName.filter { fqnToValue.containsKey(it.key) }.forEach { fqn, _ ->
-                    when (fqn.getNamespace()) {
-                        "location" -> ps.setDouble(index++, fqnToValue[fqn]!!.first() as Double)
-                        "openlattice" -> ps.setObject(index++, fqnToValue[fqn]!!.first() as OffsetDateTime)
-                        else -> ps.setString(index++, fqnToValue[fqn]!!.first() as String)
+                ps.setObject(index++, studyId)
+                columns.keys.forEach {
+                    when (it.getNamespace()) {
+                        "location" -> ps.setDouble(index++, fqnToValue[it]!!.first() as Double)
+                        "openlattice" -> ps.setObject(index++, fqnToValue[it]!!.first() as OffsetDateTime)
+                        else -> ps.setString(index++, fqnToValue[it]!!.first() as String)
                     }
                 }
 
@@ -189,6 +188,7 @@ class V3StudyMigrationUpgrade(
                 conn.rollback()
             }
         }
+        return studyId
     }
 
     private fun processParticipantsOfStudy(conn: Connection, orgId: UUID, v2Id: UUID, studyId: UUID, orgStudyEntitySetIds: Set<UUID>, orgParticipantEntitySetIds: Set<UUID>) {
