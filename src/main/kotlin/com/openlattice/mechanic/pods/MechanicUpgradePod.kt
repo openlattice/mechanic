@@ -64,6 +64,7 @@ import com.openlattice.mechanic.upgrades.V3StudyMigrationUpgrade
 import com.openlattice.postgres.PostgresTable
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.scrunchie.search.ConductorElasticsearchImpl
+import com.openlattice.search.SearchService
 import com.zaxxer.hikari.HikariDataSource
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import mechanic.src.main.kotlin.com.openlattice.mechanic.upgrades.AddPgAuditToExistingOrgs
@@ -277,6 +278,28 @@ class MechanicUpgradePod {
     }
 
     @Bean
+    fun indexingMetadataManager(): IndexingMetadataManager {
+        return IndexingMetadataManager(dataSourceResolver())
+    }
+
+    @Bean
+    fun searchService(): SearchService {
+        val entitySetService = entitySetService()
+        return SearchService(
+            eventBus,
+            MetricRegistry(),
+            authorizationService(),
+            elasticsearchApi(),
+            edmManager(),
+            entitySetService,
+            graphService(),
+            entityDatastore(entitySetService),
+            indexingMetadataManager(),
+            dataSetService()
+        )
+    }
+
+    @Bean
     fun deleteOrgMetadataEntitySets(): DeleteOrgMetadataEntitySets {
         return DeleteOrgMetadataEntitySets(
                 toolbox,
@@ -300,7 +323,9 @@ class MechanicUpgradePod {
         return V3StudyMigrationUpgrade(
             toolbox,
             hikariDataSource,
-            dataQueryService()
+            principalsMapManager(),
+            dataQueryService(),
+            searchService()
         )
     }
 
