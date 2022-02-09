@@ -78,7 +78,7 @@ class V3StudyMigrationUpgrade(
     private val studiesPropertyTypes = propertyTypes.getAll(
         setOf(
             // "general.stringid",
-            UUID.fromString("ee3a7573-aa70-4afb-814d-3fad27cda988"),
+            // UUID.fromString("ee3a7573-aa70-4afb-814d-3fad27cda988"),
             // "general.fullname",
             UUID.fromString("70d2ff1c-2450-4a47-a954-a7641b7399ae"),
             // "diagnosis.Description",
@@ -95,6 +95,8 @@ class V3StudyMigrationUpgrade(
             UUID.fromString("6a1f7cf6-80eb-4fe9-a9f4-49cad15c6154")
         )
     ).toMap()
+
+    private val associationParticipatedInEntityType = UUID.fromString("34836b35-76b1-4ecf-b588-c22ad19e2378")
 
     override fun upgrade(): Boolean {
         logger.info("starting migration of studies to v3")
@@ -206,19 +208,19 @@ class V3StudyMigrationUpgrade(
         ).neighbors.getOrDefault(v2Id, listOf())
 
         if (searchResult.isNotEmpty()) {
-            searchResult.filter { it.getNeighborId().isPresent && it.getAssociationEntitySet().entityTypeId == UUID.fromString("34836b35-76b1-4ecf-b588-c22ad19e2378") }
+            searchResult.filter { it.getNeighborId().isPresent && it.getAssociationEntitySet().entityTypeId == associationParticipatedInEntityType}
                 .forEach {
                     // logger.info("Neighbour ${it.getNeighborId()} details:")
                     // logger.info("Association Entity Set:${it.getAssociationEntitySet()}")
                     // logger.info("Association Details: ${it.getAssociationDetails()}")
                     // logger.info("Neighbour Entity Set: ${it.getNeighborEntitySet()}")
                     logger.info("Inserting participant: ${it.getNeighborDetails().get()} into study_participants")
-                    insertIntoCandidatesTable(conn, orgId, studyId, it.getNeighborDetails().get())
+                    insertIntoCandidatesTable(conn, studyId, it.getNeighborDetails().get())
                 }
         }
     }
 
-    private fun insertIntoCandidatesTable(conn: Connection, orgId: UUID, studyId: UUID, fqnToValue: MutableMap<FullQualifiedName, Set<Any>>) {
+    private fun insertIntoCandidatesTable(conn: Connection, studyId: UUID, fqnToValue: MutableMap<FullQualifiedName, Set<Any>>) {
         val columns = fqnToCandidatesColumnName.filter { fqnToValue.containsKey(it.key) }
         if (columns.size == 0) {
             return
