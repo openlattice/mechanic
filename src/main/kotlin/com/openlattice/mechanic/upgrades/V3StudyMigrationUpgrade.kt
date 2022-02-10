@@ -156,7 +156,7 @@ class V3StudyMigrationUpgrade(
         return true
     }
 
-    private fun insertIntoStudiesTable(conn: Connection, orgId: UUID, fqnToValue: MutableMap<FullQualifiedName, MutableSet<Any>>): UUID? {
+    private fun insertIntoStudiesTable(conn: Connection, orgId: UUID, fqnToValue: Map<FullQualifiedName, MutableSet<Any>>): UUID? {
         val columns = fqnToStudiesColumnName.filter { fqnToValue.containsKey(it.key) }
         if (columns.size == 0) {
             return null
@@ -234,12 +234,14 @@ class V3StudyMigrationUpgrade(
                     // logger.info("Association Details: ${it.getAssociationDetails()}")
                     // logger.info("Neighbour Entity Set: ${it.getNeighborEntitySet()}")
                     logger.info("Inserting participant: ${it.getNeighborDetails().get()} into study_participants")
-                    insertIntoCandidatesTable(conn, studyId, it.getNeighborDetails().get())
+                    val fqnToValue = it.getNeighborDetails().get() + it.getAssociationDetails().filterKeys { it == FullQualifiedName("ol.status") }
+                    logger.info("${fqnToValue}")
+                    insertIntoCandidatesTable(conn, studyId, fqnToValue)
                 }
         }
     }
 
-    private fun insertIntoCandidatesTable(conn: Connection, studyId: UUID, fqnToValue: MutableMap<FullQualifiedName, Set<Any>>) {
+    private fun insertIntoCandidatesTable(conn: Connection, studyId: UUID, fqnToValue: Map<FullQualifiedName, Set<Any>>) {
         val columns = fqnToCandidatesColumnName.filter { fqnToValue.containsKey(it.key) }
         if (columns.size == 0) {
             return
@@ -273,14 +275,23 @@ class V3StudyMigrationUpgrade(
             }
         }
 
-        val INSERT_INTO_STUDY_PARTICIPANT_SQL = """
-            INSERT INTO study_participants (study_id, candidate_id) VALUES (?,?)
-        """.trimIndent()
+        val INSERT_INTO_STUDY_PARTICIPANT_SQL = if (fqnToValue[FullQualifiedName("ol.status")] != null) {
+            """
+                INSERT INTO study_participants (study_id, candidate_id, participation_status) VALUES (?,?,?)
+            """.trimIndent()
+        } else {
+            """
+                INSERT INTO study_participants (study_id, candidate_id) VALUES (?,?)
+            """.trimIndent()
+        }
 
         conn.prepareStatement(INSERT_INTO_STUDY_PARTICIPANT_SQL).use { ps ->
             try {
                 ps.setObject(1, studyId)
                 ps.setObject(2, candidateId)
+                if (fqnToValue[FullQualifiedName("ol.status")] != null) {
+                    ps.setString(3, fqnToValue[FullQualifiedName("ol.status")]!!.first() as String)
+                }
 
                 logger.debug(ps.toString())
                 ps.addBatch()
