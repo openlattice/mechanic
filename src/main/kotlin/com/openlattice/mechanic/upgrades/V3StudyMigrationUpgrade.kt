@@ -57,7 +57,6 @@ class V3StudyMigrationUpgrade(
     private val EMAIL_FQN = FullQualifiedName("contact.Email")
 
     private val fqnToStudiesColumnName = mapOf(
-        // FullQualifiedName("general.stringid") to "study_id",
         FullQualifiedName("general.fullname") to "title",
         FullQualifiedName("diagnosis.Description") to "description",
         LAST_WRITE_FQN to "updated_at",
@@ -72,7 +71,8 @@ class V3StudyMigrationUpgrade(
         FullQualifiedName("Person.GivenName") to "first_name",
         FullQualifiedName("Person.SurName") to "last_name",
         FullQualifiedName("general.fullname") to "name",
-        FullQualifiedName("nc.PersonBirthDate") to "dob"
+        FullQualifiedName("nc.PersonBirthDate") to "dob",
+        FullQualifiedName("ol.status") to "participation_status"
     )
 
     // Property Types of ol.study
@@ -134,18 +134,16 @@ class V3StudyMigrationUpgrade(
                             EnumSet.of(MetadataOption.LAST_WRITE),
                             Optional.empty(),
                             false
-                    ).forEach { ekid, fqnToValue ->
+                    ).forEach { v2Id, fqnToValue ->
                         // process study entities into a Study table
-                        logger.info("Processing study ${fqnToValue[STRING_ID_FQN]} with entity_key_id ${ekid}")
+                        logger.info("Processing study with entity_key_id ${v2Id}")
 
                         logger.info("Inserting study ${fqnToValue} into studies")
-                        val v3Id = insertIntoStudiesTable(connection, orgId, fqnToValue)
+                        insertIntoStudiesTable(connection, orgId, v2Id, fqnToValue)
 
-                        if (v3Id != null) {
-                            // process participants of studies
-                            logger.info("Processing all participants of ${fqnToValue[STRING_ID_FQN]}")
-                            processParticipantsOfStudy(connection, orgId, ekid, v3Id, orgStudyEntitySetIds, orgParticipantEntitySetIds)
-                        }
+                        // process participants of studies
+                        logger.info("Processing all participants of ${v2Id}")
+                        processParticipantsOfStudy(connection, orgId, v2Id, orgStudyEntitySetIds, orgParticipantEntitySetIds)
                     }
 
                     // logger.info("progress ${index + 1}/${organizations.size}")
@@ -157,15 +155,14 @@ class V3StudyMigrationUpgrade(
         return true
     }
 
-    private fun insertIntoStudiesTable(conn: Connection, orgId: UUID, fqnToValue: Map<FullQualifiedName, MutableSet<Any>>): UUID? {
+    private fun insertIntoStudiesTable(conn: Connection, orgId: UUID, studyId: UUID, fqnToValue: Map<FullQualifiedName, MutableSet<Any>>) {
         val columns = fqnToStudiesColumnName.filter { fqnToValue.containsKey(it.key) }
         if (columns.size == 0) {
-            return null
+            return
         }
 
-        val studyId = UUID.randomUUID() // temp, need to use id generation service
         val INSERT_INTO_STUDY_SQL = """
-            INSERT INTO studies (study_id, ${columns.values.joinToString()}) VALUES (?${",?".repeat(columns.size)})
+            INSERT INTO studies (v2_internal_study_id, v2_organization_id, ${columns.values.joinToString()}) VALUES (?,?${",?".repeat(columns.size)})
         """.trimIndent()
         logger.debug(INSERT_INTO_STUDY_SQL)
 
@@ -174,6 +171,7 @@ class V3StudyMigrationUpgrade(
                 var index = 1
 
                 ps.setObject(index++, studyId)
+                ps.setObject(index++, orgId)
                 columns.keys.forEach {
                     when (it.getNamespace()) {
                         "location" -> ps.setDouble(index++, fqnToValue[it]!!.first() as Double)
@@ -187,45 +185,25 @@ class V3StudyMigrationUpgrade(
                 ps.executeBatch()
                 conn.commit()
             } catch (ex: Exception) {
-                logger.error("Exception occurred inserting study ${fqnToValue}", ex)
+                logger.error("Exception occurred inserting study ${fqnToValue} into studies", ex)
                 conn.rollback()
             }
         }
-
-        val INSERT_INTO_ORGANIZATION_STUDIES_SQL = """
-            INSERT INTO organization_studies (organization_id, study_id) VALUES (?,?)
-        """.trimIndent()
-
-        conn.prepareStatement(INSERT_INTO_ORGANIZATION_STUDIES_SQL).use { ps ->
-            try {
-                ps.setObject(1, orgId)
-                ps.setObject(2, studyId)
-
-                logger.debug(ps.toString())
-                ps.addBatch()
-                ps.executeBatch()
-                conn.commit()
-            } catch (ex: Exception) {
-                logger.error("Exception occurred inserting participant ${fqnToValue} into study_participants", ex)
-                conn.rollback()
-            }
-        }
-        return studyId
     }
 
-    private fun processParticipantsOfStudy(conn: Connection, orgId: UUID, v2Id: UUID, studyId: UUID, orgStudyEntitySetIds: Set<UUID>, orgParticipantEntitySetIds: Set<UUID>) {
+    private fun processParticipantsOfStudy(conn: Connection, orgId: UUID, studyId: UUID, orgStudyEntitySetIds: Set<UUID>, orgParticipantEntitySetIds: Set<UUID>) {
         val adminRoleAclKey = organizations.getValue(orgId).adminRoleAclKey
         val adminPrincipals = principalService.getAllUsersWithPrincipal(adminRoleAclKey).map { it.getPrincipal() }.toSet()
         logger.info("Using admin principals ${adminPrincipals} to execute neighbour search")
 
-        val filter = EntityNeighborsFilter(setOf(v2Id), Optional.of(orgParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
+        val filter = EntityNeighborsFilter(setOf(studyId), Optional.of(orgParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
 
         // get all participants for the study
         val searchResult = searchService.executeEntityNeighborSearch(
             orgStudyEntitySetIds,
             PagedNeighborRequest(filter),
             adminPrincipals
-        ).neighbors.getOrDefault(v2Id, listOf())
+        ).neighbors.getOrDefault(studyId, listOf())
 
         if (searchResult.isNotEmpty()) {
             searchResult.filter { it.getNeighborId().isPresent && it.getAssociationEntitySet().entityTypeId == associationParticipatedInEntityType}
@@ -248,9 +226,8 @@ class V3StudyMigrationUpgrade(
             return
         }
 
-        val candidateId = UUID.randomUUID() // temp, need to use id generation service
         val INSERT_INTO_CANDIDATE_SQL = """
-            INSERT INTO candidates (candidate_id, ${columns.values.joinToString()}) VALUES (?${",?".repeat(columns.size)})
+            INSERT INTO candidates (v2_internal_study_id, ${columns.values.joinToString()}) VALUES (?${",?".repeat(columns.size)})
         """.trimIndent()
         logger.debug(INSERT_INTO_CANDIDATE_SQL)
 
@@ -258,7 +235,7 @@ class V3StudyMigrationUpgrade(
             try {
                 var index = 1
 
-                ps.setObject(index++, candidateId)
+                ps.setObject(index++, studyId)
                 columns.keys.forEach {
                     when (it.getNamespace()) {
                         "nc" -> ps.setObject(index++, fqnToValue[it]!!.first() as LocalDate)
@@ -272,34 +249,6 @@ class V3StudyMigrationUpgrade(
                 conn.commit()
             } catch (ex: Exception) {
                 logger.error("Exception occurred inserting participant ${fqnToValue} into candidates", ex)
-                conn.rollback()
-            }
-        }
-
-        val INSERT_INTO_STUDY_PARTICIPANT_SQL = if (fqnToValue[FullQualifiedName("ol.status")] != null) {
-            """
-                INSERT INTO study_participants (study_id, candidate_id, participation_status) VALUES (?,?,?)
-            """.trimIndent()
-        } else {
-            """
-                INSERT INTO study_participants (study_id, candidate_id) VALUES (?,?)
-            """.trimIndent()
-        }
-
-        conn.prepareStatement(INSERT_INTO_STUDY_PARTICIPANT_SQL).use { ps ->
-            try {
-                ps.setObject(1, studyId)
-                ps.setObject(2, candidateId)
-                if (fqnToValue[FullQualifiedName("ol.status")] != null) {
-                    ps.setString(3, fqnToValue[FullQualifiedName("ol.status")]!!.first() as String)
-                }
-
-                logger.debug(ps.toString())
-                ps.addBatch()
-                ps.executeBatch()
-                conn.commit()
-            } catch (ex: Exception) {
-                logger.error("Exception occurred inserting participant ${fqnToValue} into study_participants", ex)
                 conn.rollback()
             }
         }
