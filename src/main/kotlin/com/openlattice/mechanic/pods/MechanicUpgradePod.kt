@@ -52,6 +52,7 @@ import com.openlattice.edm.schemas.manager.HazelcastSchemaManager
 import com.openlattice.graph.Graph
 import com.openlattice.graph.core.GraphService
 import com.openlattice.ids.HazelcastIdGenerationService
+import com.openlattice.ids.HazelcastLongIdService
 import com.openlattice.ioc.providers.LateInitProvider
 import com.openlattice.jdbc.DataSourceManager
 import com.openlattice.linking.LinkingQueryService
@@ -61,8 +62,12 @@ import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
 import com.openlattice.mechanic.upgrades.V3StudyMigrationUpgrade
+import com.openlattice.organizations.roles.HazelcastPrincipalService
+import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.PostgresTable
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
+import com.openlattice.postgres.external.ExternalDatabasePermissioner
+import com.openlattice.postgres.external.ExternalDatabasePermissioningService
 import com.openlattice.scrunchie.search.ConductorElasticsearchImpl
 import com.openlattice.search.SearchService
 import com.zaxxer.hikari.HikariDataSource
@@ -300,6 +305,37 @@ class MechanicUpgradePod {
     }
 
     @Bean
+    fun longIdService(): HazelcastLongIdService {
+        return HazelcastLongIdService(hazelcastClientProvider)
+    }
+
+    @Bean
+    fun dbCredService(): DbCredentialService  {
+        return DbCredentialService(hazelcastInstance, longIdService())
+    }
+
+    @Bean
+    fun externalDatabasePermissionsManager(): ExternalDatabasePermissioningService {
+        return ExternalDatabasePermissioner(
+            hazelcastInstance,
+            externalDbConnMan,
+            dbCredService(),
+            principalsMapManager()
+        )
+    }
+
+    @Bean
+    fun principalsManager(): SecurePrincipalsManager {
+        return HazelcastPrincipalService(
+            hazelcastInstance,
+            aclKeyReservationService(),
+            authorizationService(),
+            principalsMapManager(),
+            externalDatabasePermissionsManager()
+        )
+    }
+
+    @Bean
     fun deleteOrgMetadataEntitySets(): DeleteOrgMetadataEntitySets {
         return DeleteOrgMetadataEntitySets(
                 toolbox,
@@ -323,7 +359,7 @@ class MechanicUpgradePod {
         return V3StudyMigrationUpgrade(
             toolbox,
             hikariDataSource,
-            principalsMapManager(),
+            principalsManager(),
             dataQueryService(),
             searchService()
         )

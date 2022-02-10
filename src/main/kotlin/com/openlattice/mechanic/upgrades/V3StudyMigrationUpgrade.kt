@@ -14,6 +14,7 @@ import com.openlattice.edm.type.PropertyType
 import com.openlattice.graph.PagedNeighborRequest
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.postgres.mapstores.PropertyTypeMapstore
 import com.openlattice.search.SearchService
@@ -35,7 +36,7 @@ import java.util.UUID
 class V3StudyMigrationUpgrade(
     toolbox: Toolbox,
     private val hds: HikariDataSource,
-    private val principalsMapManager: PrincipalsMapManager,
+    private val principalService: SecurePrincipalsManager,
     private val dataQueryService: PostgresEntityDataQueryService,
     private val searchService: SearchService
 ): Upgrade {
@@ -214,8 +215,8 @@ class V3StudyMigrationUpgrade(
 
     private fun processParticipantsOfStudy(conn: Connection, orgId: UUID, v2Id: UUID, studyId: UUID, orgStudyEntitySetIds: Set<UUID>, orgParticipantEntitySetIds: Set<UUID>) {
         val adminRoleAclKey = organizations.getValue(orgId).adminRoleAclKey
-        val principal = principalsMapManager.getSecurablePrincipal(adminRoleAclKey)!!.principal
-        logger.info("Using principal ${principal} to execute neighbour search")
+        val adminPrincipals = principalService.getAllUsersWithPrincipal(adminRoleAclKey).map { it.getPrincipal() }.toSet()
+        logger.info("Using admin principals ${adminPrincipals} to execute neighbour search")
 
         val filter = EntityNeighborsFilter(setOf(v2Id), Optional.of(orgParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
 
@@ -223,7 +224,7 @@ class V3StudyMigrationUpgrade(
         val searchResult = searchService.executeEntityNeighborSearch(
             orgStudyEntitySetIds,
             PagedNeighborRequest(filter),
-            setOf(principal)
+            adminPrincipals
         ).neighbors.getOrDefault(v2Id, listOf())
 
         if (searchResult.isNotEmpty()) {
