@@ -60,12 +60,14 @@ import com.openlattice.linking.graph.PostgresLinkingQueryService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
+import com.openlattice.mechanic.upgrades.V3TimeUseDiaryUpgrade
 import com.openlattice.postgres.PostgresTable
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.scrunchie.search.ConductorElasticsearchImpl
 import com.zaxxer.hikari.HikariDataSource
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import mechanic.src.main.kotlin.com.openlattice.mechanic.upgrades.AddPgAuditToExistingOrgs
+import com.openlattice.search.SearchService
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
@@ -287,10 +289,34 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun addPgAuditToExistingOrgs(): AddPgAuditToExistingOrgs {
-        return AddPgAuditToExistingOrgs(
+    fun indexingMetadataManager(): IndexingMetadataManager {
+        return IndexingMetadataManager(dataSourceResolver())
+    }
+
+    @Bean
+    fun searchService(): SearchService {
+        val entitySetService = entitySetService()
+        return SearchService(
+            eventBus,
+            MetricRegistry(),
+            authorizationService(),
+            elasticsearchApi(),
+            edmManager(),
+            entitySetService,
+            graphService(),
+            entityDatastore(entitySetService),
+            indexingMetadataManager(),
+            dataSetService()
+        )
+    }
+
+    @Bean
+    fun v3TimeUseDiaryUpgrade(): V3TimeUseDiaryUpgrade {
+        return V3TimeUseDiaryUpgrade(
             toolbox,
-            externalDbConnMan,
+            hikariDataSource,
+            dataQueryService(),
+            searchService()
         )
     }
 
