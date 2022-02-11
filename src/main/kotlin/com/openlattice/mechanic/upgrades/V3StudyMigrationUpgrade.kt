@@ -47,15 +47,7 @@ class V3StudyMigrationUpgrade(
     private val entitySets = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast)
     private val organizations = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
 
-    private val STRING_ID_FQN = FullQualifiedName("general.stringid")
-    private val FULL_NAME_FQN = FullQualifiedName("general.fullname")
-    private val DESCRIPTION_FQN = FullQualifiedName("diagnosis.Description")
-    private val LAT_FQN = FullQualifiedName("location.latitude")
-    private val LON_FQN = FullQualifiedName("location.longitude")
-    private val SHARING_NAME_FQN = FullQualifiedName("sharing.name")
-    private val VERSION_FQN = FullQualifiedName( "ol.version")
-    private val EMAIL_FQN = FullQualifiedName("contact.Email")
-
+    // mappings of v2 fqn to v3 column names for studies
     private val fqnToStudiesColumnName = mapOf(
         FullQualifiedName("general.fullname") to "title",
         FullQualifiedName("diagnosis.Description") to "description",
@@ -67,6 +59,7 @@ class V3StudyMigrationUpgrade(
         FullQualifiedName("contact.Email") to "contact"
     )
 
+    // mappings of v2 fqn to v3 column names for participants(v2)/candidates(v3)
     private val fqnToCandidatesColumnName = mapOf(
         FullQualifiedName("Person.GivenName") to "first_name",
         FullQualifiedName("Person.SurName") to "last_name",
@@ -78,8 +71,6 @@ class V3StudyMigrationUpgrade(
     // Property Types of ol.study
     private val studiesPropertyTypes = propertyTypes.getAll(
         setOf(
-            // "general.stringid",
-            // UUID.fromString("ee3a7573-aa70-4afb-814d-3fad27cda988"),
             // "general.fullname",
             UUID.fromString("70d2ff1c-2450-4a47-a954-a7641b7399ae"),
             // "diagnosis.Description",
@@ -97,6 +88,7 @@ class V3StudyMigrationUpgrade(
         )
     ).toMap()
 
+    // entity type of association entity general.participatedin
     private val associationParticipatedInEntityType = UUID.fromString("34836b35-76b1-4ecf-b588-c22ad19e2378")
 
     override fun upgrade(): Boolean {
@@ -118,8 +110,9 @@ class V3StudyMigrationUpgrade(
                     logger.info("================================")
                     logger.info("starting to process studies belonging to org $orgId")
 
-                    val orgParticipantEntitySetIds = entitySets.keySet(
+                    val orgMaybeParticipantEntitySetIds = entitySets.keySet(
                         // filter out entity sets of {orgId} of entity type general.person
+                        // these are possible entity sets of participants
                         Predicates.and(
                             Predicates.equal<UUID, EntitySet>(EntitySetMapstore.ORGANIZATION_INDEX, orgId),
                             Predicates.equal<UUID, EntitySet>(EntitySetMapstore.ENTITY_TYPE_ID_INDEX, UUID.fromString("31cf5595-3fe9-4d3e-a9cf-39355a4b8cab"))
@@ -135,15 +128,19 @@ class V3StudyMigrationUpgrade(
                             Optional.empty(),
                             false
                     ).forEach { v2Id, fqnToValue ->
-                        // process study entities into a Study table
                         logger.info("Processing study with entity_key_id ${v2Id}")
 
+                        // process study entities into a Study table
                         logger.info("Inserting study ${fqnToValue} into studies")
-                        insertIntoStudiesTable(connection, orgId, v2Id, fqnToValue)
-
-                        // process participants of studies
-                        logger.info("Processing all participants of ${v2Id}")
-                        processParticipantsOfStudy(connection, orgId, v2Id, orgStudyEntitySetIds, orgParticipantEntitySetIds)
+                        if (insertIntoStudiesTable(connection, orgId, v2Id, fqnToValue)) {
+                            // process participants of studies
+                            logger.info("Processing all participants of ${v2Id}")
+                            try {
+                                processParticipantsOfStudy(connection, orgId, v2Id, orgStudyEntitySetIds, orgMaybeParticipantEntitySetIds)
+                            } catch (ex: Exception) {
+                                logger.error("An error occurred processing participants of ${v2Id}", ex)
+                            }
+                        }
                     }
 
                     // logger.info("progress ${index + 1}/${organizations.size}")
@@ -155,10 +152,11 @@ class V3StudyMigrationUpgrade(
         return true
     }
 
-    private fun insertIntoStudiesTable(conn: Connection, orgId: UUID, studyId: UUID, fqnToValue: Map<FullQualifiedName, MutableSet<Any>>) {
+    private fun insertIntoStudiesTable(conn: Connection, orgId: UUID, studyId: UUID, fqnToValue: Map<FullQualifiedName, MutableSet<Any>>): Boolean {
         val columns = fqnToStudiesColumnName.filter { fqnToValue.containsKey(it.key) }
         if (columns.size == 0) {
-            return
+            logger.info("No useful property to record for study ${fqnToValue}, skipping")
+            return false
         }
 
         val INSERT_INTO_STUDY_SQL = """
@@ -187,16 +185,19 @@ class V3StudyMigrationUpgrade(
             } catch (ex: Exception) {
                 logger.error("Exception occurred inserting study ${fqnToValue} into studies", ex)
                 conn.rollback()
+                return false
             }
         }
+
+        return true
     }
 
-    private fun processParticipantsOfStudy(conn: Connection, orgId: UUID, studyId: UUID, orgStudyEntitySetIds: Set<UUID>, orgParticipantEntitySetIds: Set<UUID>) {
+    private fun processParticipantsOfStudy(conn: Connection, orgId: UUID, studyId: UUID, orgStudyEntitySetIds: Set<UUID>, orgMaybeParticipantEntitySetIds: Set<UUID>) {
         val adminRoleAclKey = organizations.getValue(orgId).adminRoleAclKey
         val adminPrincipals = principalService.getAllUsersWithPrincipal(adminRoleAclKey).map { it.getPrincipal() }.toSet()
         logger.info("Using admin principals ${adminPrincipals} to execute neighbour search")
 
-        val filter = EntityNeighborsFilter(setOf(studyId), Optional.of(orgParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
+        val filter = EntityNeighborsFilter(setOf(studyId), Optional.of(orgMaybeParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
 
         // get all participants for the study
         val searchResult = searchService.executeEntityNeighborSearch(
@@ -212,10 +213,11 @@ class V3StudyMigrationUpgrade(
                     // logger.info("Association Entity Set:${it.getAssociationEntitySet()}")
                     // logger.info("Association Details: ${it.getAssociationDetails()}")
                     // logger.info("Neighbour Entity Set: ${it.getNeighborEntitySet()}")
-                    logger.info("Inserting participant: ${it.getNeighborDetails().get()} into study_participants")
-                    val fqnToValue = it.getNeighborDetails().get() + it.getAssociationDetails().filterKeys { it == FullQualifiedName("ol.status") }
-                    logger.info("${fqnToValue}")
-                    insertIntoCandidatesTable(conn, studyId, fqnToValue)
+
+                    val neighborFqnToValue = it.getNeighborDetails().get() + it.getAssociationDetails().filterKeys { it == FullQualifiedName("ol.status") }
+
+                    logger.info("Inserting participant: ${neighborFqnToValue} into study_participants")
+                    insertIntoCandidatesTable(conn, studyId, neighborFqnToValue)
                 }
         }
     }
