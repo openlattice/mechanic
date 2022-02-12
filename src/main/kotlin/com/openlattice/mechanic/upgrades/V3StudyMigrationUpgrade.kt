@@ -52,10 +52,10 @@ class V3StudyMigrationUpgrade(
         FullQualifiedName("general.fullname") to "title",
         FullQualifiedName("diagnosis.Description") to "description",
         LAST_WRITE_FQN to "updated_at",
-        FullQualifiedName("location.latitude") to "latitude",
-        FullQualifiedName("location.longitude") to "longitude",
+        FullQualifiedName("location.latitude") to "lat",
+        FullQualifiedName("location.longitude") to "lon",
         FullQualifiedName("sharing.name") to "study_group",
-        FullQualifiedName( "ol.version") to "study_version",
+        FullQualifiedName("ol.version") to "study_version",
         FullQualifiedName("contact.Email") to "contact"
     )
 
