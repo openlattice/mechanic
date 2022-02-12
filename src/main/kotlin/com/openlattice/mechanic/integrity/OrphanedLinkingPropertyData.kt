@@ -23,13 +23,13 @@ package com.openlattice.mechanic.integrity
 import com.google.common.base.Stopwatch
 import com.openlattice.IdConstants
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.PostgresArrays
+import com.geekbeast.postgres.PostgresArrays
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresTable.DATA
 import com.openlattice.postgres.ResultSetAdapters
-import com.openlattice.postgres.streams.BasePostgresIterable
-import com.openlattice.postgres.streams.PreparedStatementHolderSupplier
-import com.openlattice.postgres.streams.StatementHolderSupplier
+import com.geekbeast.postgres.streams.BasePostgresIterable
+import com.geekbeast.postgres.streams.PreparedStatementHolderSupplier
+import com.geekbeast.postgres.streams.StatementHolderSupplier
 import org.slf4j.LoggerFactory
 import java.util.*
 import java.util.concurrent.TimeUnit

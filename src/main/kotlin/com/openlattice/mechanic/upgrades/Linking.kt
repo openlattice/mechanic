@@ -24,11 +24,11 @@ package com.openlattice.mechanic.upgrades
 import com.google.common.base.Stopwatch
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.*
-import com.openlattice.postgres.IndexType
+import com.geekbeast.postgres.IndexType
 import com.openlattice.postgres.PostgresColumn.*
-import com.openlattice.postgres.PostgresColumnsIndexDefinition
-import com.openlattice.postgres.PostgresExpressionIndexDefinition
-import com.openlattice.postgres.PostgresTableDefinition
+import com.geekbeast.postgres.PostgresColumnsIndexDefinition
+import com.geekbeast.postgres.PostgresExpressionIndexDefinition
+import com.geekbeast.postgres.PostgresTableDefinition
 import org.slf4j.LoggerFactory
 import java.util.*
 import java.util.concurrent.Callable
@@ -55,45 +55,46 @@ private val MIGRATION_PROGRESS = PostgresTableDefinition("linking_migration")
         .addColumns(ENTITY_SET_ID, VERSION)
         .primaryKey(ENTITY_SET_ID)
 
-private val INDEXES = listOf(PostgresColumnsIndexDefinition(IDS, ENTITY_SET_ID)
+private val INDEXES = listOf(
+    PostgresColumnsIndexDefinition(IDS, ENTITY_SET_ID)
                                      .name("v2_entity_key_ids_entity_set_id_idx")
                                      .ifNotExists(),
-                             PostgresColumnsIndexDefinition(IDS, ENTITY_SET_ID, ENTITY_ID)
+    PostgresColumnsIndexDefinition(IDS, ENTITY_SET_ID, ENTITY_ID)
                                      .unique()
                                      .name("v2_entity_key_ids_entity_key_idx")
                                      .ifNotExists(),
-                             PostgresColumnsIndexDefinition(IDS, VERSION)
+    PostgresColumnsIndexDefinition(IDS, VERSION)
                                      .name("v2_entity_key_ids_version_idx")
                                      .ifNotExists(),
-                             PostgresColumnsIndexDefinition(IDS, VERSIONS)
+    PostgresColumnsIndexDefinition(IDS, VERSIONS)
                                      .name("v2_entity_key_ids_versions_idx")
                                      .method(IndexType.GIN)
                                      .ifNotExists(),
-                             PostgresColumnsIndexDefinition(IDS, LINKING_ID)
+    PostgresColumnsIndexDefinition(IDS, LINKING_ID)
                                      .name("v2_entity_key_ids_linking_id_idx")
                                      .ifNotExists(),
-                             PostgresColumnsIndexDefinition(IDS, LAST_WRITE)
+    PostgresColumnsIndexDefinition(IDS, LAST_WRITE)
                                      .name("v2_entity_key_ids_last_write_idx")
                                      .ifNotExists(),
-                             PostgresColumnsIndexDefinition(IDS, LAST_INDEX)
+    PostgresColumnsIndexDefinition(IDS, LAST_INDEX)
                                      .name("v2_entity_key_ids_last_index_idx")
                                      .ifNotExists(),
-                             PostgresColumnsIndexDefinition(IDS, LAST_PROPAGATE)
+    PostgresColumnsIndexDefinition(IDS, LAST_PROPAGATE)
                                      .name("v2_entity_key_ids_last_propagate_idx")
                                      .ifNotExists(),
-                             PostgresExpressionIndexDefinition(
+    PostgresExpressionIndexDefinition(
                                      IDS,
                                      "${ENTITY_SET_ID.name}, (${LAST_INDEX.name} < ${LAST_WRITE.name})"
                              )
                                      .name("v2_entity_key_ids_needs_linking_idx")
                                      .ifNotExists(),
-                             PostgresExpressionIndexDefinition(
+    PostgresExpressionIndexDefinition(
                                      IDS,
                                      "${ENTITY_SET_ID.name}, (${LAST_LINK.name} < ${LAST_WRITE.name})"
                              )
                                      .name("v2_entity_key_ids_needs_linking_idx")
                                      .ifNotExists(),
-                             PostgresExpressionIndexDefinition(
+    PostgresExpressionIndexDefinition(
                                      IDS,
                                      "${ENTITY_SET_ID.name}, (${LAST_PROPAGATE.name} < ${LAST_WRITE.name})"
                              )

@@ -2,7 +2,7 @@ package com.openlattice.mechanic.upgrades
 
 
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.CitusDistributedTableDefinition
+import com.geekbeast.postgres.CitusDistributedTableDefinition
 import com.openlattice.postgres.PostgresDataTables
 import org.slf4j.LoggerFactory
 

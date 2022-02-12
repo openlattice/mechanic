@@ -1,11 +1,11 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.PostgresColumnDefinition
+import com.geekbeast.postgres.PostgresColumnDefinition
 import com.openlattice.postgres.PostgresDataTables
-import com.openlattice.postgres.PostgresDatatype
+import com.geekbeast.postgres.PostgresDatatype
 import com.openlattice.postgres.PostgresTable.*
-import com.openlattice.postgres.PostgresTableDefinition
+import com.geekbeast.postgres.PostgresTableDefinition
 import org.slf4j.LoggerFactory
 
 class DropPartitionsVersionColumn(private val toolbox: Toolbox) : Upgrade {
@@ -15,8 +15,8 @@ class DropPartitionsVersionColumn(private val toolbox: Toolbox) : Upgrade {
     }
 
     private val PARTITIONS_VERSION = PostgresColumnDefinition(
-            "partitions_version",
-            PostgresDatatype.INTEGER).notNull()
+        "partitions_version",
+        PostgresDatatype.INTEGER).notNull()
 
     override fun getSupportedVersion(): Long {
         return Version.V2019_10_03.value

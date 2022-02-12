@@ -24,10 +24,10 @@ package com.openlattice.mechanic
 import com.google.common.base.Stopwatch
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
-import com.kryptnostic.rhizome.pods.ConfigurationLoader
-import com.openlattice.postgres.CitusDistributedTableDefinition
-import com.openlattice.postgres.PostgresTableDefinition
-import com.openlattice.postgres.PostgresTableManager
+import com.geekbeast.rhizome.pods.ConfigurationLoader
+import com.geekbeast.postgres.CitusDistributedTableDefinition
+import com.geekbeast.postgres.PostgresTableDefinition
+import com.geekbeast.postgres.PostgresTableManager
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
 import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.postgres.mapstores.EntityTypeMapstore
@@ -43,15 +43,15 @@ import java.util.concurrent.TimeUnit
  * @author Matthew Tamayo-Rios &lt;matthew@openlattice.com&gt;
  */
 class Toolbox(
-        val tableManager: PostgresTableManager,
-        val hds: HikariDataSource,
-        ptms: PropertyTypeMapstore,
-        etms: EntityTypeMapstore,
-        internal val esms: EntitySetMapstore,
-        val executor: ListeningExecutorService,
-        val hazelcast: HazelcastInstance,
-        val configurationLoader: ConfigurationLoader,
-        val extDbConMan: ExternalDatabaseConnectionManager
+    val tableManager: PostgresTableManager,
+    val hds: HikariDataSource,
+    ptms: PropertyTypeMapstore,
+    etms: EntityTypeMapstore,
+    internal val esms: EntitySetMapstore,
+    val executor: ListeningExecutorService,
+    val hazelcast: HazelcastInstance,
+    val configurationLoader: ConfigurationLoader,
+    val extDbConMan: ExternalDatabaseConnectionManager
 ) {
     companion object {
         private val logger = LoggerFactory.getLogger(Toolbox::class.java)
