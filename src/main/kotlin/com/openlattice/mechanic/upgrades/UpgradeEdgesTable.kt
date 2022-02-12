@@ -4,8 +4,8 @@ import com.google.common.base.Stopwatch
 import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn.*
-import com.openlattice.postgres.PostgresColumnDefinition
-import com.openlattice.postgres.PostgresDatatype
+import com.geekbeast.postgres.PostgresColumnDefinition
+import com.geekbeast.postgres.PostgresDatatype
 import com.openlattice.postgres.PostgresTable.*
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.slf4j.LoggerFactory
@@ -219,8 +219,8 @@ private val CHRONICLE_ENTITY_SET_IDS = listOf(
 ).map(UUID::fromString)
 
 private val PARTITIONS_VERSION = PostgresColumnDefinition(
-        "partitions_version",
-        PostgresDatatype.INTEGER).notNull()
+    "partitions_version",
+    PostgresDatatype.INTEGER).notNull()
 
 @SuppressFBWarnings( value = ["SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"] )
 @Component

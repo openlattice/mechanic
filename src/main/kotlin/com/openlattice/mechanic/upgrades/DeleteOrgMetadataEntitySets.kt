@@ -6,7 +6,7 @@ import com.google.common.base.Stopwatch
 import com.openlattice.auditing.AuditRecordEntitySetsManager
 import com.openlattice.authorization.AclKey
 import com.openlattice.authorization.AuthorizingComponent
-import com.openlattice.controllers.exceptions.ForbiddenException
+import com.geekbeast.controllers.exceptions.ForbiddenException
 import com.openlattice.data.DataDeletionManager
 import com.openlattice.data.DeleteType
 import com.openlattice.datastore.services.EntitySetManager
@@ -15,8 +15,8 @@ import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn.ID
 import com.openlattice.postgres.PostgresColumn.ORGANIZATION
 import com.openlattice.postgres.PostgresTable.ORGANIZATIONS
-import com.openlattice.postgres.streams.BasePostgresIterable
-import com.openlattice.postgres.streams.StatementHolderSupplier
+import com.geekbeast.postgres.streams.BasePostgresIterable
+import com.geekbeast.postgres.streams.StatementHolderSupplier
 import org.apache.commons.lang3.StringUtils
 import org.slf4j.LoggerFactory
 import java.util.*

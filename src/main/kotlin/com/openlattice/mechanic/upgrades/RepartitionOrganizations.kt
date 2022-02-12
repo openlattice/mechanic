@@ -6,8 +6,8 @@ import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresTable.ORGANIZATIONS
 import com.openlattice.postgres.ResultSetAdapters
-import com.openlattice.postgres.streams.BasePostgresIterable
-import com.openlattice.postgres.streams.StatementHolderSupplier
+import com.geekbeast.postgres.streams.BasePostgresIterable
+import com.geekbeast.postgres.streams.StatementHolderSupplier
 import java.util.*
 
 val GLOBAL_ORG_ID = UUID.fromString("00000000-0000-0001-0000-000000000000")

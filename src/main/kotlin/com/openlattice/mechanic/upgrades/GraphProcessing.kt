@@ -26,9 +26,9 @@ import com.openlattice.edm.type.PropertyType
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.*
 import com.openlattice.postgres.PostgresColumn.*
-import com.openlattice.postgres.PostgresDatatype
-import com.openlattice.postgres.PostgresIndexDefinition
-import com.openlattice.postgres.PostgresTableDefinition
+import com.geekbeast.postgres.PostgresDatatype
+import com.geekbeast.postgres.PostgresIndexDefinition
+import com.geekbeast.postgres.PostgresTableDefinition
 import org.slf4j.LoggerFactory
 import java.util.*
 import java.util.concurrent.Callable

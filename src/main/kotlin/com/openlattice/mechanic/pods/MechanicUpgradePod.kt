@@ -26,8 +26,8 @@ import com.geekbeast.rhizome.jobs.HazelcastJobService
 import com.google.common.eventbus.EventBus
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
-import com.kryptnostic.rhizome.configuration.RhizomeConfiguration
-import com.kryptnostic.rhizome.pods.ConfigurationLoader
+import com.geekbeast.rhizome.configuration.RhizomeConfiguration
+import com.geekbeast.rhizome.pods.ConfigurationLoader
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditRecordEntitySetsManager
 import com.openlattice.auditing.AuditingConfiguration
@@ -54,7 +54,7 @@ import com.openlattice.graph.core.GraphService
 import com.openlattice.ids.HazelcastIdGenerationService
 import com.openlattice.ids.HazelcastLongIdService
 import com.openlattice.ioc.providers.LateInitProvider
-import com.openlattice.jdbc.DataSourceManager
+import com.geekbeast.jdbc.DataSourceManager
 import com.openlattice.linking.LinkingQueryService
 import com.openlattice.linking.PostgresLinkingFeedbackService
 import com.openlattice.linking.graph.PostgresLinkingQueryService

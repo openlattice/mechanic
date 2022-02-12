@@ -5,7 +5,7 @@ import com.openlattice.authorization.AclKey
 import com.openlattice.edm.set.EntitySetFlag
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.PostgresArrays
+import com.geekbeast.postgres.PostgresArrays
 import com.openlattice.postgres.PostgresColumn.ID
 import com.openlattice.postgres.PostgresColumn.PARTITIONS
 import com.openlattice.postgres.PostgresTable.ENTITY_SETS

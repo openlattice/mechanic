@@ -23,22 +23,22 @@ package com.openlattice.mechanic
 
 import com.google.common.base.Preconditions.checkArgument
 import com.google.common.collect.Maps
-import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.AWS_CONFIGURATION_PROFILE
-import com.kryptnostic.rhizome.configuration.ConfigurationConstants.Profiles.LOCAL_CONFIGURATION_PROFILE
-import com.kryptnostic.rhizome.core.Rhizome
+import com.geekbeast.rhizome.configuration.ConfigurationConstants.Profiles.AWS_CONFIGURATION_PROFILE
+import com.geekbeast.rhizome.configuration.ConfigurationConstants.Profiles.LOCAL_CONFIGURATION_PROFILE
+import com.geekbeast.rhizome.core.Rhizome
 
-import com.kryptnostic.rhizome.core.RhizomeApplicationServer
-import com.kryptnostic.rhizome.hazelcast.serializers.RhizomeUtils
-import com.kryptnostic.rhizome.pods.MetricsPod
-import com.kryptnostic.rhizome.startup.Requirement
+import com.geekbeast.rhizome.core.RhizomeApplicationServer
+import com.geekbeast.rhizome.hazelcast.serializers.RhizomeUtils
+import com.geekbeast.rhizome.pods.MetricsPod
+import com.geekbeast.rhizome.startup.Requirement
 import com.openlattice.assembler.pods.AssemblerConfigurationPod
 import com.openlattice.auditing.pods.AuditingConfigurationPod
-import com.openlattice.auth0.Auth0Pod
+import com.geekbeast.auth0.Auth0Pod
 import com.openlattice.datastore.pods.ByteBlobServicePod
 import com.openlattice.hazelcast.pods.MapstoresPod
 import com.openlattice.hazelcast.pods.SharedStreamSerializersPod
 import com.openlattice.ioc.providers.LateInitProvidersPod
-import com.openlattice.jdbc.JdbcPod
+import com.geekbeast.jdbc.JdbcPod
 import com.openlattice.mechanic.MechanicCli.Companion.AWS
 import com.openlattice.mechanic.MechanicCli.Companion.CHECK
 import com.openlattice.mechanic.MechanicCli.Companion.HELP
@@ -52,7 +52,7 @@ import com.openlattice.mechanic.pods.MechanicRetireePod
 import com.openlattice.mechanic.pods.MechanicUpgradePod
 import com.openlattice.mechanic.reindex.Reindexer
 import com.openlattice.mechanic.upgrades.Upgrade
-import com.openlattice.postgres.PostgresPod
+import com.geekbeast.postgres.PostgresPod
 import com.openlattice.postgres.pods.ExternalDatabaseConnectionManagerPod
 import org.apache.commons.lang3.StringUtils
 import org.slf4j.LoggerFactory
@@ -130,22 +130,22 @@ fun main(args: Array<String>) {
 class Mechanic {
 
     private val mechanicPods = RhizomeUtils.Pods.concatenate(
-            RhizomeApplicationServer.DEFAULT_PODS,
-            arrayOf(
-                    AssemblerConfigurationPod::class.java,
-                    AuditingConfigurationPod::class.java,
-                    Auth0Pod::class.java,
-                    ByteBlobServicePod::class.java,
-                    JdbcPod::class.java,
-                    MapstoresPod::class.java,
-                    MechanicIntegrityPod::class.java,
-                    MechanicRetireePod::class.java,
-                    MechanicUpgradePod::class.java,
-                    MetricsPod::class.java,
-                    ExternalDatabaseConnectionManagerPod::class.java,
-                    PostgresPod::class.java,
-                    SharedStreamSerializersPod::class.java,
-                    LateInitProvidersPod::class.java
+        RhizomeApplicationServer.DEFAULT_PODS,
+        arrayOf(
+            AssemblerConfigurationPod::class.java,
+            AuditingConfigurationPod::class.java,
+            Auth0Pod::class.java,
+            ByteBlobServicePod::class.java,
+            JdbcPod::class.java,
+            MapstoresPod::class.java,
+            MechanicIntegrityPod::class.java,
+            MechanicRetireePod::class.java,
+            MechanicUpgradePod::class.java,
+            MetricsPod::class.java,
+            ExternalDatabaseConnectionManagerPod::class.java,
+            PostgresPod::class.java,
+            SharedStreamSerializersPod::class.java,
+            LateInitProvidersPod::class.java
             )
     )
 

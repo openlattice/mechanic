@@ -23,7 +23,7 @@ package com.openlattice.mechanic.integrity
 import com.google.common.base.Stopwatch
 import com.openlattice.authorization.securable.SecurableObjectType
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.PostgresArrays
+import com.geekbeast.postgres.PostgresArrays
 import com.openlattice.postgres.PostgresColumn.ACL_KEY
 import com.openlattice.postgres.PostgresColumn.ENTITY_SET_ID
 import com.openlattice.postgres.PostgresColumn.ID
@@ -37,9 +37,9 @@ import com.openlattice.postgres.PostgresTable.MATERIALIZED_ENTITY_SETS
 import com.openlattice.postgres.PostgresTable.NAMES
 import com.openlattice.postgres.PostgresTable.SECURABLE_OBJECTS
 import com.openlattice.postgres.ResultSetAdapters
-import com.openlattice.postgres.streams.BasePostgresIterable
-import com.openlattice.postgres.streams.PreparedStatementHolderSupplier
-import com.openlattice.postgres.streams.StatementHolderSupplier
+import com.geekbeast.postgres.streams.BasePostgresIterable
+import com.geekbeast.postgres.streams.PreparedStatementHolderSupplier
+import com.geekbeast.postgres.streams.StatementHolderSupplier
 import org.slf4j.LoggerFactory
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -66,7 +66,8 @@ class CheckOrphanedEntitySets(private val toolbox: Toolbox) : Check {
                 var deletedSecurableObjectCount = 0
 
                 deletedEntitySetIdsInSecurableObjects = BasePostgresIterable(
-                        StatementHolderSupplier(toolbox.hds, deleteOrphanedSecurableObjects)) { rs ->
+                        StatementHolderSupplier(toolbox.hds, deleteOrphanedSecurableObjects)
+                ) { rs ->
                     val deletedAclKey = ResultSetAdapters.aclKey(rs)
                     val deletedAclKeyArr = PostgresArrays.createUuidArray(ps.connection, deletedAclKey)
                     ps.setArray(1, deletedAclKeyArr)

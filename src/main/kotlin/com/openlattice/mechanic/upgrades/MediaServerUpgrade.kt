@@ -4,7 +4,7 @@ import com.amazonaws.regions.Region
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
-import com.kryptnostic.rhizome.configuration.amazon.AmazonLaunchConfiguration
+import com.geekbeast.rhizome.configuration.configuration.amazon.AmazonLaunchConfiguration
 import com.openlattice.data.storage.ByteBlobDataManager
 import com.openlattice.data.storage.aws.AwsBlobDataService
 import com.openlattice.data.util.PostgresDataHasher

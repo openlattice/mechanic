@@ -1,7 +1,7 @@
 package com.openlattice.mechanic.upgrades
 
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.postgres.PostgresArrays
+import com.geekbeast.postgres.PostgresArrays
 import com.openlattice.postgres.PostgresColumn.*
 import com.openlattice.postgres.PostgresTable.DATA
 import org.slf4j.LoggerFactory

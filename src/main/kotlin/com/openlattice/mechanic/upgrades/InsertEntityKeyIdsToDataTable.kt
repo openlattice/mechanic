@@ -5,8 +5,8 @@ import com.openlattice.IdConstants
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.postgres.DataTables.LAST_WRITE
 import com.openlattice.postgres.PostgresColumn.*
-import com.openlattice.postgres.PostgresColumnDefinition
-import com.openlattice.postgres.PostgresDatatype
+import com.geekbeast.postgres.PostgresColumnDefinition
+import com.geekbeast.postgres.PostgresDatatype
 import com.openlattice.postgres.PostgresTable.DATA
 import com.openlattice.postgres.PostgresTable.IDS
 import org.slf4j.LoggerFactory
@@ -277,8 +277,8 @@ private val CHRONICLE_ENTITY_SET_IDS = listOf(
 ).map(UUID::fromString)
 
 private val PARTITIONS_VERSION = PostgresColumnDefinition(
-        "partitions_version",
-        PostgresDatatype.INTEGER).notNull()
+    "partitions_version",
+    PostgresDatatype.INTEGER).notNull()
 
 @Component
 class InsertEntityKeyIdsToDataTable(val toolbox: Toolbox) : Upgrade {
