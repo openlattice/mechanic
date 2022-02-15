@@ -65,6 +65,7 @@ class V3StudyMigrationUpgrade(
         FullQualifiedName("Person.SurName") to "last_name",
         FullQualifiedName("general.fullname") to "name",
         FullQualifiedName("nc.PersonBirthDate") to "dob",
+        FullQualifiedName("nc.SubjectIdentification") to "participant_id",
         FullQualifiedName("ol.status") to "participation_status"
     )
 
@@ -239,8 +240,8 @@ class V3StudyMigrationUpgrade(
 
                 ps.setObject(index++, studyId)
                 columns.keys.forEach {
-                    when (it.getNamespace()) {
-                        "nc" -> ps.setObject(index++, fqnToValue[it]!!.first() as LocalDate)
+                    when (it.getName()) {
+                        "PersonBirthDate" -> ps.setObject(index++, fqnToValue[it]!!.first() as LocalDate)
                         else -> ps.setString(index++, fqnToValue[it]!!.first() as String)
                     }
                 }
