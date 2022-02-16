@@ -155,7 +155,7 @@ class V3StudyMigrationUpgrade(
                             // process participants of studies
                             logger.info("Processing all participants of $v2Id")
                             try {
-                                processParticipantsOfStudy(connection, orgId, v2Id, orgStudyEntitySetIds, orgMaybeParticipantEntitySetIds)
+                                processParticipantsOfStudy(connection, v2Id, orgStudyEntitySetIds, orgMaybeParticipantEntitySetIds)
                             } catch (ex: Exception) {
                                 logger.error("An error occurred processing participants of $v2Id", ex)
                             }
@@ -176,11 +176,11 @@ class V3StudyMigrationUpgrade(
                     EnumSet.of(MetadataOption.LAST_WRITE),
                     Optional.empty(),
                     false
-            ).forEach { (legacyStudyEkid, _) ->
+            ).forEach { (legacyStudyEkid, legacyStudyFqnToValue) ->
                 logger.info("Processing all legacy participants of $legacyStudyEkid")
                 try {
-                    entitySets.entrySet(
-                        Predicates.equal<UUID, EntitySet>("name", "chronicle_participants_${legacyStudyEkid}")
+                    entitySets.keySet(
+                        Predicates.equal<UUID, EntitySet>("name", "chronicle_participants_${legacyStudyFqnToValue[FullQualifiedName("general.stringid")]}")
                     ).forEach { participantESID ->
                         dataQueryService.getEntitiesWithPropertyTypeFqns(
                             mapOf(participantESID to Optional.of(setOf<UUID>())),
@@ -189,7 +189,7 @@ class V3StudyMigrationUpgrade(
                             EnumSet.noneOf(MetadataOption::class.java),
                             Optional.empty(),
                             false
-                        ).forEach { (_, legacyParticipantFqnToValue)
+                        ).forEach { (_, legacyParticipantFqnToValue) ->
                             logger.info("Inserting participant: $legacyParticipantFqnToValue into candidates")
                             insertIntoCandidatesTable(connection, legacyStudyEkid, legacyParticipantFqnToValue)
                         }
@@ -243,7 +243,7 @@ class V3StudyMigrationUpgrade(
         return true
     }
 
-    private fun processParticipantsOfStudy(conn: Connection, orgId: UUID, studyEkid: UUID, orgStudyEntitySetIds: Set<UUID>, orgMaybeParticipantEntitySetIds: Set<UUID>) {
+    private fun processParticipantsOfStudy(conn: Connection, studyEkid: UUID, orgStudyEntitySetIds: Set<UUID>, orgMaybeParticipantEntitySetIds: Set<UUID>) {
 
         val filter = EntityNeighborsFilter(setOf(studyEkid), Optional.of(orgMaybeParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
 
