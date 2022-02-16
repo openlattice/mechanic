@@ -185,7 +185,7 @@ class V3AppUsageSurveyMigration(
             }
             val adminPrincipals = principalService.getAllUsersWithPrincipal(adminRoleAclKey).map { it.principal }.toSet()
 
-            val studies = filter(getEntitiesByEntityKeyId(studiesEntitySetId))
+            val studies = filterInvalidStudies(getEntitiesByEntityKeyId(studiesEntitySetId))
             if (studies.isEmpty()) {
                 logger.info("org {} has no studies. skipping", orgId)
                 return@org
@@ -225,7 +225,7 @@ class V3AppUsageSurveyMigration(
         }
     }
 
-    private fun filter(entities: Map<UUID, Map<FullQualifiedName, Set<Any>>>): Map<UUID, Map<FullQualifiedName, Set<Any>>> {
+    private fun filterInvalidStudies(entities: Map<UUID, Map<FullQualifiedName, Set<Any>>>): Map<UUID, Map<FullQualifiedName, Set<Any>>> {
         return entities.filterValues { getFirstUUIDOrNull(it, STRING_ID_FQN) != null }
     }
 
