@@ -96,7 +96,7 @@ class V3StudyMigrationUpgrade(
                 Predicates.equal<UUID, EntitySet>(EntitySetMapstore.ENTITY_TYPE_ID_INDEX, UUID.fromString("80c86a96-0e3f-46eb-9fbb-60d9174566a5"))
             )
                 .groupBy { it.value.organizationId }
-                .forEach { orgId, orgStudyEntitySets ->
+                .forEach { (orgId, orgStudyEntitySets) ->
                     val studyEntityKeyIds = orgStudyEntitySets.associate { it.key to Optional.of(setOf<UUID>()) }.toMap()
                     val orgStudyEntitySetIds = studyEntityKeyIds.keys
                     val studyAuthorizedPropertyTypes = orgStudyEntitySets.associate { it.key to studiesPropertyTypes }.toMap()
@@ -122,18 +122,18 @@ class V3StudyMigrationUpgrade(
                             EnumSet.of(MetadataOption.LAST_WRITE),
                             Optional.empty(),
                             false
-                    ).forEach { v2Id, fqnToValue ->
-                        logger.info("Processing study with entity_key_id ${v2Id}")
+                    ).forEach { (v2Id, fqnToValue) ->
+                        logger.info("Processing study with entity_key_id $v2Id")
 
                         // process study entities into a Study table
-                        logger.info("Inserting study ${fqnToValue} into studies")
+                        logger.info("Inserting study $fqnToValue into studies")
                         if (insertIntoStudiesTable(connection, orgId, v2Id, fqnToValue)) {
                             // process participants of studies
-                            logger.info("Processing all participants of ${v2Id}")
+                            logger.info("Processing all participants of $v2Id")
                             try {
                                 processParticipantsOfStudy(connection, orgId, v2Id, orgStudyEntitySetIds, orgMaybeParticipantEntitySetIds)
                             } catch (ex: Exception) {
-                                logger.error("An error occurred processing participants of ${v2Id}", ex)
+                                logger.error("An error occurred processing participants of $v2Id", ex)
                             }
                         }
                     }
@@ -149,7 +149,7 @@ class V3StudyMigrationUpgrade(
 
     private fun insertIntoStudiesTable(conn: Connection, orgId: UUID, studyId: UUID, fqnToValue: Map<FullQualifiedName, MutableSet<Any>>): Boolean {
         val columns = fqnToStudiesColumnName.filter { fqnToValue.containsKey(it.key) }
-        if (columns.size == 0) {
+        if (columns.isEmpty()) {
             logger.info("No useful property to record for study ${fqnToValue}, skipping")
             return false
         }
@@ -166,7 +166,7 @@ class V3StudyMigrationUpgrade(
                 ps.setObject(index++, studyId)
                 ps.setObject(index++, orgId)
                 columns.keys.forEach {
-                    when (it.getNamespace()) {
+                    when (it.namespace) {
                         "location" -> ps.setDouble(index++, fqnToValue[it]!!.first() as Double)
                         "openlattice" -> ps.setObject(index++, fqnToValue[it]!!.first() as OffsetDateTime)
                         else -> ps.setString(index++, fqnToValue[it]!!.first() as String)
@@ -178,7 +178,7 @@ class V3StudyMigrationUpgrade(
                 ps.executeBatch()
                 conn.commit()
             } catch (ex: Exception) {
-                logger.error("Exception occurred inserting study ${fqnToValue} into studies", ex)
+                logger.error("Exception occurred inserting study $fqnToValue into studies", ex)
                 conn.rollback()
                 return false
             }
@@ -189,8 +189,8 @@ class V3StudyMigrationUpgrade(
 
     private fun processParticipantsOfStudy(conn: Connection, orgId: UUID, studyId: UUID, orgStudyEntitySetIds: Set<UUID>, orgMaybeParticipantEntitySetIds: Set<UUID>) {
         val adminRoleAclKey = organizations.getValue(orgId).adminRoleAclKey
-        val adminPrincipals = principalService.getAllUsersWithPrincipal(adminRoleAclKey).map { it.getPrincipal() }.toSet()
-        logger.info("Using admin principals ${adminPrincipals} to execute neighbour search")
+        val adminPrincipals = principalService.getAllUsersWithPrincipal(adminRoleAclKey).map { it.principal }.toSet()
+        logger.info("Using admin principals $adminPrincipals to execute neighbour search")
 
         val filter = EntityNeighborsFilter(setOf(studyId), Optional.of(orgMaybeParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
 
@@ -202,16 +202,16 @@ class V3StudyMigrationUpgrade(
         ).neighbors.getOrDefault(studyId, listOf())
 
         if (searchResult.isNotEmpty()) {
-            searchResult.filter { it.getNeighborId().isPresent && it.getAssociationEntitySet().entityTypeId == associationParticipatedInEntityType}
-                .forEach {
+            searchResult.filter { it.neighborId.isPresent && it.associationEntitySet.entityTypeId == associationParticipatedInEntityType}
+                .forEach { neighbor ->
                     // logger.info("Neighbour ${it.getNeighborId()} details:")
                     // logger.info("Association Entity Set:${it.getAssociationEntitySet()}")
                     // logger.info("Association Details: ${it.getAssociationDetails()}")
                     // logger.info("Neighbour Entity Set: ${it.getNeighborEntitySet()}")
 
-                    val neighborFqnToValue = it.getNeighborDetails().get() + it.getAssociationDetails().filterKeys { it == FullQualifiedName("ol.status") }
+                    val neighborFqnToValue = neighbor.neighborDetails.get() + neighbor.associationDetails.filterKeys { it == FullQualifiedName("ol.status") }
 
-                    logger.info("Inserting participant: ${neighborFqnToValue} into study_participants")
+                    logger.info("Inserting participant: $neighborFqnToValue into study_participants")
                     insertIntoCandidatesTable(conn, studyId, neighborFqnToValue)
                 }
         }
@@ -219,7 +219,7 @@ class V3StudyMigrationUpgrade(
 
     private fun insertIntoCandidatesTable(conn: Connection, studyId: UUID, fqnToValue: Map<FullQualifiedName, Set<Any>>) {
         val columns = fqnToCandidatesColumnName.filter { fqnToValue.containsKey(it.key) }
-        if (columns.size == 0) {
+        if (columns.isEmpty()) {
             return
         }
 
@@ -234,7 +234,7 @@ class V3StudyMigrationUpgrade(
 
                 ps.setObject(index++, studyId)
                 columns.keys.forEach {
-                    when (it.getName()) {
+                    when (it.name) {
                         "PersonBirthDate" -> ps.setObject(index++, fqnToValue[it]!!.first() as LocalDate)
                         else -> ps.setString(index++, fqnToValue[it]!!.first() as String)
                     }
@@ -245,7 +245,7 @@ class V3StudyMigrationUpgrade(
                 ps.executeBatch()
                 conn.commit()
             } catch (ex: Exception) {
-                logger.error("Exception occurred inserting participant ${fqnToValue} into candidates", ex)
+                logger.error("Exception occurred inserting participant $fqnToValue into candidates", ex)
                 conn.rollback()
             }
         }
