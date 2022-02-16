@@ -175,25 +175,27 @@ class V3StudyMigrationUpgrade(
                     Optional.empty(),
                     false
             ).forEach { (legacyStudyEkid, legacyStudyFqnToValue) ->
-                logger.info("Processing all legacy participants of $legacyStudyEkid")
-                try {
-                    entitySets.keySet(
-                        Predicates.equal<UUID, EntitySet>("name", "chronicle_participants_${legacyStudyFqnToValue[FullQualifiedName("general.stringid")]!!.first()}")
-                    ).forEach { participantESID ->
-                        dataQueryService.getEntitiesWithPropertyTypeFqns(
-                            mapOf(participantESID to Optional.of(setOf<UUID>())),
-                            mapOf(participantESID to legacyParticipantPropertyTypes),
-                            emptyMap(),
-                            EnumSet.noneOf(MetadataOption::class.java),
-                            Optional.empty(),
-                            false
-                        ).forEach { (_, legacyParticipantFqnToValue) ->
-                            logger.info("Inserting participant: $legacyParticipantFqnToValue into candidates")
-                            insertIntoCandidatesTable(connection, legacyStudyEkid, legacyParticipantFqnToValue)
+                logger.info("Processing all legacy participants of $legacyStudyEkid, with stringid ${legacyStudyFqnToValue.getOrDefault(FullQualifiedName("general.stringid"), null)}")
+                if (legacyStudyFqnToValue.isNotEmpty()) {
+                    try {
+                        entitySets.keySet(
+                            Predicates.equal<UUID, EntitySet>("name", "chronicle_participants_${legacyStudyFqnToValue.getOrDefault(FullQualifiedName("general.stringid"), null)}")
+                        ).forEach { participantESID ->
+                            dataQueryService.getEntitiesWithPropertyTypeFqns(
+                                mapOf(participantESID to Optional.of(setOf<UUID>())),
+                                mapOf(participantESID to legacyParticipantPropertyTypes),
+                                emptyMap(),
+                                EnumSet.noneOf(MetadataOption::class.java),
+                                Optional.empty(),
+                                false
+                            ).forEach { (_, legacyParticipantFqnToValue) ->
+                                logger.info("Inserting participant: $legacyParticipantFqnToValue into candidates")
+                                insertIntoCandidatesTable(connection, legacyStudyEkid, legacyParticipantFqnToValue)
+                            }
                         }
+                    } catch (ex: Exception) {
+                        logger.error("An error occurred processing legacy participants of $legacyStudyEkid", ex)
                     }
-                } catch (ex: Exception) {
-                    logger.error("An error occurred processing legacy participants of $legacyStudyEkid", ex)
                 }
             }
         }
