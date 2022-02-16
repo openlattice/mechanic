@@ -369,7 +369,7 @@ class MechanicUpgradePod {
     @Bean fun v3AppUsageSurveyMigration(): V3AppUsageSurveyMigration {
         return V3AppUsageSurveyMigration(
             toolbox,
-            hikariDataSource,
+            rhizomeConfiguration,
             principalsManager(),
             searchService(),
             dataQueryService(),

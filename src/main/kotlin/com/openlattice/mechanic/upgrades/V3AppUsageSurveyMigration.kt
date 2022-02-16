@@ -1,6 +1,7 @@
 package com.openlattice.mechanic.upgrades
 
 import com.geekbeast.postgres.PostgresArrays
+import com.geekbeast.rhizome.configuration.RhizomeConfiguration
 import com.openlattice.authorization.Principal
 import com.openlattice.data.requests.NeighborEntityDetails
 import com.openlattice.data.storage.MetadataOption
@@ -14,6 +15,7 @@ import com.openlattice.mechanic.Toolbox
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.search.SearchService
 import com.openlattice.search.requests.EntityNeighborsFilter
+import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.apache.olingo.commons.api.edm.FullQualifiedName
 import org.slf4j.LoggerFactory
@@ -25,7 +27,7 @@ import java.util.*
  */
 class V3AppUsageSurveyMigration(
     toolbox: Toolbox,
-    private val hds: HikariDataSource,
+    private val rhizomeConfiguration: RhizomeConfiguration,
     private val principalService: SecurePrincipalsManager,
     private val searchService: SearchService,
     private val dataQueryService: PostgresEntityDataQueryService,
@@ -40,6 +42,9 @@ class V3AppUsageSurveyMigration(
     private val allStudyIdsByParticipantEKID: MutableMap<UUID, UUID> = mutableMapOf()
     private val allParticipantIdsByEKID: MutableMap<UUID, String?> = mutableMapOf()
     private val allSurveyDataByParticipantEKID: MutableMap<UUID, List<Map<FullQualifiedName, Set<Any?>>>> = mutableMapOf()
+
+    //TODO: replace empty strings with chronicle super user ids (auth0 and google-oauth2) when running migration
+    private val chronicleSuperUserIds = setOf("", "")
 
     companion object {
         private val DATA_COLLECTION_APP_ID = UUID.fromString("c4e6d8fd-daf9-41e7-8c59-2a12c7ee0857")
@@ -104,6 +109,10 @@ class V3AppUsageSurveyMigration(
 
         logger.info("migrating app usage surveys to v3")
 
+        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["chronicle"]!!
+        val hc = HikariConfig(hikariConfiguration)
+        val hds = HikariDataSource(hc)
+
         try {
             val written = hds.connection.use { connection ->
                 connection.prepareStatement(INSERT_INTO_APP_USAGE_SQL).use { ps ->
@@ -164,6 +173,8 @@ class V3AppUsageSurveyMigration(
             .map { it.organizationId }
             .toMutableSet()
 
+        val superUserPrincipals = getChronicleSuperUserPrincipals()
+
         (v2DataCollectionOrgIds + LEGACY_ORG_ID).forEach org@{ orgId ->
             logger.info("======================================")
             logger.info("getting app usage survey data for org $orgId")
@@ -183,7 +194,7 @@ class V3AppUsageSurveyMigration(
                 logger.warn("skipping {} since it doesn't have admin role", orgId)
                 return@org
             }
-            val adminPrincipals = principalService.getAllUsersWithPrincipal(adminRoleAclKey).map { it.principal }.toSet()
+            val principals = principalService.getAllUsersWithPrincipal(adminRoleAclKey).map { it.principal }.toSet() + superUserPrincipals
 
             val studies = filterInvalidStudies(getEntitiesByEntityKeyId(studiesEntitySetId))
             if (studies.isEmpty()) {
@@ -199,7 +210,7 @@ class V3AppUsageSurveyMigration(
                 LEGACY_ORG_ID -> getLegacyParticipantEntitySetIds(studyIds)
                 else -> setOf(participantsEntitySetId!!)
             }
-            val participants = getStudyParticipants(studiesEntitySetId, studyEntityKeyIds, participantEntitySetIds, participatedInEntitySetId, adminPrincipals)
+            val participants = getStudyParticipants(studiesEntitySetId, studyEntityKeyIds, participantEntitySetIds, participatedInEntitySetId, principals)
 
             val participantsByStudyId = participants.mapValues { (_, neighbor) -> neighbor.map { it.neighborId.get() }.toSet() }
             logger.info("org {} participant count by study {}", orgId, participantsByStudyId.mapValues { it.value.size })
@@ -215,14 +226,21 @@ class V3AppUsageSurveyMigration(
                 }.associate { it.key to it.value }
 
             val surveysDataByParticipant = getSurveysDataByParticipant(
-                adminPrincipals, participantsByStudyId.values.flatten().toSet(), participantEntitySetIds, usedByEntitySetId, userAppsEntitySetId)
+                principals, participantsByStudyId.values.flatten().toSet(), participantEntitySetIds, usedByEntitySetId, userAppsEntitySetId)
 
-            logger.info("found {} survey entities in org {}", surveysDataByParticipant.values.size, orgId)
+            logger.info("found {} survey entities in org {}", surveysDataByParticipant.values.flatten().size, orgId)
 
             allStudyIdsByParticipantEKID += studyIdByParticipantEKID
             allParticipantIdsByEKID += participantIdByEKID
             allSurveyDataByParticipantEKID += surveysDataByParticipant
         }
+    }
+
+    private fun getChronicleSuperUserPrincipals(): Set<Principal> {
+        return chronicleSuperUserIds
+            .map { principalService.getSecurablePrincipal(it)}
+            .map { principalService.getAllPrincipals(it).map { principal -> principal.principal } }
+            .flatten().toSet()
     }
 
     private fun filterInvalidStudies(entities: Map<UUID, Map<FullQualifiedName, Set<Any>>>): Map<UUID, Map<FullQualifiedName, Set<Any>>> {
