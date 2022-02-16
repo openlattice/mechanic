@@ -205,6 +205,7 @@ class V3StudyMigrationUpgrade(
         ).neighbors.getOrDefault(studyEkid, listOf())
 
         if (searchResult.isNotEmpty()) {
+            logger.info("Neighbor search returned ${searchResult.size} results")
             searchResult.filter { it.neighborId.isPresent && it.associationEntitySet.entityTypeId == associationParticipatedInEntityType}
                 .forEach { neighbor ->
                     // logger.info("Neighbour ${it.getNeighborId()} details:")
