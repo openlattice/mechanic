@@ -55,7 +55,6 @@ import com.openlattice.ids.HazelcastIdGenerationService
 import com.openlattice.ids.HazelcastLongIdService
 import com.openlattice.ioc.providers.LateInitProvider
 import com.geekbeast.jdbc.DataSourceManager
-import com.openlattice.data.DataGraphManager
 import com.openlattice.linking.LinkingQueryService
 import com.openlattice.linking.PostgresLinkingFeedbackService
 import com.openlattice.linking.graph.PostgresLinkingQueryService

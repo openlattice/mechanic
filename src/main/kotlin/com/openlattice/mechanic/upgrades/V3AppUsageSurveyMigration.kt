@@ -1,7 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
 import com.geekbeast.postgres.PostgresArrays
-import com.geekbeast.util.log
 import com.openlattice.authorization.Principal
 import com.openlattice.data.requests.NeighborEntityDetails
 import com.openlattice.data.storage.MetadataOption
@@ -121,7 +120,7 @@ class V3AppUsageSurveyMigration(
                         ps.setString(2, participantId)
 
                         data.forEach data@{ entity ->
-                            val users =  entity.getOrDefault(USER_FQN, listOf())
+                            val users = entity.getOrDefault(USER_FQN, listOf())
                                 .map { it.toString() }.filter { it.isNotBlank() }.toList()
 
                             if (users.isEmpty() || users.first().toString().isBlank()) {
