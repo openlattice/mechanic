@@ -56,8 +56,8 @@ class V3StudyMigrationUpgrade(
 
     // mappings of v2 fqn to v3 column names for participants(v2)/candidates(v3)
     private val fqnToCandidatesColumnName = mapOf(
-        FullQualifiedName("Person.GivenName") to "first_name",
-        FullQualifiedName("Person.SurName") to "last_name",
+        FullQualifiedName("nc.PersonGivenName") to "first_name",
+        FullQualifiedName("nc.PersonSurName") to "last_name",
         FullQualifiedName("general.fullname") to "name",
         FullQualifiedName("nc.PersonBirthDate") to "dob",
         FullQualifiedName("nc.SubjectIdentification") to "participant_id",
@@ -81,6 +81,24 @@ class V3StudyMigrationUpgrade(
             UUID.fromString("0011bbfe-d5d4-4f88-97a8-cdeb821deb6f"),
             // "contact.Email"
             UUID.fromString("6a1f7cf6-80eb-4fe9-a9f4-49cad15c6154")
+        )
+    ).toMap()
+
+    // Property Types of general.person (for legacy)
+    private val legacyParticipantPropertyTypes = propertyTypes.getAll(
+        setOf(
+            // "nc.PersonGivenName",
+            UUID.fromString("e9a0b4dc-5298-47c1-8837-20af172379a5"),
+            // "nc.PersonSurName",
+            UUID.fromString("7b038634-a0b4-4ce1-a04f-85d1775937aa"),
+            // "general.fullname",
+            UUID.fromString("70d2ff1c-2450-4a47-a954-a7641b7399ae"),
+            // "nc.PersonBirthDate",
+            UUID.fromString("1e6ff0f0-0545-4368-b878-677823459e57"),
+            // "nc.SubjectIdentification",
+            UUID.fromString("5260cfbd-bfa4-40c1-ade5-cd83cc9f99b2"),
+            // "ol.status",
+            UUID.fromString("2a45205e-703c-43eb-a060-921bf7245f6a")
         )
     ).toMap()
 
@@ -148,6 +166,38 @@ class V3StudyMigrationUpgrade(
                     logger.info("================================")
                     logger.info("================================")
                 }
+
+            // deal with legacy studies
+            logger.info("Legacy clean-up")
+            dataQueryService.getEntitiesWithPropertyTypeFqns(
+                    mapOf(UUID.fromString("574e04d0-48ce-4f06-a30b-54bbd11a4754") to Optional.of(setOf<UUID>())),
+                    mapOf(UUID.fromString("574e04d0-48ce-4f06-a30b-54bbd11a4754") to studiesPropertyTypes),
+                    emptyMap(),
+                    EnumSet.of(MetadataOption.LAST_WRITE),
+                    Optional.empty(),
+                    false
+            ).forEach { (legacyStudyEkid, _) ->
+                logger.info("Processing all legacy participants of $legacyStudyEkid")
+                try {
+                    entitySets.entrySet(
+                        Predicates.equal<UUID, EntitySet>("name", "chronicle_participants_${legacyStudyEkid}")
+                    ).forEach { participantESID ->
+                        dataQueryService.getEntitiesWithPropertyTypeFqns(
+                            mapOf(participantESID to Optional.of(setOf<UUID>())),
+                            mapOf(participantESID to legacyParticipantPropertyTypes),
+                            emptyMap(),
+                            EnumSet.noneOf(MetadataOption::class.java),
+                            Optional.empty(),
+                            false
+                        ).forEach { (_, legacyParticipantFqnToValue)
+                            logger.info("Inserting participant: $legacyParticipantFqnToValue into candidates")
+                            insertIntoCandidatesTable(connection, legacyStudyEkid, legacyParticipantFqnToValue)
+                        }
+                    }
+                } catch (ex: Exception) {
+                    logger.error("An error occurred processing legacy participants of $legacyStudyEkid", ex)
+                }
+            }
         }
 
         return true
@@ -219,7 +269,7 @@ class V3StudyMigrationUpgrade(
 
                     val neighborFqnToValue = neighbor.neighborDetails.get() + neighbor.associationDetails.filterKeys { it == FullQualifiedName("ol.status") }
 
-                    logger.info("Inserting participant: $neighborFqnToValue into study_participants")
+                    logger.info("Inserting participant: $neighborFqnToValue into candidates")
                     insertIntoCandidatesTable(conn, studyEkid, neighborFqnToValue)
                 }
         }
