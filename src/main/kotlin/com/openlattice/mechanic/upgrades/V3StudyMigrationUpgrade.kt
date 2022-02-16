@@ -281,6 +281,7 @@ class V3StudyMigrationUpgrade(
     private fun insertIntoCandidatesTable(conn: Connection, studyId: UUID, fqnToValue: Map<FullQualifiedName, Set<Any>>) {
         val columns = fqnToCandidatesColumnName.filter { fqnToValue.containsKey(it.key) }
         if (columns.isEmpty()) {
+            logger.info("No useful property to record for participant ${fqnToValue}, skipping")
             return
         }
 
