@@ -114,6 +114,8 @@ class V3StudyMigrationUpgrade(
                         )
                     ).toSet()
 
+                    logger.info("org $orgId participant entity sets - ${orgMaybeParticipantEntitySetIds.size} $orgMaybeParticipantEntitySetIds")
+
                     // get all studies for the org
                     dataQueryService.getEntitiesWithPropertyTypeFqns(
                             studyEntityKeyIds,
@@ -187,19 +189,19 @@ class V3StudyMigrationUpgrade(
         return true
     }
 
-    private fun processParticipantsOfStudy(conn: Connection, orgId: UUID, studyId: UUID, orgStudyEntitySetIds: Set<UUID>, orgMaybeParticipantEntitySetIds: Set<UUID>) {
+    private fun processParticipantsOfStudy(conn: Connection, orgId: UUID, studyEkid: UUID, orgStudyEntitySetIds: Set<UUID>, orgMaybeParticipantEntitySetIds: Set<UUID>) {
         val adminRoleAclKey = organizations.getValue(orgId).adminRoleAclKey
         val adminPrincipals = principalService.getAllUsersWithPrincipal(adminRoleAclKey).map { it.principal }.toSet()
         logger.info("Using admin principals $adminPrincipals to execute neighbour search")
 
-        val filter = EntityNeighborsFilter(setOf(studyId), Optional.of(orgMaybeParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
+        val filter = EntityNeighborsFilter(setOf(studyEkid), Optional.of(orgMaybeParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
 
         // get all participants for the study
         val searchResult = searchService.executeEntityNeighborSearch(
             orgStudyEntitySetIds,
             PagedNeighborRequest(filter),
             adminPrincipals
-        ).neighbors.getOrDefault(studyId, listOf())
+        ).neighbors.getOrDefault(studyEkid, listOf())
 
         if (searchResult.isNotEmpty()) {
             searchResult.filter { it.neighborId.isPresent && it.associationEntitySet.entityTypeId == associationParticipatedInEntityType}
@@ -212,7 +214,7 @@ class V3StudyMigrationUpgrade(
                     val neighborFqnToValue = neighbor.neighborDetails.get() + neighbor.associationDetails.filterKeys { it == FullQualifiedName("ol.status") }
 
                     logger.info("Inserting participant: $neighborFqnToValue into study_participants")
-                    insertIntoCandidatesTable(conn, studyId, neighborFqnToValue)
+                    insertIntoCandidatesTable(conn, studyEkid, neighborFqnToValue)
                 }
         }
     }
