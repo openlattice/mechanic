@@ -96,9 +96,7 @@ class V3StudyMigrationUpgrade(
             // "nc.PersonBirthDate",
             UUID.fromString("1e6ff0f0-0545-4368-b878-677823459e57"),
             // "nc.SubjectIdentification",
-            UUID.fromString("5260cfbd-bfa4-40c1-ade5-cd83cc9f99b2"),
-            // "ol.status",
-            UUID.fromString("2a45205e-703c-43eb-a060-921bf7245f6a")
+            UUID.fromString("5260cfbd-bfa4-40c1-ade5-cd83cc9f99b2")
         )
     ).toMap()
 
@@ -180,7 +178,7 @@ class V3StudyMigrationUpgrade(
                 logger.info("Processing all legacy participants of $legacyStudyEkid")
                 try {
                     entitySets.keySet(
-                        Predicates.equal<UUID, EntitySet>("name", "chronicle_participants_${legacyStudyFqnToValue[FullQualifiedName("general.stringid")]}")
+                        Predicates.equal<UUID, EntitySet>("name", "chronicle_participants_${legacyStudyFqnToValue[FullQualifiedName("general.stringid")]!!.first()}")
                     ).forEach { participantESID ->
                         dataQueryService.getEntitiesWithPropertyTypeFqns(
                             mapOf(participantESID to Optional.of(setOf<UUID>())),
