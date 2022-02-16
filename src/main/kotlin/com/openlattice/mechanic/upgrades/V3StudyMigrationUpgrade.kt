@@ -67,6 +67,8 @@ class V3StudyMigrationUpgrade(
     // Property Types of ol.study
     private val studiesPropertyTypes = propertyTypes.getAll(
         setOf(
+            // "general.stringid",
+            UUID.fromString("ee3a7573-aa70-4afb-814d-3fad27cda988"),
             // "general.fullname",
             UUID.fromString("70d2ff1c-2450-4a47-a954-a7641b7399ae"),
             // "diagnosis.Description",
