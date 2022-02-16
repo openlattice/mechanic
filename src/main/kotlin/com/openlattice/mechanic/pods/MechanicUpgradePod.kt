@@ -40,6 +40,7 @@ import com.openlattice.authorization.HazelcastAuthorizationService
 import com.openlattice.authorization.HazelcastPrincipalsMapManager
 import com.openlattice.authorization.Principals
 import com.openlattice.authorization.PrincipalsMapManager
+import com.openlattice.authorization.mapstores.ResolvedPrincipalTreesMapLoader
 import com.openlattice.conductor.rpc.ConductorConfiguration
 import com.openlattice.conductor.rpc.ConductorElasticsearchApi
 import com.openlattice.data.DataDeletionManager
@@ -141,6 +142,9 @@ class MechanicUpgradePod {
 
     @Inject
     private lateinit var toolbox: Toolbox
+
+    @Inject
+    private lateinit var rptml: ResolvedPrincipalTreesMapLoader
 
     @Bean
     fun conductorConfiguration(): ConductorConfiguration {
