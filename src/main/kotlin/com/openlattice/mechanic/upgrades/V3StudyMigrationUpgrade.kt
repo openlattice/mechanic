@@ -44,7 +44,6 @@ class V3StudyMigrationUpgrade(
 
     // mappings of v2 fqn to v3 column names for studies
     private val fqnToStudiesColumnName = mapOf(
-        FullQualifiedName("general.stringid") to "v2_study_id",
         FullQualifiedName("general.fullname") to "title",
         FullQualifiedName("diagnosis.Description") to "description",
         LAST_WRITE_FQN to "updated_at",
@@ -152,15 +151,19 @@ class V3StudyMigrationUpgrade(
 
                         // process study entities into a Study table
                         logger.info("Inserting study $fqnToValue into studies")
-                        if (insertIntoStudiesTable(connection, orgId, studyEkid, fqnToValue)) {
-                            // process participants of studies
-                            logger.info("Processing all participants of $studyEkid")
-                            try {
-                                val studyStringId = fqnToValue[FullQualifiedName("general.stringid")]!!.first() as String
-                                processParticipantsOfStudy(connection, studyEkid, studyStringId, orgStudyEntitySetIds, orgMaybeParticipantEntitySetIds)
-                            } catch (ex: Exception) {
-                                logger.error("An error occurred processing participants of $studyEkid", ex)
+                        try {
+                            val studyStringId = UUID.fromString(fqnToValue[FullQualifiedName("general.stringid")]!!.first() as String)
+                            if (insertIntoStudiesTable(connection, orgId, studyEkid, studyStringId, fqnToValue)) {
+                                // process participants of studies
+                                logger.info("Processing all participants of $studyEkid")
+                                try {
+                                    processParticipantsOfStudy(connection, studyEkid, studyStringId, orgStudyEntitySetIds, orgMaybeParticipantEntitySetIds)
+                                } catch (ex: Exception) {
+                                    logger.error("An error occurred processing participants of $studyEkid", ex)
+                                }
                             }
+                        } catch (ex: Exception) {
+                            logger.error("An error occurred, possibly a study with empty stringid", ex)
                         }
                     }
 
@@ -185,7 +188,7 @@ class V3StudyMigrationUpgrade(
                         entitySets.keySet(
                             Predicates.equal<UUID, EntitySet>("name", "chronicle_participants_${legacyStudyFqnToValue.getOrDefault(FullQualifiedName("general.stringid"), null)}")
                         ).forEach { participantESID ->
-                            val legacyStudyStringId = legacyStudyFqnToValue[FullQualifiedName("general.stringid")]!!.first() as String
+                            val legacyStudyStringId = UUID.fromString(legacyStudyFqnToValue[FullQualifiedName("general.stringid")]!!.first() as String)
                             dataQueryService.getEntitiesWithPropertyTypeFqns(
                                 mapOf(participantESID to Optional.of(setOf<UUID>())),
                                 mapOf(participantESID to legacyParticipantPropertyTypes),
@@ -208,7 +211,7 @@ class V3StudyMigrationUpgrade(
         return true
     }
 
-    private fun insertIntoStudiesTable(conn: Connection, orgId: UUID, studyEkid: UUID, fqnToValue: Map<FullQualifiedName, MutableSet<Any>>): Boolean {
+    private fun insertIntoStudiesTable(conn: Connection, orgId: UUID, studyEkid: UUID, studyStringId: UUID, fqnToValue: Map<FullQualifiedName, MutableSet<Any>>): Boolean {
         val columns = fqnToStudiesColumnName.filter { fqnToValue.containsKey(it.key) }
         if (columns.isEmpty()) {
             logger.info("No useful property to record for study ${fqnToValue}, skipping")
@@ -216,7 +219,7 @@ class V3StudyMigrationUpgrade(
         }
 
         val INSERT_INTO_STUDY_SQL = """
-            INSERT INTO studies (v2_study_ekid, v2_organization_id, ${columns.values.joinToString()}) VALUES (?,?${",?".repeat(columns.size)})
+            INSERT INTO studies (v2_study_ekid, v2_organization_id, v2_study_id, ${columns.values.joinToString()}) VALUES (?,?,?${",?".repeat(columns.size)})
         """.trimIndent()
         logger.debug(INSERT_INTO_STUDY_SQL)
 
@@ -226,6 +229,7 @@ class V3StudyMigrationUpgrade(
 
                 ps.setObject(index++, studyEkid)
                 ps.setObject(index++, orgId)
+                ps.setObject(index++, studyStringId)
                 columns.keys.forEach {
                     when (it.namespace) {
                         "location" -> ps.setDouble(index++, fqnToValue[it]!!.first() as Double)
@@ -248,7 +252,7 @@ class V3StudyMigrationUpgrade(
         return true
     }
 
-    private fun processParticipantsOfStudy(conn: Connection, studyEkid: UUID, studyStringId: String, orgStudyEntitySetIds: Set<UUID>, orgMaybeParticipantEntitySetIds: Set<UUID>) {
+    private fun processParticipantsOfStudy(conn: Connection, studyEkid: UUID, studyStringId: UUID, orgStudyEntitySetIds: Set<UUID>, orgMaybeParticipantEntitySetIds: Set<UUID>) {
 
         val filter = EntityNeighborsFilter(setOf(studyEkid), Optional.of(orgMaybeParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
 
@@ -280,7 +284,7 @@ class V3StudyMigrationUpgrade(
         }
     }
 
-    private fun insertIntoCandidatesTable(conn: Connection, studyStringId: String, fqnToValue: Map<FullQualifiedName, Set<Any>>) {
+    private fun insertIntoCandidatesTable(conn: Connection, studyStringId: UUID, fqnToValue: Map<FullQualifiedName, Set<Any>>) {
         val columns = fqnToCandidatesColumnName.filter { fqnToValue.containsKey(it.key) }
         if (columns.isEmpty()) {
             logger.info("No useful property to record for participant ${fqnToValue}, skipping")
@@ -296,7 +300,7 @@ class V3StudyMigrationUpgrade(
             try {
                 var index = 1
 
-                ps.setString(index++, studyStringId)
+                ps.setObject(index++, studyStringId)
                 columns.keys.forEach {
                     when (it.name) {
                         "PersonBirthDate" -> ps.setObject(index++, fqnToValue[it]!!.first() as LocalDate)
