@@ -38,6 +38,7 @@ import com.openlattice.authorization.DbCredentialService
 import com.openlattice.authorization.HazelcastAclKeyReservationService
 import com.openlattice.authorization.HazelcastAuthorizationService
 import com.openlattice.authorization.HazelcastPrincipalsMapManager
+import com.openlattice.authorization.Principals
 import com.openlattice.authorization.PrincipalsMapManager
 import com.openlattice.conductor.rpc.ConductorConfiguration
 import com.openlattice.conductor.rpc.ConductorElasticsearchApi
@@ -334,7 +335,7 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun principalsManager(): SecurePrincipalsManager {
+    fun principalService(): SecurePrincipalsManager {
         return HazelcastPrincipalService(
             hazelcastInstance,
             aclKeyReservationService(),
@@ -368,7 +369,7 @@ class MechanicUpgradePod {
         return V3StudyMigrationUpgrade(
             toolbox,
             rhizomeConfiguration,
-            principalsManager(),
+            principalService(),
             dataQueryService(),
             searchService()
         )
@@ -376,6 +377,7 @@ class MechanicUpgradePod {
 
     @PostConstruct
     fun post() {
+        Principals.init(principalService(), hazelcastInstance)
         lateInitProvider.setDataSourceResolver(dataSourceResolver())
     }
 }
