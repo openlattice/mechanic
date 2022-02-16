@@ -1,31 +1,22 @@
 package com.openlattice.mechanic.upgrades
 
-import com.geekbeast.postgres.PostgresArrays
-import com.openlattice.authorization.Principals
-import com.openlattice.authorization.PrincipalsMapManager
-import com.openlattice.authorization.SecurablePrincipal
-import com.openlattice.data.requests.NeighborEntityDetails
+import com.geekbeast.rhizome.configuration.RhizomeConfiguration
+import com.hazelcast.query.Predicates
 import com.openlattice.data.storage.MetadataOption
 import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
-import com.openlattice.edm.EdmConstants.Companion.ID_FQN
 import com.openlattice.edm.EdmConstants.Companion.LAST_WRITE_FQN
 import com.openlattice.edm.EntitySet
-import com.openlattice.edm.type.PropertyType
 import com.openlattice.graph.PagedNeighborRequest
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.mapstores.EntitySetMapstore
-import com.openlattice.postgres.mapstores.PropertyTypeMapstore
 import com.openlattice.search.SearchService
 import com.openlattice.search.requests.EntityNeighborsFilter
-
-import com.hazelcast.query.Predicates
-import org.apache.olingo.commons.api.edm.FullQualifiedName
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-
+import org.apache.olingo.commons.api.edm.FullQualifiedName
+import org.slf4j.LoggerFactory
 import java.sql.Connection
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -35,7 +26,7 @@ import java.util.UUID
 
 class V3StudyMigrationUpgrade(
     toolbox: Toolbox,
-    private val hds: HikariDataSource,
+    private val rhizomeConfiguration: RhizomeConfiguration,
     private val principalService: SecurePrincipalsManager,
     private val dataQueryService: PostgresEntityDataQueryService,
     private val searchService: SearchService
@@ -95,6 +86,9 @@ class V3StudyMigrationUpgrade(
     override fun upgrade(): Boolean {
         logger.info("starting migration of studies to v3")
 
+        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["chronicle"]!!
+        val hc = HikariConfig(hikariConfiguration)
+        val hds = HikariDataSource(hc)
         hds.connection.use { connection ->
             connection.autoCommit = false
             entitySets.entrySet(
