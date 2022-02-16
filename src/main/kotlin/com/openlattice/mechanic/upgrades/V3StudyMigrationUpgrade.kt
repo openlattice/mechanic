@@ -2,6 +2,7 @@ package com.openlattice.mechanic.upgrades
 
 import com.geekbeast.rhizome.configuration.RhizomeConfiguration
 import com.hazelcast.query.Predicates
+import com.openlattice.authorization.AclKey
 import com.openlattice.data.storage.MetadataOption
 import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
 import com.openlattice.edm.EdmConstants.Companion.LAST_WRITE_FQN
@@ -190,9 +191,10 @@ class V3StudyMigrationUpgrade(
     }
 
     private fun processParticipantsOfStudy(conn: Connection, orgId: UUID, studyEkid: UUID, orgStudyEntitySetIds: Set<UUID>, orgMaybeParticipantEntitySetIds: Set<UUID>) {
-        val adminRoleAclKey = organizations.getValue(orgId).adminRoleAclKey
-        val adminPrincipals = principalService.getAllUsersWithPrincipal(adminRoleAclKey).map { it.principal }.toSet()
-        logger.info("Using admin principals $adminPrincipals to execute neighbour search")
+
+        val chronicleSuperUserKey = AclKey(UUID.fromString("..."))
+        val chronicleSuperUserPrincipals = principalService.getAllUsersWithPrincipal(chronicleSuperUserKey).map { it.principal }.toSet()
+        logger.info("Using chronicle super user principals $chronicleSuperUserPrincipals to execute neighbour search")
 
         val filter = EntityNeighborsFilter(setOf(studyEkid), Optional.of(orgMaybeParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
 
@@ -200,7 +202,7 @@ class V3StudyMigrationUpgrade(
         val searchResult = searchService.executeEntityNeighborSearch(
             orgStudyEntitySetIds,
             PagedNeighborRequest(filter),
-            adminPrincipals
+            chronicleSuperUserPrincipals
         ).neighbors.getOrDefault(studyEkid, listOf())
 
         if (searchResult.isNotEmpty()) {
