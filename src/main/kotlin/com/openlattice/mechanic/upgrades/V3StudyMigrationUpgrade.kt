@@ -44,6 +44,7 @@ class V3StudyMigrationUpgrade(
 
     // mappings of v2 fqn to v3 column names for studies
     private val fqnToStudiesColumnName = mapOf(
+        FullQualifiedName("general.stringid") to "v2_study_id",
         FullQualifiedName("general.fullname") to "title",
         FullQualifiedName("diagnosis.Description") to "description",
         LAST_WRITE_FQN to "updated_at",
@@ -213,7 +214,7 @@ class V3StudyMigrationUpgrade(
         }
 
         val INSERT_INTO_STUDY_SQL = """
-            INSERT INTO studies (v2_internal_study_id, v2_organization_id, ${columns.values.joinToString()}) VALUES (?,?${",?".repeat(columns.size)})
+            INSERT INTO studies (v2_study_ekid, v2_organization_id, ${columns.values.joinToString()}) VALUES (?,?${",?".repeat(columns.size)})
         """.trimIndent()
         logger.debug(INSERT_INTO_STUDY_SQL)
 
@@ -284,7 +285,7 @@ class V3StudyMigrationUpgrade(
         }
 
         val INSERT_INTO_CANDIDATE_SQL = """
-            INSERT INTO candidates (v2_internal_study_id, ${columns.values.joinToString()}) VALUES (?${",?".repeat(columns.size)})
+            INSERT INTO candidates (v2_study_ekid, ${columns.values.joinToString()}) VALUES (?${",?".repeat(columns.size)})
         """.trimIndent()
         logger.debug(INSERT_INTO_CANDIDATE_SQL)
 
