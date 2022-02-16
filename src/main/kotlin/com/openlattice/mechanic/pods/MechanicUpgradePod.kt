@@ -55,12 +55,14 @@ import com.openlattice.ids.HazelcastIdGenerationService
 import com.openlattice.ids.HazelcastLongIdService
 import com.openlattice.ioc.providers.LateInitProvider
 import com.geekbeast.jdbc.DataSourceManager
+import com.openlattice.data.DataGraphManager
 import com.openlattice.linking.LinkingQueryService
 import com.openlattice.linking.PostgresLinkingFeedbackService
 import com.openlattice.linking.graph.PostgresLinkingQueryService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
+import com.openlattice.mechanic.upgrades.V3AppUsageSurveyMigration
 import com.openlattice.mechanic.upgrades.V3StudyMigrationUpgrade
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
@@ -362,6 +364,17 @@ class MechanicUpgradePod {
             principalsManager(),
             dataQueryService(),
             searchService()
+        )
+    }
+
+    @Bean fun v3AppUsageSurveyMigration(): V3AppUsageSurveyMigration {
+        return V3AppUsageSurveyMigration(
+            toolbox,
+            hikariDataSource,
+            principalsManager(),
+            searchService(),
+            dataQueryService(),
+            entitySetService()
         )
     }
 
