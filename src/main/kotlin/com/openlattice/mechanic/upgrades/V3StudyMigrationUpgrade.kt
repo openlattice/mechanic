@@ -197,11 +197,15 @@ class V3StudyMigrationUpgrade(
 
         val filter = EntityNeighborsFilter(setOf(studyEkid), Optional.of(orgMaybeParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
 
+        val chronicleSuperUserSecurablePrincipal = principalService.getSecurablePrincipal("")
+        val chronicleSuperUserPrincipals = principalService.getAllPrincipals(chronicleSuperUserSecurablePrincipal).map { it.principal }.toSet()
+        logger.info("chronicle super user principals ${chronicleSuperUserPrincipals.size} $chronicleSuperUserPrincipals")
+
         // get all participants for the study
         val searchResult = searchService.executeEntityNeighborSearch(
             orgStudyEntitySetIds,
             PagedNeighborRequest(filter),
-            setOf(Principal(PrincipalType.USER, ""))
+            chronicleSuperUserPrincipals
         ).neighbors.getOrDefault(studyEkid, listOf())
 
         if (searchResult.isNotEmpty()) {
