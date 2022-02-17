@@ -180,11 +180,12 @@ class V3StudyMigrationUpgrade(
                     Optional.empty(),
                     false
             ).forEach { (legacyStudyEkid, legacyStudyFqnToValue) ->
-                logger.info("Processing all legacy participants of $legacyStudyEkid, with stringid ${legacyStudyFqnToValue.getOrDefault(FullQualifiedName("general.stringid"), null)}")
+                val studyId = legacyStudyFqnToValue[FullQualifiedName("general.stringid")]?.firstOrNull() as String?
+                logger.info("Processing all legacy participants of $legacyStudyEkid with id $studyId")
                 if (legacyStudyFqnToValue.isNotEmpty()) {
                     try {
                         entitySets.keySet(
-                            Predicates.equal<UUID, EntitySet>("name", "chronicle_participants_${legacyStudyFqnToValue.getOrDefault(FullQualifiedName("general.stringid"), null)}")
+                            Predicates.equal<UUID, EntitySet>("name", "chronicle_participants_$studyId")
                         ).forEach { participantESID ->
                             dataQueryService.getEntitiesWithPropertyTypeFqns(
                                 mapOf(participantESID to Optional.of(setOf<UUID>())),
