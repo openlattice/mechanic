@@ -186,7 +186,6 @@ class V3StudyMigrationUpgrade(
                         entitySets.keySet(
                             Predicates.equal<UUID, EntitySet>("name", "chronicle_participants_${legacyStudyFqnToValue.getOrDefault(FullQualifiedName("general.stringid"), null)}")
                         ).forEach { participantESID ->
-                            val legacyStudyStringId = UUID.fromString(legacyStudyFqnToValue[FullQualifiedName("general.stringid")]!!.first() as String)
                             dataQueryService.getEntitiesWithPropertyTypeFqns(
                                 mapOf(participantESID to Optional.of(setOf<UUID>())),
                                 mapOf(participantESID to legacyParticipantPropertyTypes),
@@ -196,7 +195,7 @@ class V3StudyMigrationUpgrade(
                                 false
                             ).forEach { (_, legacyParticipantFqnToValue) ->
                                 logger.info("Inserting participant: $legacyParticipantFqnToValue into candidates")
-                                insertIntoCandidatesTable(connection, legacyStudyStringId, legacyParticipantFqnToValue)
+                                insertIntoCandidatesTable(connection, legacyStudyEkid, legacyParticipantFqnToValue)
                             }
                         }
                     } catch (ex: Exception) {
