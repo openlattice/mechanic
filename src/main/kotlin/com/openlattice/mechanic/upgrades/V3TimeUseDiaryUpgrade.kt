@@ -1,10 +1,7 @@
 package com.openlattice.mechanic.upgrades
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.JsonSerializer
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.SerializerProvider
-import com.fasterxml.jackson.databind.module.SimpleModule
+import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.hazelcast.query.Predicates
 import com.openlattice.authorization.Principal
@@ -58,7 +55,7 @@ class V3TimeUseDiaryUpgrade(
 
         val logger = LoggerFactory.getLogger(V3TimeUseDiaryUpgrade::class.java)
         val objectMapper = ObjectMapper().registerModule( JavaTimeModule() )
-            .registerModule(SimpleModule().addSerializer(OffsetDateTime::class.java, OffsetDateTimeSerializer<OffsetDateTime>()))
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
 
         private val COMPLETED_DT_FQN = FullQualifiedName("date.completeddatetime")
         private val SUBJECT_ID_FQN = FullQualifiedName("nc.SubjectIdentification")
@@ -83,19 +80,15 @@ class V3TimeUseDiaryUpgrade(
                 study_id uuid NOT NULL,
                 participant_id text NOT NULL,
                 submission_date timestamp with time zone DEFAULT now() NOT NULL,
-                submission jsonb
+                submission jsonb,
+                PRIMARY KEY (submission_id)
             );
-        """.trimIndent()
-
-        private val addPrimaryKeyToTimeUseDiaryTableSql = """
-            ALTER TABLE ONLY time_use_diary_submissions
-            ADD CONSTRAINT time_use_diary_submissions_pkey PRIMARY KEY (submission_id);
         """.trimIndent()
 
         private val insertTimeUseDiarySql = """
             INSERT INTO public.time_use_diary_submissions
             VALUES ( ?, ?, ?, ?, ?, ? );
-            """.trimIndent()
+        """.trimIndent()
 
 
         private val TimeUseDiarySubmissionPropIds =
@@ -112,7 +105,6 @@ class V3TimeUseDiaryUpgrade(
         hds.connection.createStatement().use { statement ->
             statement.addBatch(dropExistingTimeUseDiaryTableSql)
             statement.addBatch(createTimeUseDiarySubmissionsTableSql)
-            statement.addBatch(addPrimaryKeyToTimeUseDiaryTableSql)
             statement.executeBatch()
         }
     }
@@ -423,15 +415,4 @@ data class Submission(
     val submissionDate: OffsetDateTime,
     val submission: List<TimeUseDiaryResponse>
 )
-
-class OffsetDateTimeSerializer<OffsetDateTime>() : JsonSerializer<OffsetDateTime>() {
-    override fun serialize(
-        value: OffsetDateTime,
-        jsonGenerator: JsonGenerator?,
-        serializerProvider: SerializerProvider?
-    ) {
-        jsonGenerator?.writeString(DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(value as TemporalAccessor?))
-    }
-}
-
 
