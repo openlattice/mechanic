@@ -52,7 +52,7 @@ class V3TimeUseDiaryUpgrade(
     private val organizations = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
     private val answerPropertyTypeIds = propertyTypes.getAll(setOf(OL_VALUES_ID, OL_ID_ID))
     // TODO: replace empty strings with chronicle super user ids (auth0 and google-oauth2) when running migration
-    private val chronicleSuperUserIds = setOf("google-oauth2|111525266688180365087")
+    private val chronicleSuperUserIds = setOf("")
 
     companion object {
 
