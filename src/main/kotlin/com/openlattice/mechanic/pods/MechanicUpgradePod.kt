@@ -54,6 +54,7 @@ import com.openlattice.graph.core.GraphService
 import com.openlattice.ids.HazelcastIdGenerationService
 import com.openlattice.ioc.providers.LateInitProvider
 import com.geekbeast.jdbc.DataSourceManager
+import com.openlattice.ids.HazelcastLongIdService
 import com.openlattice.linking.LinkingQueryService
 import com.openlattice.linking.PostgresLinkingFeedbackService
 import com.openlattice.linking.graph.PostgresLinkingQueryService
@@ -61,12 +62,14 @@ import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
 import com.openlattice.mechanic.upgrades.V3TimeUseDiaryUpgrade
+import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.postgres.PostgresTable
 import com.openlattice.postgres.external.ExternalDatabaseConnectionManager
+import com.openlattice.postgres.external.ExternalDatabasePermissioner
+import com.openlattice.postgres.external.ExternalDatabasePermissioningService
 import com.openlattice.scrunchie.search.ConductorElasticsearchImpl
 import com.zaxxer.hikari.HikariDataSource
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
-import mechanic.src.main.kotlin.com.openlattice.mechanic.upgrades.AddPgAuditToExistingOrgs
 import com.openlattice.search.SearchService
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -311,12 +314,44 @@ class MechanicUpgradePod {
     }
 
     @Bean
+    fun longIdService(): HazelcastLongIdService {
+        return HazelcastLongIdService(hazelcastClientProvider)
+    }
+
+    @Bean
+    fun dbCredService(): DbCredentialService  {
+        return DbCredentialService(hazelcastInstance, longIdService())
+    }
+
+    @Bean
+    fun externalDatabasePermissionsManager(): ExternalDatabasePermissioningService {
+        return ExternalDatabasePermissioner(
+            hazelcastInstance,
+            externalDbConnMan,
+            dbCredService(),
+            principalsMapManager()
+        )
+    }
+
+    @Bean
+    fun principalsManager(): HazelcastPrincipalService {
+        return HazelcastPrincipalService(
+            hazelcastInstance,
+            aclKeyReservationService(),
+            authorizationService(),
+            principalsMapManager(),
+            externalDatabasePermissionsManager()
+        )
+    }
+
+    @Bean
     fun v3TimeUseDiaryUpgrade(): V3TimeUseDiaryUpgrade {
         return V3TimeUseDiaryUpgrade(
             toolbox,
             hikariDataSource,
             dataQueryService(),
-            searchService()
+            searchService(),
+            principalsManager()
         )
     }
 
