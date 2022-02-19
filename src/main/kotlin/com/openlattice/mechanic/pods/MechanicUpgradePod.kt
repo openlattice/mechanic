@@ -348,7 +348,7 @@ class MechanicUpgradePod {
     fun v3TimeUseDiaryUpgrade(): V3TimeUseDiaryUpgrade {
         return V3TimeUseDiaryUpgrade(
             toolbox,
-            hikariDataSource,
+            rhizomeConfiguration,
             dataQueryService(),
             searchService(),
             principalsManager()
