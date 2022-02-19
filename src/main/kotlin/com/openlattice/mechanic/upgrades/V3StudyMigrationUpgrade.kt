@@ -1,31 +1,22 @@
 package com.openlattice.mechanic.upgrades
 
-import com.geekbeast.postgres.PostgresArrays
-import com.openlattice.authorization.Principals
-import com.openlattice.authorization.PrincipalsMapManager
-import com.openlattice.authorization.SecurablePrincipal
-import com.openlattice.data.requests.NeighborEntityDetails
+import com.geekbeast.rhizome.configuration.RhizomeConfiguration
+import com.hazelcast.query.Predicates
 import com.openlattice.data.storage.MetadataOption
 import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
-import com.openlattice.edm.EdmConstants.Companion.ID_FQN
 import com.openlattice.edm.EdmConstants.Companion.LAST_WRITE_FQN
 import com.openlattice.edm.EntitySet
-import com.openlattice.edm.type.PropertyType
 import com.openlattice.graph.PagedNeighborRequest
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.mapstores.EntitySetMapstore
-import com.openlattice.postgres.mapstores.PropertyTypeMapstore
 import com.openlattice.search.SearchService
 import com.openlattice.search.requests.EntityNeighborsFilter
-
-import com.hazelcast.query.Predicates
-import org.apache.olingo.commons.api.edm.FullQualifiedName
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-
+import org.apache.olingo.commons.api.edm.FullQualifiedName
+import org.slf4j.LoggerFactory
 import java.sql.Connection
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -35,7 +26,7 @@ import java.util.UUID
 
 class V3StudyMigrationUpgrade(
     toolbox: Toolbox,
-    private val hds: HikariDataSource,
+    private val rhizomeConfiguration: RhizomeConfiguration,
     private val principalService: SecurePrincipalsManager,
     private val dataQueryService: PostgresEntityDataQueryService,
     private val searchService: SearchService
@@ -61,16 +52,19 @@ class V3StudyMigrationUpgrade(
 
     // mappings of v2 fqn to v3 column names for participants(v2)/candidates(v3)
     private val fqnToCandidatesColumnName = mapOf(
-        FullQualifiedName("Person.GivenName") to "first_name",
-        FullQualifiedName("Person.SurName") to "last_name",
+        FullQualifiedName("nc.PersonGivenName") to "first_name",
+        FullQualifiedName("nc.PersonSurName") to "last_name",
         FullQualifiedName("general.fullname") to "name",
         FullQualifiedName("nc.PersonBirthDate") to "dob",
+        FullQualifiedName("nc.SubjectIdentification") to "participant_id",
         FullQualifiedName("ol.status") to "participation_status"
     )
 
     // Property Types of ol.study
     private val studiesPropertyTypes = propertyTypes.getAll(
         setOf(
+            // "general.stringid",
+            UUID.fromString("ee3a7573-aa70-4afb-814d-3fad27cda988"),
             // "general.fullname",
             UUID.fromString("70d2ff1c-2450-4a47-a954-a7641b7399ae"),
             // "diagnosis.Description",
@@ -88,12 +82,31 @@ class V3StudyMigrationUpgrade(
         )
     ).toMap()
 
+    // Property Types of general.person (for legacy)
+    private val legacyParticipantPropertyTypes = propertyTypes.getAll(
+        setOf(
+            // "nc.PersonGivenName",
+            UUID.fromString("e9a0b4dc-5298-47c1-8837-20af172379a5"),
+            // "nc.PersonSurName",
+            UUID.fromString("7b038634-a0b4-4ce1-a04f-85d1775937aa"),
+            // "general.fullname",
+            UUID.fromString("70d2ff1c-2450-4a47-a954-a7641b7399ae"),
+            // "nc.PersonBirthDate",
+            UUID.fromString("1e6ff0f0-0545-4368-b878-677823459e57"),
+            // "nc.SubjectIdentification",
+            UUID.fromString("5260cfbd-bfa4-40c1-ade5-cd83cc9f99b2")
+        )
+    ).toMap()
+
     // entity type of association entity general.participatedin
     private val associationParticipatedInEntityType = UUID.fromString("34836b35-76b1-4ecf-b588-c22ad19e2378")
 
     override fun upgrade(): Boolean {
         logger.info("starting migration of studies to v3")
 
+        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["chronicle"]!!
+        val hc = HikariConfig(hikariConfiguration)
+        val hds = HikariDataSource(hc)
         hds.connection.use { connection ->
             connection.autoCommit = false
             entitySets.entrySet(
@@ -101,7 +114,7 @@ class V3StudyMigrationUpgrade(
                 Predicates.equal<UUID, EntitySet>(EntitySetMapstore.ENTITY_TYPE_ID_INDEX, UUID.fromString("80c86a96-0e3f-46eb-9fbb-60d9174566a5"))
             )
                 .groupBy { it.value.organizationId }
-                .forEach { orgId, orgStudyEntitySets ->
+                .forEach { (orgId, orgStudyEntitySets) ->
                     val studyEntityKeyIds = orgStudyEntitySets.associate { it.key to Optional.of(setOf<UUID>()) }.toMap()
                     val orgStudyEntitySetIds = studyEntityKeyIds.keys
                     val studyAuthorizedPropertyTypes = orgStudyEntitySets.associate { it.key to studiesPropertyTypes }.toMap()
@@ -119,6 +132,8 @@ class V3StudyMigrationUpgrade(
                         )
                     ).toSet()
 
+                    logger.info("org $orgId participant entity sets - ${orgMaybeParticipantEntitySetIds.size} $orgMaybeParticipantEntitySetIds")
+
                     // get all studies for the org
                     dataQueryService.getEntitiesWithPropertyTypeFqns(
                             studyEntityKeyIds,
@@ -127,19 +142,26 @@ class V3StudyMigrationUpgrade(
                             EnumSet.of(MetadataOption.LAST_WRITE),
                             Optional.empty(),
                             false
-                    ).forEach { v2Id, fqnToValue ->
-                        logger.info("Processing study with entity_key_id ${v2Id}")
+                    ).forEach { (studyEkid, fqnToValue) ->
+                        logger.info("Processing study with entity_key_id $studyEkid")
 
                         // process study entities into a Study table
-                        logger.info("Inserting study ${fqnToValue} into studies")
-                        if (insertIntoStudiesTable(connection, orgId, v2Id, fqnToValue)) {
-                            // process participants of studies
-                            logger.info("Processing all participants of ${v2Id}")
-                            try {
-                                processParticipantsOfStudy(connection, orgId, v2Id, orgStudyEntitySetIds, orgMaybeParticipantEntitySetIds)
-                            } catch (ex: Exception) {
-                                logger.error("An error occurred processing participants of ${v2Id}", ex)
+                        logger.info("Inserting study $fqnToValue into studies")
+                        try {
+                            val stringid = fqnToValue[FullQualifiedName("general.stringid")]?.firstOrNull() as String?
+                            val studyId = if (stringid != null) UUID.fromString(stringid) else null
+
+                            if (insertIntoStudiesTable(connection, orgId, studyEkid, studyId, fqnToValue)) {
+                                // process participants of studies
+                                logger.info("Processing all participants of $studyEkid")
+                                try {
+                                    processParticipantsOfStudy(connection, studyEkid, orgStudyEntitySetIds, orgMaybeParticipantEntitySetIds)
+                                } catch (ex: Exception) {
+                                    logger.error("An error occurred processing participants of $studyEkid", ex)
+                                }
                             }
+                        } catch (ex: Exception) {
+                            logger.error("An error occurred, possibly a study with empty stringid", ex)
                         }
                     }
 
@@ -147,20 +169,55 @@ class V3StudyMigrationUpgrade(
                     logger.info("================================")
                     logger.info("================================")
                 }
+
+            // deal with legacy studies
+            logger.info("Legacy clean-up")
+            dataQueryService.getEntitiesWithPropertyTypeFqns(
+                    mapOf(UUID.fromString("574e04d0-48ce-4f06-a30b-54bbd11a4754") to Optional.of(setOf<UUID>())),
+                    mapOf(UUID.fromString("574e04d0-48ce-4f06-a30b-54bbd11a4754") to studiesPropertyTypes),
+                    emptyMap(),
+                    EnumSet.of(MetadataOption.LAST_WRITE),
+                    Optional.empty(),
+                    false
+            ).forEach { (legacyStudyEkid, legacyStudyFqnToValue) ->
+                val studyId = legacyStudyFqnToValue[FullQualifiedName("general.stringid")]?.firstOrNull() as String?
+                logger.info("Processing all legacy participants of $legacyStudyEkid with id $studyId")
+                if (legacyStudyFqnToValue.isNotEmpty()) {
+                    try {
+                        entitySets.keySet(
+                            Predicates.equal<UUID, EntitySet>("name", "chronicle_participants_$studyId")
+                        ).forEach { participantESID ->
+                            dataQueryService.getEntitiesWithPropertyTypeFqns(
+                                mapOf(participantESID to Optional.of(setOf<UUID>())),
+                                mapOf(participantESID to legacyParticipantPropertyTypes),
+                                emptyMap(),
+                                EnumSet.noneOf(MetadataOption::class.java),
+                                Optional.empty(),
+                                false
+                            ).forEach { (_, legacyParticipantFqnToValue) ->
+                                logger.info("Inserting participant: $legacyParticipantFqnToValue into candidates")
+                                insertIntoCandidatesTable(connection, legacyStudyEkid, legacyParticipantFqnToValue)
+                            }
+                        }
+                    } catch (ex: Exception) {
+                        logger.error("An error occurred processing legacy participants of $legacyStudyEkid", ex)
+                    }
+                }
+            }
         }
 
         return true
     }
 
-    private fun insertIntoStudiesTable(conn: Connection, orgId: UUID, studyId: UUID, fqnToValue: Map<FullQualifiedName, MutableSet<Any>>): Boolean {
+    private fun insertIntoStudiesTable(conn: Connection, orgId: UUID, studyEkid: UUID, studyId: UUID?, fqnToValue: Map<FullQualifiedName, MutableSet<Any>>): Boolean {
         val columns = fqnToStudiesColumnName.filter { fqnToValue.containsKey(it.key) }
-        if (columns.size == 0) {
+        if (columns.isEmpty()) {
             logger.info("No useful property to record for study ${fqnToValue}, skipping")
             return false
         }
 
         val INSERT_INTO_STUDY_SQL = """
-            INSERT INTO studies (v2_internal_study_id, v2_organization_id, ${columns.values.joinToString()}) VALUES (?,?${",?".repeat(columns.size)})
+            INSERT INTO studies (v2_study_ekid, v2_study_id, v2_organization_id, ${columns.values.joinToString()}) VALUES (?,?,?${",?".repeat(columns.size)})
         """.trimIndent()
         logger.debug(INSERT_INTO_STUDY_SQL)
 
@@ -168,10 +225,11 @@ class V3StudyMigrationUpgrade(
             try {
                 var index = 1
 
+                ps.setObject(index++, studyEkid)
                 ps.setObject(index++, studyId)
                 ps.setObject(index++, orgId)
                 columns.keys.forEach {
-                    when (it.getNamespace()) {
+                    when (it.namespace) {
                         "location" -> ps.setDouble(index++, fqnToValue[it]!!.first() as Double)
                         "openlattice" -> ps.setObject(index++, fqnToValue[it]!!.first() as OffsetDateTime)
                         else -> ps.setString(index++, fqnToValue[it]!!.first() as String)
@@ -183,7 +241,7 @@ class V3StudyMigrationUpgrade(
                 ps.executeBatch()
                 conn.commit()
             } catch (ex: Exception) {
-                logger.error("Exception occurred inserting study ${fqnToValue} into studies", ex)
+                logger.error("Exception occurred inserting study $fqnToValue into studies", ex)
                 conn.rollback()
                 return false
             }
@@ -192,44 +250,47 @@ class V3StudyMigrationUpgrade(
         return true
     }
 
-    private fun processParticipantsOfStudy(conn: Connection, orgId: UUID, studyId: UUID, orgStudyEntitySetIds: Set<UUID>, orgMaybeParticipantEntitySetIds: Set<UUID>) {
-        val adminRoleAclKey = organizations.getValue(orgId).adminRoleAclKey
-        val adminPrincipals = principalService.getAllUsersWithPrincipal(adminRoleAclKey).map { it.getPrincipal() }.toSet()
-        logger.info("Using admin principals ${adminPrincipals} to execute neighbour search")
+    private fun processParticipantsOfStudy(conn: Connection, studyEkid: UUID, orgStudyEntitySetIds: Set<UUID>, orgMaybeParticipantEntitySetIds: Set<UUID>) {
 
-        val filter = EntityNeighborsFilter(setOf(studyId), Optional.of(orgMaybeParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
+        val filter = EntityNeighborsFilter(setOf(studyEkid), Optional.of(orgMaybeParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
+
+        val chronicleSuperUserSecurablePrincipal = principalService.getSecurablePrincipal("")
+        val chronicleSuperUserPrincipals = principalService.getAllPrincipals(chronicleSuperUserSecurablePrincipal).map { it.principal }.toSet()
+        logger.info("chronicle super user principals ${chronicleSuperUserPrincipals.size} $chronicleSuperUserPrincipals")
 
         // get all participants for the study
         val searchResult = searchService.executeEntityNeighborSearch(
             orgStudyEntitySetIds,
             PagedNeighborRequest(filter),
-            adminPrincipals
-        ).neighbors.getOrDefault(studyId, listOf())
+            chronicleSuperUserPrincipals
+        ).neighbors.getOrDefault(studyEkid, listOf())
 
         if (searchResult.isNotEmpty()) {
-            searchResult.filter { it.getNeighborId().isPresent && it.getAssociationEntitySet().entityTypeId == associationParticipatedInEntityType}
-                .forEach {
+            logger.info("Neighbor search returned ${searchResult.size} results")
+            searchResult.filter { it.neighborId.isPresent && it.associationEntitySet.entityTypeId == associationParticipatedInEntityType}
+                .forEach { neighbor ->
                     // logger.info("Neighbour ${it.getNeighborId()} details:")
                     // logger.info("Association Entity Set:${it.getAssociationEntitySet()}")
                     // logger.info("Association Details: ${it.getAssociationDetails()}")
                     // logger.info("Neighbour Entity Set: ${it.getNeighborEntitySet()}")
 
-                    val neighborFqnToValue = it.getNeighborDetails().get() + it.getAssociationDetails().filterKeys { it == FullQualifiedName("ol.status") }
+                    val neighborFqnToValue = neighbor.neighborDetails.get() + neighbor.associationDetails.filterKeys { it == FullQualifiedName("ol.status") }
 
-                    logger.info("Inserting participant: ${neighborFqnToValue} into study_participants")
-                    insertIntoCandidatesTable(conn, studyId, neighborFqnToValue)
+                    logger.info("Inserting participant: $neighborFqnToValue into candidates")
+                    insertIntoCandidatesTable(conn, studyEkid, neighborFqnToValue)
                 }
         }
     }
 
-    private fun insertIntoCandidatesTable(conn: Connection, studyId: UUID, fqnToValue: Map<FullQualifiedName, Set<Any>>) {
+    private fun insertIntoCandidatesTable(conn: Connection, studyEkid: UUID, fqnToValue: Map<FullQualifiedName, Set<Any>>) {
         val columns = fqnToCandidatesColumnName.filter { fqnToValue.containsKey(it.key) }
-        if (columns.size == 0) {
+        if (columns.isEmpty()) {
+            logger.info("No useful property to record for participant ${fqnToValue}, skipping")
             return
         }
 
         val INSERT_INTO_CANDIDATE_SQL = """
-            INSERT INTO candidates (v2_internal_study_id, ${columns.values.joinToString()}) VALUES (?${",?".repeat(columns.size)})
+            INSERT INTO candidates (v2_study_ekid, ${columns.values.joinToString()}) VALUES (?${",?".repeat(columns.size)})
         """.trimIndent()
         logger.debug(INSERT_INTO_CANDIDATE_SQL)
 
@@ -237,10 +298,10 @@ class V3StudyMigrationUpgrade(
             try {
                 var index = 1
 
-                ps.setObject(index++, studyId)
+                ps.setObject(index++, studyEkid)
                 columns.keys.forEach {
-                    when (it.getNamespace()) {
-                        "nc" -> ps.setObject(index++, fqnToValue[it]!!.first() as LocalDate)
+                    when (it.name) {
+                        "PersonBirthDate" -> ps.setObject(index++, fqnToValue[it]!!.first() as LocalDate)
                         else -> ps.setString(index++, fqnToValue[it]!!.first() as String)
                     }
                 }
@@ -250,7 +311,7 @@ class V3StudyMigrationUpgrade(
                 ps.executeBatch()
                 conn.commit()
             } catch (ex: Exception) {
-                logger.error("Exception occurred inserting participant ${fqnToValue} into candidates", ex)
+                logger.error("Exception occurred inserting participant $fqnToValue into candidates", ex)
                 conn.rollback()
             }
         }
