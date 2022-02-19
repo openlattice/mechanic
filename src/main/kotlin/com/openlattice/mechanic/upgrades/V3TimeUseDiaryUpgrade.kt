@@ -68,6 +68,9 @@ class V3TimeUseDiaryUpgrade(
         private val OL_ID_ID = UUID.fromString("39e13db7-a730-421a-a600-ae0674060140")
         private val OL_STUDY_ID = UUID.fromString("80c86a96-0e3f-46eb-9fbb-60d9174566a5")
         private val answerEntityTypeId = UUID.fromString("7912f235-1959-4dd2-8a61-d85cd09b0c34")
+        private val participantEntitySetSuffix = "participants"
+        private val studyEntitySetSuffix = "studies"
+        private val participatedInEntitySetSuffix = "participatedin"
 
         private val dropExistingTimeUseDiaryTableSql = """
             DROP TABLE IF EXISTS public.time_use_diary_submissions;
@@ -145,9 +148,9 @@ class V3TimeUseDiaryUpgrade(
 
                 val participantFilter = EntityNeighborsFilter(
                     setOf(answerNeighborhood.participantId),
-                    Optional.of(setOf(UUID(0,0))),
-                    Optional.of(setOf(getStudyESIDForOrg(organizationId))),
-                    Optional.of(setOf(getParticipatedInESIDForOrg(organizationId)))
+                    Optional.of(setOf(getESIDForOrg(organizationId, participantEntitySetSuffix))),
+                    Optional.of(setOf(getESIDForOrg(organizationId, studyEntitySetSuffix))),
+                    Optional.of(setOf(getESIDForOrg(organizationId, participatedInEntitySetSuffix)))
                 )
                 val participantNeighbors = searchForNeighbors(
                     answerNeighborhood.participantId,
@@ -209,13 +212,8 @@ class V3TimeUseDiaryUpgrade(
         ) ?: throw NoSuchElementException("No answer entities found.. Aborting")
     }
 
-    private fun getStudyESIDForOrg(organizationId: UUID): UUID {
-        val entitySetNameByTemplate = "chronicle_${organizationId.toString().replace("-", "")}_studies"
-        return entitySetIds.getValue(entitySetNameByTemplate).id
-    }
-
-    private fun getParticipatedInESIDForOrg(organizationId: UUID): UUID {
-        val entitySetNameByTemplate = "chronicle_${organizationId.toString().replace("-", "")}_participatedin"
+    private fun getESIDForOrg(organizationId: UUID, entityTypeName: String): UUID {
+        val entitySetNameByTemplate = "chronicle_${organizationId.toString().replace("-", "")}_$entityTypeName"
         return entitySetIds.getValue(entitySetNameByTemplate).id
     }
 
