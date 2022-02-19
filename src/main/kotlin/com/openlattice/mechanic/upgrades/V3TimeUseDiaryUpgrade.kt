@@ -3,6 +3,7 @@ package com.openlattice.mechanic.upgrades
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import com.geekbeast.rhizome.configuration.RhizomeConfiguration
 import com.hazelcast.query.Predicates
 import com.openlattice.authorization.Principal
 import com.openlattice.data.requests.NeighborEntityDetails
@@ -17,6 +18,7 @@ import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.postgres.mapstores.EntitySetMapstore
 import com.openlattice.search.SearchService
 import com.openlattice.search.requests.EntityNeighborsFilter
+import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.apache.olingo.commons.api.edm.FullQualifiedName
 import org.slf4j.LoggerFactory
@@ -37,7 +39,7 @@ import kotlin.NoSuchElementException
  */
 class V3TimeUseDiaryUpgrade(
     private val toolbox: Toolbox,
-    private val hds: HikariDataSource,
+    private val rhizomeConfiguration: RhizomeConfiguration,
     private val pgEntityDataQueryService: PostgresEntityDataQueryService,
     private val searchService: SearchService,
     private val principalService: HazelcastPrincipalService,
@@ -105,6 +107,9 @@ class V3TimeUseDiaryUpgrade(
 
     init {
         // Drops existing time_use_diary_submissions pg table then creates a blank one
+        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["alpr"]!!
+        val hc = HikariConfig(hikariConfiguration)
+        val hds = HikariDataSource(hc)
         hds.connection.createStatement().use { statement ->
             statement.addBatch(dropExistingTimeUseDiaryTableSql)
             statement.addBatch(createTimeUseDiarySubmissionsTableSql)
@@ -185,6 +190,9 @@ class V3TimeUseDiaryUpgrade(
      * 6) TimeUseDiaryResponse
      */
     private fun insertSubmissions(submissions: List<Submission>) {
+        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["alpr"]!!
+        val hc = HikariConfig(hikariConfiguration)
+        val hds = HikariDataSource(hc)
         hds.connection.prepareStatement(insertTimeUseDiarySql).use { preparedStatement ->
             try {
                 for (submission in submissions) {
