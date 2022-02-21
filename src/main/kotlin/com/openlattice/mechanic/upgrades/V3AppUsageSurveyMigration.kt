@@ -2,7 +2,7 @@ package com.openlattice.mechanic.upgrades
 
 import com.geekbeast.postgres.PostgresArrays
 import com.geekbeast.rhizome.configuration.RhizomeConfiguration
-import com.openlattice.authorization.Principal
+import com.openlattice.authorization.*
 import com.openlattice.data.requests.NeighborEntityDetails
 import com.openlattice.data.storage.MetadataOption
 import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
@@ -12,7 +12,9 @@ import com.openlattice.edm.EdmConstants.Companion.LAST_WRITE_FQN
 import com.openlattice.graph.PagedNeighborRequest
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
+import com.openlattice.organization.PERMISSION
 import com.openlattice.organizations.roles.SecurePrincipalsManager
+import com.openlattice.postgres.PostgresColumn.PERMISSIONS
 import com.openlattice.search.SearchService
 import com.openlattice.search.requests.EntityNeighborsFilter
 import com.zaxxer.hikari.HikariConfig
@@ -28,6 +30,7 @@ import java.util.*
 class V3AppUsageSurveyMigration(
     toolbox: Toolbox,
     private val rhizomeConfiguration: RhizomeConfiguration,
+    private val authorizationService: AuthorizationManager,
     private val principalService: SecurePrincipalsManager,
     private val searchService: SearchService,
     private val dataQueryService: PostgresEntityDataQueryService,
@@ -238,7 +241,8 @@ class V3AppUsageSurveyMigration(
             val participantEntitySetIds = when (orgId) {
                 LEGACY_ORG_ID -> getLegacyParticipantEntitySetIds(studyIds)
                 else -> setOf(participantsEntitySetId!!)
-            }
+            }.filter { authorizationService.checkIfHasPermissions(AclKey(it), principals, EnumSet.of(Permission.READ)) }.toSet()
+
             val participants = getStudyParticipants(studiesEntitySetId, studyEntityKeyIds, participantEntitySetIds, participatedInEntitySetId, principals)
 
             val participantsByStudyId = participants.mapValues { (_, neighbor) -> neighbor.map { it.neighborId.get() }.toSet() }

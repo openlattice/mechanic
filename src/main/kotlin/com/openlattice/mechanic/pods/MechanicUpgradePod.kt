@@ -384,6 +384,7 @@ class MechanicUpgradePod {
         return V3AppUsageSurveyMigration(
             toolbox,
             rhizomeConfiguration,
+            authorizationService(),
             principalService(),
             searchService(),
             dataQueryService(),
