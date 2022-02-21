@@ -44,7 +44,7 @@ class V3AppUsageSurveyMigration(
     private val allSurveyDataByParticipantEKID: MutableMap<UUID, List<Map<FullQualifiedName, Set<Any?>>>> = mutableMapOf()
 
     //TODO: replace empty strings with chronicle super user ids (auth0 and google-oauth2) when running migration
-    private val chronicleSuperUserIds = setOf("", "")
+    private val chronicleSuperUserIds = setOf(" auth0|5ae9026c04eb0b243f1d2bb6", "google-oauth2|113860246540203337319")
 
     companion object {
         private val DATA_COLLECTION_APP_ID = UUID.fromString("c4e6d8fd-daf9-41e7-8c59-2a12c7ee0857")
@@ -121,7 +121,7 @@ class V3AppUsageSurveyMigration(
 
     init {
         // TODO: change chronicle to alpr
-        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["chronicle"]!!
+        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["alpr"]!!
         val hc = HikariConfig(hikariConfiguration)
         val hds = HikariDataSource(hc)
 
@@ -136,7 +136,7 @@ class V3AppUsageSurveyMigration(
         logger.info("migrating app usage surveys to v3")
 
         // TODO: change chronicle to alpr
-        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["chronicle"]!!
+        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["alpr"]!!
         val hc = HikariConfig(hikariConfiguration)
         val hds = HikariDataSource(hc)
 
