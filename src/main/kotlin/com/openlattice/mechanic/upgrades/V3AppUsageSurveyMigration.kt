@@ -44,7 +44,7 @@ class V3AppUsageSurveyMigration(
     private val allSurveyDataByParticipantEKID: MutableMap<UUID, List<Map<FullQualifiedName, Set<Any?>>>> = mutableMapOf()
 
     //TODO: replace empty strings with chronicle super user ids (auth0 and google-oauth2) when running migration
-    private val chronicleSuperUserIds = setOf("google-oauth2|113860246540203337319", "auth0|5ae9026c04eb0b243f1d2bb6")
+    private val chronicleSuperUserIds = setOf("", "")
 
     companion object {
         private val DATA_COLLECTION_APP_ID = UUID.fromString("c4e6d8fd-daf9-41e7-8c59-2a12c7ee0857")
@@ -172,7 +172,7 @@ class V3AppUsageSurveyMigration(
                                 return@data
                             }
 
-                            val timestamps = getAppUsageTimestamps(entity)
+                            val timestamps = entity[DATETIME_FQN]?.map { it.toString() }?.toSet() ?: setOf()
                             timestamps.forEach { timestamp ->
                                 ps.setObject(3, OffsetDateTime.parse(submissionDate))
                                 ps.setString(4, applicationLabel)
@@ -342,10 +342,6 @@ class V3AppUsageSurveyMigration(
                     it.value.neighborDetails.get().toMutableMap() + usedByEntities.getOrDefault(it.key, mapOf())
                 }
             }
-    }
-
-    private fun getAppUsageTimestamps(entity: Map<FullQualifiedName, Set<Any?>>): Set<String> {
-        return entity[DATETIME_FQN]?.map { it.toString() }?.toSet() ?: setOf()
     }
 
     private fun getFirstUUIDOrNull(entity: Map<FullQualifiedName, Set<Any?>>, fqn: FullQualifiedName): UUID? {
