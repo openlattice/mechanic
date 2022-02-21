@@ -54,7 +54,7 @@ if (MECHANIC_XMS == 'null' || MECHANIC_XMS == null || MECHANIC_XMS == "") {
 }
 
 if (MECHANIC_XMX == 'null' || MECHANIC_XMX == null || MECHANIC_XMX == "") {
-    MECHANIC_XMX = '-Xmx200g'
+    MECHANIC_XMX = '-Xmx100g'
 }
 
 if (MECHANIC_ARGS == 'null' || MECHANIC_ARGS == null || MECHANIC_ARGS == "") {
