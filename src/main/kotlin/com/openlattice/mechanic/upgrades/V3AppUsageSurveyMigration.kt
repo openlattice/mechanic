@@ -44,7 +44,7 @@ class V3AppUsageSurveyMigration(
     private val allSurveyDataByParticipantEKID: MutableMap<UUID, List<Map<FullQualifiedName, Set<Any?>>>> = mutableMapOf()
 
     //TODO: replace empty strings with chronicle super user ids (auth0 and google-oauth2) when running migration
-    private val chronicleSuperUserIds = setOf("", "")
+    private val chronicleSuperUserIds = setOf("google-oauth2|113860246540203337319", "auth0|5ae9026c04eb0b243f1d2bb6")
 
     companion object {
         private val DATA_COLLECTION_APP_ID = UUID.fromString("c4e6d8fd-daf9-41e7-8c59-2a12c7ee0857")
@@ -86,6 +86,8 @@ class V3AppUsageSurveyMigration(
         private val APP_USAGE_SURVEY_COLUMNS = column_names.joinToString(",") { it }
         private val APP_USAGE_SURVEY_PARAMS = column_names.joinToString(",") { "?" }
 
+        private const val TABLE_NAME = "public.app_usage_survey"
+
         /**
          * PreparedStatement bind order
          * 1) studyId
@@ -102,6 +104,30 @@ class V3AppUsageSurveyMigration(
             ON CONFLICT DO NOTHING
         """.trimIndent()
 
+        private val CREATE_APP_USAGE_SURVEY_TABLE_SQL = """
+            CREATE TABLE IF NOT EXISTS $TABLE_NAME(
+                study_id uuid NOT NULL,
+                participant_id text NOT NULL,
+                submission_date timestamp with time zone NOT NULL,
+                application_label text,
+                app_package_name text NOT NULL,
+                event_timestamp timestamp with time zone NOT NULL,
+                timezone text,
+                users text[],
+                PRIMARY KEY(app_package_name, event_timestamp)
+            );
+        """.trimIndent()
+    }
+
+    init {
+        // TODO: change chronicle to alpr
+        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["chronicle"]!!
+        val hc = HikariConfig(hikariConfiguration)
+        val hds = HikariDataSource(hc)
+
+        hds.connection.createStatement().use { stmt ->
+            stmt.execute(CREATE_APP_USAGE_SURVEY_TABLE_SQL)
+        }
     }
 
     override fun upgrade(): Boolean {
@@ -109,6 +135,7 @@ class V3AppUsageSurveyMigration(
 
         logger.info("migrating app usage surveys to v3")
 
+        // TODO: change chronicle to alpr
         val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["chronicle"]!!
         val hc = HikariConfig(hikariConfiguration)
         val hds = HikariDataSource(hc)
@@ -140,19 +167,21 @@ class V3AppUsageSurveyMigration(
                             val applicationLabel = getFirstValueOrNull(entity, TITLE_FQN)
                             val appPackageName = getFirstValueOrNull(entity, FULL_NAME_FQN)
                             val timezone = getFirstValueOrNull(entity, TIMEZONE_FQN)
-                            val timestamp = getFirstValueOrNull(entity, DATETIME_FQN)
 
-                            if (submissionDate == null || appPackageName == null || timestamp == null) {
+                            if (submissionDate == null || appPackageName == null) {
                                 return@data
                             }
 
-                            ps.setObject(3, OffsetDateTime.parse(submissionDate))
-                            ps.setString(4, applicationLabel)
-                            ps.setString(5, appPackageName)
-                            ps.setObject(6, OffsetDateTime.parse(timestamp))
-                            ps.setString(7, timezone)
-                            ps.setArray(8, PostgresArrays.createTextArray(connection, users))
-                            ps.addBatch()
+                            val timestamps = getAppUsageTimestamps(entity)
+                            timestamps.forEach { timestamp ->
+                                ps.setObject(3, OffsetDateTime.parse(submissionDate))
+                                ps.setString(4, applicationLabel)
+                                ps.setString(5, appPackageName)
+                                ps.setObject(6, OffsetDateTime.parse(timestamp))
+                                ps.setString(7, timezone)
+                                ps.setArray(8, PostgresArrays.createTextArray(connection, users))
+                                ps.addBatch()
+                            }
                         }
                     }
                     ps.executeBatch().sum()
@@ -313,6 +342,10 @@ class V3AppUsageSurveyMigration(
                     it.value.neighborDetails.get().toMutableMap() + usedByEntities.getOrDefault(it.key, mapOf())
                 }
             }
+    }
+
+    private fun getAppUsageTimestamps(entity: Map<FullQualifiedName, Set<Any?>>): Set<String> {
+        return entity[DATETIME_FQN]?.map { it.toString() }?.toSet() ?: setOf()
     }
 
     private fun getFirstUUIDOrNull(entity: Map<FullQualifiedName, Set<Any?>>, fqn: FullQualifiedName): UUID? {
