@@ -302,7 +302,7 @@ class V3AppUsageSurveyMigration(
 
     private fun getLegacyParticipantEntitySetIds(studyIds: Set<UUID>): Set<UUID> {
         val entitySetNames = studyIds.map { "chronicle_participants_$it" }
-        return entitySetNames.map { entitySetIds.getValue(it).id }.toSet()
+        return entitySetNames.mapNotNull { entitySetIds[it]?.id }.toSet()
     }
 
     private fun getStudyParticipants(
