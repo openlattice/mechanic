@@ -22,23 +22,35 @@ package com.openlattice.mechanic.pods
 
 import com.codahale.metrics.MetricRegistry
 import com.geekbeast.hazelcast.HazelcastClientProvider
+import com.geekbeast.jdbc.DataSourceManager
+import com.geekbeast.rhizome.configuration.RhizomeConfiguration
 import com.geekbeast.rhizome.jobs.HazelcastJobService
+import com.geekbeast.rhizome.pods.ConfigurationLoader
 import com.google.common.eventbus.EventBus
 import com.google.common.util.concurrent.ListeningExecutorService
 import com.hazelcast.core.HazelcastInstance
-import com.geekbeast.rhizome.configuration.RhizomeConfiguration
-import com.geekbeast.rhizome.pods.ConfigurationLoader
 import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditRecordEntitySetsManager
 import com.openlattice.auditing.AuditingConfiguration
 import com.openlattice.auditing.pods.AuditingConfigurationPod
-import com.openlattice.authorization.*
+import com.openlattice.authorization.AuthorizationManager
+import com.openlattice.authorization.DbCredentialService
+import com.openlattice.authorization.HazelcastAclKeyReservationService
+import com.openlattice.authorization.HazelcastAuthorizationService
+import com.openlattice.authorization.HazelcastPrincipalsMapManager
+import com.openlattice.authorization.Principals
+import com.openlattice.authorization.PrincipalsMapManager
+import com.openlattice.authorization.mapstores.ResolvedPrincipalTreesMapLoader
 import com.openlattice.conductor.rpc.ConductorConfiguration
 import com.openlattice.conductor.rpc.ConductorElasticsearchApi
 import com.openlattice.data.DataDeletionManager
 import com.openlattice.data.EntityKeyIdService
 import com.openlattice.data.ids.PostgresEntityKeyIdService
-import com.openlattice.data.storage.*
+import com.openlattice.data.storage.ByteBlobDataManager
+import com.openlattice.data.storage.DataDeletionService
+import com.openlattice.data.storage.DataSourceResolver
+import com.openlattice.data.storage.EntityDatastore
+import com.openlattice.data.storage.IndexingMetadataManager
 import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
 import com.openlattice.data.storage.postgres.PostgresEntityDatastore
 import com.openlattice.datasets.DataSetService
@@ -54,7 +66,6 @@ import com.openlattice.graph.core.GraphService
 import com.openlattice.ids.HazelcastIdGenerationService
 import com.openlattice.ids.HazelcastLongIdService
 import com.openlattice.ioc.providers.LateInitProvider
-import com.geekbeast.jdbc.DataSourceManager
 import com.openlattice.linking.LinkingQueryService
 import com.openlattice.linking.PostgresLinkingFeedbackService
 import com.openlattice.linking.graph.PostgresLinkingQueryService
@@ -132,6 +143,9 @@ class MechanicUpgradePod {
 
     @Inject
     private lateinit var toolbox: Toolbox
+
+    @Inject
+    private lateinit var rptml: ResolvedPrincipalTreesMapLoader
 
     @Bean
     fun conductorConfiguration(): ConductorConfiguration {
@@ -326,7 +340,7 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun principalsManager(): SecurePrincipalsManager {
+    fun principalService(): SecurePrincipalsManager {
         return HazelcastPrincipalService(
             hazelcastInstance,
             aclKeyReservationService(),
@@ -359,8 +373,8 @@ class MechanicUpgradePod {
     fun v3StudyMigration(): V3StudyMigrationUpgrade {
         return V3StudyMigrationUpgrade(
             toolbox,
-            hikariDataSource,
-            principalsManager(),
+            rhizomeConfiguration,
+            principalService(),
             dataQueryService(),
             searchService()
         )
@@ -379,6 +393,7 @@ class MechanicUpgradePod {
 
     @PostConstruct
     fun post() {
+        Principals.init(principalService(), hazelcastInstance)
         lateInitProvider.setDataSourceResolver(dataSourceResolver())
     }
 }
