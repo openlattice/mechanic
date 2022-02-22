@@ -76,7 +76,7 @@ class MigrateChronicleSystemApps(
             ps.executeBatch().sum()
         }
 
-        logger.info("wrote $written to system_apps table")
+        logger.info("wrote $written entities to system_apps table")
         return true
     }
 
