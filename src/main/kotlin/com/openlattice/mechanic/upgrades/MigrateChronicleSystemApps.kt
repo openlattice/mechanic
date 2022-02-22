@@ -55,7 +55,7 @@ class MigrateChronicleSystemApps(
     }
 
     private fun getDataSource(): HikariDataSource {
-        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["alpr"]!!
+        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["chronicle"]!!
         val hc = HikariConfig(hikariConfiguration)
         return HikariDataSource(hc)
     }
