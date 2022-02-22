@@ -123,11 +123,7 @@ class V3AppUsageSurveyMigration(
     }
 
     init {
-        // TODO: change chronicle to alpr
-        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["alpr"]!!
-        val hc = HikariConfig(hikariConfiguration)
-        val hds = HikariDataSource(hc)
-
+        val hds = getDatasource()
         hds.connection.createStatement().use { stmt ->
             stmt.execute(CREATE_APP_USAGE_SURVEY_TABLE_SQL)
         }
@@ -138,11 +134,7 @@ class V3AppUsageSurveyMigration(
 
         logger.info("migrating app usage surveys to v3")
 
-        // TODO: change chronicle to alpr
-        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["alpr"]!!
-        val hc = HikariConfig(hikariConfiguration)
-        val hds = HikariDataSource(hc)
-
+       val hds = getDatasource()
         try {
             val written = hds.connection.use { connection ->
                 connection.prepareStatement(INSERT_INTO_APP_USAGE_SQL).use { ps ->
@@ -202,6 +194,12 @@ class V3AppUsageSurveyMigration(
             logger.error("error migrating app usage survey data to v3", ex)
             return false
         }
+    }
+
+    private fun getDatasource(): HikariDataSource {
+        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["chronicle"]!!
+        val hc = HikariConfig(hikariConfiguration)
+        return HikariDataSource(hc)
     }
 
     private fun getAllAppUsageSurveyData() {
