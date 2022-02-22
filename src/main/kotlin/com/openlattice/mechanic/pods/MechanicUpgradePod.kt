@@ -72,6 +72,7 @@ import com.openlattice.linking.graph.PostgresLinkingQueryService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
+import com.openlattice.mechanic.upgrades.MigrateChronicleSystemApps
 import com.openlattice.mechanic.upgrades.V3StudyMigrationUpgrade
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
@@ -376,6 +377,16 @@ class MechanicUpgradePod {
             principalService(),
             dataQueryService(),
             searchService()
+        )
+    }
+
+    @Bean
+    fun migrateChronicleSystemApps(): MigrateChronicleSystemApps {
+        return MigrateChronicleSystemApps(
+            toolbox,
+            rhizomeConfiguration,
+            entitySetService(),
+            dataQueryService()
         )
     }
 
