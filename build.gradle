@@ -50,11 +50,11 @@ def PARALLEL = "$System.env.PARALLELISM"
 def GC = "$System.env.GC"
 
 if (MECHANIC_XMS == 'null' || MECHANIC_XMS == null || MECHANIC_XMS == "") {
-    MECHANIC_XMS = '-Xms100g'
+    MECHANIC_XMS = '-Xms1g'
 }
 
 if (MECHANIC_XMX == 'null' || MECHANIC_XMX == null || MECHANIC_XMX == "") {
-    MECHANIC_XMX = '-Xmx200g'
+    MECHANIC_XMX = '-Xmx4g'
 }
 
 if (MECHANIC_ARGS == 'null' || MECHANIC_ARGS == null || MECHANIC_ARGS == "") {
