@@ -167,8 +167,13 @@ class V3AppUsageSurveyMigration(
                             }
 
                             val submissionDate = getFirstValueOrNull(entity, LAST_WRITE_FQN)
-                            val applicationLabel = getFirstValueOrNull(entity, TITLE_FQN)
+                            val applicationLabels = getAllValuesOrNull(entity, TITLE_FQN)
                             val appPackageName = getFirstValueOrNull(entity, FULL_NAME_FQN)
+                            val applicationLabel = when(applicationLabels.size) {
+                                0 -> appPackageName
+                                1 -> applicationLabels.first()
+                                else -> applicationLabels.find { it != appPackageName }
+                            }
                             val timezone = getFirstValueOrNull(entity, TIMEZONE_FQN)
 
                             if (submissionDate == null || appPackageName == null) {
@@ -353,6 +358,13 @@ class V3AppUsageSurveyMigration(
             null -> null
             else -> UUID.fromString(string)
         }
+    }
+
+    private fun getAllValuesOrNull(entity: Map<FullQualifiedName, Set<Any?>>, fqn: FullQualifiedName): Set<String> {
+        entity[fqn]?.let { it ->
+            return it.mapNotNull { it.toString() }.toSet()
+        }
+        return setOf()
     }
 
     private fun getFirstValueOrNull(entity: Map<FullQualifiedName, Set<Any?>>, fqn: FullQualifiedName): String? {
