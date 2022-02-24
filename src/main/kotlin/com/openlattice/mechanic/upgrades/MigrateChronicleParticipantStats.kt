@@ -89,8 +89,8 @@ class MigrateChronicleParticipantStats(
 
         // column names
         private const val ORGANIZATION_IO = "organization_id"
-        private const val V2_STUDY_ID = "v2_study_id"
-        private const val V2_STUDY_EKID = "v2_study_ekid"
+        private const val V2_STUDY_ID = "legacy_study_id"
+        private const val V2_STUDY_EKID = "legacy_study_ekid"
         private const val PARTICIPANT_ID = "participant_id"
         private const val ANDROID_FIRST_DATE = "android_first_date"
         private const val ANDROID_LAST_DATE = "android_last_date"
