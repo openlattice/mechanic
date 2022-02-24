@@ -19,7 +19,6 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.apache.olingo.commons.api.edm.FullQualifiedName
 import org.slf4j.LoggerFactory
-import org.springframework.util.Assert
 import java.time.OffsetDateTime
 import java.util.*
 
@@ -446,8 +445,6 @@ class MigrateChronicleParticipantStats(
         return Participant(studyId, id!!, participantId!!) // hope this force unwrapping doesn't throw NPE
 
     }
-
-
 
     private fun getFirstUUIDOrNull(entity: Map<FullQualifiedName, Set<Any?>>, fqn: FullQualifiedName): UUID? {
         return when (val string = getFirstValueOrNull(entity, fqn)) {
