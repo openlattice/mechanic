@@ -419,7 +419,7 @@ class MigrateChronicleParticipantStats(
             }
         }
 
-        return entitySetNameByTemplateName.mapValues { entitySetIds.getValue(it.value) }
+        return entitySetNameByTemplateName.filter { entitySetIds.keys.contains(it.value) }.mapValues { entitySetIds.getValue(it.value) }
     }
 
     private fun getParticipantFromNeighborEntity(studyId: UUID, entity: NeighborEntityDetails): Participant {
