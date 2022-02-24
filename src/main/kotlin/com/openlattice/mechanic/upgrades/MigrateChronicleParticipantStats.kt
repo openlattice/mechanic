@@ -318,7 +318,7 @@ class MigrateChronicleParticipantStats(
             .mapValues { (id, neighbors) ->
                 val neighborsByAssociationES = neighbors.groupBy { it.associationEntitySet.id }
                 val androidStats = getParticipantAndroidStats(neighborsByAssociationES[entitySetIds.getValue(HAS_ES)])
-                val tudStats = getParticipantTudStats(neighborsByAssociationES[entitySetIds.getValue(RESPONDS_WITH_ES)])
+                val tudStats = getParticipantTudStats(neighborsByAssociationES[entitySetIds[RESPONDS_WITH_ES]]) // not every org has respondsWith entity set
 
                 ParticipantStats(
                     studyId = studyIdByParticipantId.getValue(id),
