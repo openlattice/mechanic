@@ -222,11 +222,22 @@ class MigrateChronicleParticipantStats(
                 entityKeyIds = studies.keys,
                 principals = principals,
                 edgeEntitySetId = entitySets.getValue(PARTICIPATED_IN_ES)
-            )
+            ).toMutableMap()
+
             logger.info("participant entity sets: $participantEntitySets")
             logger.info("Retrieved ${participants.values.flatten().size} participants")
             logger.info("Participant count by study: ${participants.map { studies.getValue(it.key).title to it.value.size }.toMap()}")
 
+            // check for duplicates
+            participants.forEach { (studyEntityKeyId, studyParticipants) ->
+                val unique = studyParticipants.distinct()
+                val duplicates = studyParticipants - unique.toSet()
+
+                if (duplicates.isNotEmpty()) {
+                    logger.info("Found duplicate participants in study ${studies.getValue(studyEntityKeyId)}: $duplicates")
+                    participants[studyEntityKeyId] = unique
+                }
+            }
 
             // step 3: neighbor search on participant entity set
             val participantStats = getParticipantStats(
@@ -295,13 +306,13 @@ class MigrateChronicleParticipantStats(
         entityKeyIds: Set<UUID>,
         principals: Set<Principal>
     )
-        : Map<UUID, Set<Participant>> {
+        : Map<UUID, List<Participant>> {
         val filter = EntityNeighborsFilter(entityKeyIds, Optional.of(participantEntitySetIds), Optional.empty(), Optional.of(setOf(edgeEntitySetId)))
 
         return searchService
             .executeEntityNeighborSearch(setOf(studiesEntitySetId), PagedNeighborRequest(filter), principals)
             .neighbors
-            .mapValues { it.value.map { neighbor -> getParticipantFromNeighborEntity(it.key, neighbor) }.toSet() }
+            .mapValues { it.value.map { neighbor -> getParticipantFromNeighborEntity(it.key, neighbor) } }
 
     }
 
@@ -480,11 +491,24 @@ class MigrateChronicleParticipantStats(
     }
 }
 
-private data class Participant(
+class Participant(
     val studyEntityKeyId: UUID,
     val id: UUID,
     val participantId: String,
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        other as Participant
+        if (other.participantId == this.participantId && other.studyEntityKeyId == this.studyEntityKeyId) return true
+        return false
+    }
+
+    override fun hashCode(): Int {
+        var result = super.hashCode()
+        result = 31 * result + studyEntityKeyId.hashCode()
+        result = 31 * result + participantId.hashCode()
+        return result
+    }
+}
 
 private data class ParticipantStats(
     val organizationId: UUID,
