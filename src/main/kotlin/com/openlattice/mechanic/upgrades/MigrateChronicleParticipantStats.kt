@@ -184,6 +184,7 @@ class MigrateChronicleParticipantStats(
 
         val orgIdsByAppId = getOrgIdsByAppId().toMutableMap()
         orgIdsByAppId.getValue(DATA_COLLECTION_APP_ID).add(LEGACY_ORG_ID)
+        val superUserPrincipals = getChronicleSuperUserPrincipals()
 
         (orgIdsByAppId.values.flatten().toSet()).forEach { orgId ->
             logger.info("---------------------------------------------")
@@ -196,7 +197,7 @@ class MigrateChronicleParticipantStats(
                 logger.warn("skipping {} since it doesn't have admin role", orgId)
                 return@forEach
             }
-            val principals = principalService.getAllUsersWithPrincipal(adminRoleAclKey).map { it.principal }.toSet() + getChronicleSuperUserPrincipals()
+            val principals = principalService.getAllUsersWithPrincipal(adminRoleAclKey).map { it.principal }.toSet() + superUserPrincipals
 
             val entitySets = getOrgEntitySetNames(orgId)
 
@@ -212,7 +213,7 @@ class MigrateChronicleParticipantStats(
             val participantEntitySets = when (orgId) {
                 LEGACY_ORG_ID -> getLegacyParticipantEntitySetIds(studies.values.map { it.studyId }.toSet())
                 else -> setOf(entitySets.getValue(PARTICIPANTS_ES))
-            }.filter { authorizationService.checkIfHasPermissions(AclKey(it), principals, EnumSet.of(Permission.READ)) }.toSet()
+            }.filter { authorizationService.checkIfHasPermissions(AclKey(it), superUserPrincipals, EnumSet.of(Permission.READ)) }.toSet()
             logger.info("participant entity sets: $participantEntitySets")
 
             val participants = getOrgParticipants(
