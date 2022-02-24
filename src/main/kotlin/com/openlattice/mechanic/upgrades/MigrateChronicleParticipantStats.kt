@@ -165,6 +165,13 @@ class MigrateChronicleParticipantStats(
         return Version.V2021_07_23.value
     }
 
+
+    private fun getHikariDataSource(): HikariDataSource {
+        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["alpr"]!!
+        val hc = HikariConfig(hikariConfiguration)
+        return HikariDataSource(hc)
+    }
+
     private fun getEntitiesToInsert() {
 
         val orgIdsByAppId = getOrgIdsByAppId().toMutableMap()
@@ -210,6 +217,16 @@ class MigrateChronicleParticipantStats(
             logger.info("Retrieved ${participants.values.flatten().size} belonging to org $orgId")
             logger.info("Participant count by study: ${participants.map { studies.getValue(it.key).title to it.value.size }.toMap()}")
 
+
+            // check for duplicate participant ids. for each study, participantIds should be unique
+            participants.forEach { (studyId, participants) ->
+                val distinctParticipants = participants.distinct()
+                val difference = participants - distinctParticipants.toSet()
+                if (difference.isNotEmpty()) {
+                    logger.info("Found duplicate participant ids in ${studies.getValue(studyId)} in org $orgId: $difference")
+                }
+            }
+
             // step 3: neighbor search on participant entity set
             val participantStats = getParticipantStats(
                 participantEntitySets = participantEntitySets,
@@ -224,6 +241,7 @@ class MigrateChronicleParticipantStats(
 
             logger.info("Participant stats entities by study: ${participantStats.map { studies.getValue(it.key).title to it.value.size }.toMap()}")
             entities.addAll(participantStats.values.flatten())
+
         }
 
         logger.info("Total entities to write: ${entities.size}")
@@ -457,13 +475,6 @@ class MigrateChronicleParticipantStats(
         val title = getFirstValueOrNull(entity, FULL_NAME_FQN)
         val generalStringId = getFirstUUIDOrNull(entity, STRING_ID_FQN)
         return Study(studyId, generalStringId!!, title)
-    }
-
-
-    private fun getHikariDataSource(): HikariDataSource {
-        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["alpr"]!!
-        val hc = HikariConfig(hikariConfiguration)
-        return HikariDataSource(hc)
     }
 }
 
