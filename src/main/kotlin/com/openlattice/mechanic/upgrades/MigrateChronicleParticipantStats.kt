@@ -19,6 +19,7 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.apache.olingo.commons.api.edm.FullQualifiedName
 import org.slf4j.LoggerFactory
+import org.springframework.util.Assert
 import java.time.OffsetDateTime
 import java.util.*
 
@@ -195,10 +196,10 @@ class MigrateChronicleParticipantStats(
             // step 1: get studies in org
             val studies: Map<UUID, Study> = getOrgStudies(entitySetId = entitySets.getValue(STUDIES_ES))
             if (studies.isEmpty()) {
-                logger.info("organization ${orgId} has no studies. Skipping")
+                logger.info("organization $orgId has no studies. Skipping")
                 return@forEach
             }
-            logger.info("Retrieved ${studies.size} studies belonging to org $orgId")
+            logger.info("Retrieved ${studies.size} studies in org $orgId")
 
             // step 2: get all participants in org
             val legacyParticipantEntitySets = getLegacyParticipantEntitySetIds(studies.values.map { it.generalStringId }.toSet())
@@ -214,7 +215,7 @@ class MigrateChronicleParticipantStats(
                 principals = principals,
                 edgeEntitySetId = entitySets.getValue(PARTICIPATED_IN_ES)
             )
-            logger.info("Retrieved ${participants.values.flatten().size} belonging to org $orgId")
+            logger.info("Retrieved ${participants.values.flatten().size} participants in org $orgId")
             logger.info("Participant count by study: ${participants.map { studies.getValue(it.key).title to it.value.size }.toMap()}")
 
 
@@ -238,6 +239,8 @@ class MigrateChronicleParticipantStats(
                 participantById = participants.values.flatten().associateBy { it.id },
                 studyIdByParticipantId = participants.values.flatten().associate { it.id to it.studyId }
             )
+            
+            assert(participants.values.flatten().associateBy { it.id }.keys.size ==  participants.values.flatten().map { it.id }.toSet().size)
 
             logger.info("Participant stats entities by study: ${participantStats.map { studies.getValue(it.key).title to it.value.size }.toMap()}")
             entities.addAll(participantStats.values.flatten())
