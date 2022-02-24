@@ -237,6 +237,9 @@ class MigrateChronicleParticipantStats(
                 participantById = participants.values.flatten().associateBy { it.id },
                 studyIdByParticipantId = participants.values.flatten().associate { it.id to it.studyId }
             )
+            val participantsIds = participants.values.flatten().map { it.participantId }
+            val vals = participants.values.flatten()
+            assert(vals.size == participantsIds.size )
 
             logger.info("Participant stats entities by study: ${participantStats.map { studies.getValue(it.key).title to it.value.size }.toMap()}")
             entities.addAll(participantStats.values.flatten())
