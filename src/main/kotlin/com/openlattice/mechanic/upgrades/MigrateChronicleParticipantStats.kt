@@ -88,7 +88,9 @@ class MigrateChronicleParticipantStats(
         private val RECORDED_DATE_FQN = FullQualifiedName("ol.recordeddate")
 
         // column names
-        private const val STUDY_ID = "study_id"
+        private const val ORGANIZATION_IO = "organization_id"
+        private const val V2_STUDY_ID = "v2_study_id"
+        private const val V2_STUDY_EKID = "v2_study_ekid"
         private const val PARTICIPANT_ID = "participant_id"
         private const val ANDROID_FIRST_DATE = "android_first_date"
         private const val ANDROID_LAST_DATE = "android_last_date"
@@ -102,7 +104,9 @@ class MigrateChronicleParticipantStats(
 
         private val CREATE_STATS_TABLE_SQL = """
             CREATE TABLE IF NOT EXISTS participant_stats(
-                $STUDY_ID uuid NOT NULL,
+                $ORGANIZATION_IO uuid NOT NULL,
+                $V2_STUDY_EKID uuid NOT NULL,
+                $V2_STUDY_ID uuid NOT NULL,
                 $PARTICIPANT_ID text NOT NULL,
                 $ANDROID_FIRST_DATE timestamp with time zone,
                 $ANDROID_LAST_DATE timestamp with time zone,
@@ -113,12 +117,14 @@ class MigrateChronicleParticipantStats(
                 $TUD_FIRST_DATE timestamp with time zone,
                 $TUD_LAST_DATE timestamp with time zone,
                 $TUD_DATES_COUNT integer,
-                PRIMARY KEY($STUDY_ID, $PARTICIPANT_ID)
+                PRIMARY KEY($V2_STUDY_EKID, $PARTICIPANT_ID)
             )
         """.trimIndent()
 
         private val COLS = setOf(
-            STUDY_ID,
+            ORGANIZATION_IO,
+            V2_STUDY_EKID,
+            V2_STUDY_ID,
             PARTICIPANT_ID,
             ANDROID_FIRST_DATE,
             ANDROID_LAST_DATE,
@@ -132,14 +138,16 @@ class MigrateChronicleParticipantStats(
         private val PARTICIPANT_STATS_PARAMS = COLS.joinToString { "?" }
 
         /**PreparedStatement bind order
-         * 1) studyId,
-         * 2) participantId
-         * 3) androidFirstDate
-         * 4) androidLastDate
-         * 5) androidDatesCount,
-         * 6) tudFirstDate,
-         * 7) tudLastDate
-         * 8) tudDatesCount
+         * 1) organizationId
+         * 2) studyEntityKeyId,
+         * 3) studyId,
+         * 4) participantId
+         * 5) androidFirstDate
+         * 6) androidLastDate
+         * 7) androidDatesCount,
+         * 8) tudFirstDate,
+         * 9) tudLastDate
+         * 10) tudDatesCount
          */
         private val INSERT_PARTICIPANT_STATS_SQL = """
             INSERT INTO participant_stats ($PARTICIPANT_STATS_COLS) values ($PARTICIPANT_STATS_PARAMS)
@@ -192,20 +200,20 @@ class MigrateChronicleParticipantStats(
 
             val entitySets = getOrgEntitySetNames(orgId)
 
-            // step 1: get studies in org
+            // step 1: get studies in org: {studyEntityKeyId -> study}
             val studies: Map<UUID, Study> = getOrgStudies(entitySetId = entitySets.getValue(STUDIES_ES))
             if (studies.isEmpty()) {
                 logger.info("organization $orgId has no studies. Skipping")
                 return@forEach
             }
-            logger.info("Retrieved ${studies.size} studies in org $orgId")
+            logger.info("Retrieved ${studies.size} studies")
 
             // step 2: get all participants in org
-            val legacyParticipantEntitySets = getLegacyParticipantEntitySetIds(studies.values.map { it.generalStringId }.toSet())
             val participantEntitySets = when (orgId) {
-                LEGACY_ORG_ID -> legacyParticipantEntitySets
+                LEGACY_ORG_ID -> getLegacyParticipantEntitySetIds(studies.values.map { it.studyId }.toSet())
                 else -> setOf(entitySets.getValue(PARTICIPANTS_ES))
             }.filter { authorizationService.checkIfHasPermissions(AclKey(it), principals, EnumSet.of(Permission.READ)) }.toSet()
+            logger.info("participant entity sets: $participantEntitySets")
 
             val participants = getOrgParticipants(
                 participantEntitySetIds = participantEntitySets,
@@ -214,16 +222,16 @@ class MigrateChronicleParticipantStats(
                 principals = principals,
                 edgeEntitySetId = entitySets.getValue(PARTICIPATED_IN_ES)
             )
-            logger.info("Retrieved ${participants.values.flatten().size} participants in org $orgId")
+            logger.info("Retrieved ${participants.values.flatten().size} participants")
             logger.info("Participant count by study: ${participants.map { studies.getValue(it.key).title to it.value.size }.toMap()}")
 
 
             // check for duplicate participant ids. for each study, participantIds should be unique
-            participants.forEach { (studyId, participants) ->
+            participants.forEach { (studyEntityKeyId, participants) ->
                 val distinctParticipants = participants.distinct()
                 val difference = participants - distinctParticipants.toSet()
                 if (difference.isNotEmpty()) {
-                    logger.info("Found duplicate participant ids in ${studies.getValue(studyId)} in org $orgId: $difference")
+                    logger.info("Found duplicate participant ids in ${studies.getValue(studyEntityKeyId)}")
                 }
             }
 
@@ -235,11 +243,8 @@ class MigrateChronicleParticipantStats(
                 orgId = orgId,
                 principals = principals,
                 participantById = participants.values.flatten().associateBy { it.id },
-                studyIdByParticipantId = participants.values.flatten().associate { it.id to it.studyId }
+                studies = studies
             )
-            val participantsIds = participants.values.flatten().map { it.participantId }
-            val vals = participants.values.flatten()
-            assert(vals.size == participantsIds.size )
 
             logger.info("Participant stats entities by study: ${participantStats.map { studies.getValue(it.key).title to it.value.size }.toMap()}")
             entities.addAll(participantStats.values.flatten())
@@ -255,6 +260,8 @@ class MigrateChronicleParticipantStats(
                 val wc = connection.prepareStatement(INSERT_PARTICIPANT_STATS_SQL).use { ps ->
                     entities.forEach {
                         var index = 0
+                        ps.setObject(++index, it.organizationId)
+                        ps.setObject(++index, it.studyEntityKeyId)
                         ps.setObject(++index, it.studyId)
                         ps.setString(++index, it.participantId)
                         ps.setObject(++index, it.androidFirstDate)
@@ -287,7 +294,7 @@ class MigrateChronicleParticipantStats(
             .mapValues { getStudyEntity(it.key, it.value) }
     }
 
-    // Returns a mapping from studyId to list of participants
+    // Returns a mapping from studyEntityKeyId to list of participants
     private fun getOrgParticipants(
         participantEntitySetIds: Set<UUID>,
         edgeEntitySetId: UUID,
@@ -305,15 +312,15 @@ class MigrateChronicleParticipantStats(
 
     }
 
-    // mapping from studyId to a list of participant stats objects
+    // mapping from studyEntityKeyId to a list of participant stats objects
     private fun getParticipantStats(
         participantEntitySets: Set<UUID>,
         entitySetIds: Map<String, UUID>,
         orgIdsByAppId: Map<UUID, Set<UUID>>,
         orgId: UUID,
         principals: Set<Principal>,
-        studyIdByParticipantId: Map<UUID, UUID>,
-        participantById: Map<UUID, Participant>
+        participantById: Map<UUID, Participant>,
+        studies: Map<UUID, Study>,
     ): Map<UUID, List<ParticipantStats>> {
 
         val srcEntitySetIds: MutableSet<UUID> = participantEntitySets.toMutableSet()
@@ -339,8 +346,11 @@ class MigrateChronicleParticipantStats(
                 val androidStats = getParticipantAndroidStats(neighborsByAssociationES[entitySetIds.getValue(HAS_ES)])
                 val tudStats = getParticipantTudStats(neighborsByAssociationES[entitySetIds[RESPONDS_WITH_ES]]) // not every org has respondsWith entity set
 
+                val studyEntityKeyId = participantById.getValue(id).studyEntityKeyId
                 ParticipantStats(
-                    studyId = studyIdByParticipantId.getValue(id),
+                    organizationId = orgId,
+                    studyEntityKeyId = studyEntityKeyId,
+                    studyId = studies.getValue(studyEntityKeyId).studyId,
                     participantId = participantById.getValue(id).participantId,
                     androidFirstDate = androidStats.first,
                     androidLastDate = androidStats.second,
@@ -349,7 +359,7 @@ class MigrateChronicleParticipantStats(
                     tudLastDate = tudStats.second,
                     tudDatesCount = tudStats.third
                 )
-            }.values.groupBy { it.studyId }
+            }.values.groupBy { it.studyEntityKeyId }
     }
 
     // start, end date, count
@@ -441,11 +451,11 @@ class MigrateChronicleParticipantStats(
         return entitySetNameByTemplateName.filter { entitySetIds.keys.contains(it.value) }.mapValues { entitySetIds.getValue(it.value) }
     }
 
-    private fun getParticipantFromNeighborEntity(studyId: UUID, entity: NeighborEntityDetails): Participant {
+    private fun getParticipantFromNeighborEntity(studyEntityKeyId: UUID, entity: NeighborEntityDetails): Participant {
         val id = getFirstUUIDOrNull(entity.neighborDetails.get(), OL_ID_FQN)
         val participantId = getFirstValueOrNull(entity.neighborDetails.get(), PERSON_FQN)
 
-        return Participant(studyId, id!!, participantId!!) // hope this force unwrapping doesn't throw NPE
+        return Participant(studyEntityKeyId, id!!, participantId!!) // hope this force unwrapping doesn't throw NPE
 
     }
 
@@ -470,20 +480,22 @@ class MigrateChronicleParticipantStats(
         return null
     }
 
-    private fun getStudyEntity(studyId: UUID, entity: Map<FullQualifiedName, Set<Any>>): Study {
+    private fun getStudyEntity(studyEntityKeyId: UUID, entity: Map<FullQualifiedName, Set<Any>>): Study {
         val title = getFirstValueOrNull(entity, FULL_NAME_FQN)
-        val generalStringId = getFirstUUIDOrNull(entity, STRING_ID_FQN)
-        return Study(studyId, generalStringId!!, title)
+        val studyId = getFirstUUIDOrNull(entity, STRING_ID_FQN)
+        return Study(studyEntityKeyId, studyId!!, title)
     }
 }
 
 private data class Participant(
-    val studyId: UUID,
+    val studyEntityKeyId: UUID,
     val id: UUID,
     val participantId: String,
 )
 
 private data class ParticipantStats(
+    val organizationId: UUID,
+    val studyEntityKeyId: UUID,
     val studyId: UUID,
     val participantId: String,
     val androidFirstDate: Any?,
@@ -495,7 +507,7 @@ private data class ParticipantStats(
 )
 
 private data class Study(
+    val studyEntityKeyId: UUID,
     val studyId: UUID,
-    val generalStringId: UUID,
     val title: String?
 )
