@@ -227,9 +227,9 @@ class MigrateChronicleParticipantStats(
 
 
             // check for duplicate participant ids. for each study, participantIds should be unique
-            participants.forEach { (studyEntityKeyId, participants) ->
-                val distinctParticipants = participants.distinct()
-                val difference = participants - distinctParticipants.toSet()
+            participants.forEach { (studyEntityKeyId, studyParticipants) ->
+                val distinctParticipants = studyParticipants.distinct()
+                val difference = studyParticipants - distinctParticipants.toSet()
                 if (difference.isNotEmpty()) {
                     logger.info("Found duplicate participant ids in ${studies.getValue(studyEntityKeyId)}")
                 }
