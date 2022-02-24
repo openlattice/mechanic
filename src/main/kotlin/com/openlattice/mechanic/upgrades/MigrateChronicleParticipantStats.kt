@@ -222,6 +222,7 @@ class MigrateChronicleParticipantStats(
                 principals = principals,
                 edgeEntitySetId = entitySets.getValue(PARTICIPATED_IN_ES)
             )
+            logger.info("participant entity sets: $participantEntitySets")
             logger.info("Retrieved ${participants.values.flatten().size} participants")
             logger.info("Participant count by study: ${participants.map { studies.getValue(it.key).title to it.value.size }.toMap()}")
 
