@@ -232,15 +232,12 @@ class MigrateChronicleParticipantStats(
             val participantStats = getParticipantStats(
                 participantEntitySets = participantEntitySets,
                 entitySetIds = entitySets,
-                entityKeyIds = participants.values.flatten().map { it.id }.toSet(),
                 orgIdsByAppId = orgIdsByAppId,
                 orgId = orgId,
                 principals = principals,
                 participantById = participants.values.flatten().associateBy { it.id },
                 studyIdByParticipantId = participants.values.flatten().associate { it.id to it.studyId }
             )
-            
-            assert(participants.values.flatten().associateBy { it.id }.keys.size ==  participants.values.flatten().map { it.id }.toSet().size)
 
             logger.info("Participant stats entities by study: ${participantStats.map { studies.getValue(it.key).title to it.value.size }.toMap()}")
             entities.addAll(participantStats.values.flatten())
@@ -310,7 +307,6 @@ class MigrateChronicleParticipantStats(
     private fun getParticipantStats(
         participantEntitySets: Set<UUID>,
         entitySetIds: Map<String, UUID>,
-        entityKeyIds: Set<UUID>,
         orgIdsByAppId: Map<UUID, Set<UUID>>,
         orgId: UUID,
         principals: Set<Principal>,
@@ -328,7 +324,7 @@ class MigrateChronicleParticipantStats(
         }
 
         val filter = EntityNeighborsFilter(
-            entityKeyIds,
+            participantById.keys,
             Optional.of(srcEntitySetIds),
             Optional.of(dstEntitySetIds),
             Optional.of(edgeEntitySetIds)
