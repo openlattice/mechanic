@@ -37,6 +37,7 @@ class MigrateChronicleParticipantStats(
 
     // entitySetName -> string
     private val entitySetIds: Map<String, UUID> = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast).associate { it.value.name to it.key }
+    private val organizations = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
 
     private val entities: MutableList<ParticipantStats> = mutableListOf()
 
@@ -169,12 +170,18 @@ class MigrateChronicleParticipantStats(
         val orgIdsByAppId = getOrgIdsByAppId().toMutableMap()
         orgIdsByAppId.getValue(DATA_COLLECTION_APP_ID).add(LEGACY_ORG_ID)
 
-        val superUserPrincipals = getChronicleSuperUserPrincipals()
-
         (orgIdsByAppId.values.flatten().toSet()).forEach { orgId ->
             logger.info("---------------------------------------------")
             logger.info("Retrieving entities in organization $orgId")
             logger.info("----------------------------------------------")
+
+            // get principals
+            val adminRoleAclKey = organizations[orgId]?.adminRoleAclKey
+            if (adminRoleAclKey == null) {
+                logger.warn("skipping {} since it doesn't have admin role", orgId)
+                return@forEach
+            }
+            val principals = principalService.getAllUsersWithPrincipal(adminRoleAclKey).map { it.principal }.toSet() + getChronicleSuperUserPrincipals()
 
             val entitySets = getOrgEntitySetNames(orgId)
 
@@ -191,13 +198,13 @@ class MigrateChronicleParticipantStats(
             val participantEntitySets = when (orgId) {
                 LEGACY_ORG_ID -> legacyParticipantEntitySets
                 else -> setOf(entitySets.getValue(PARTICIPANTS_ES))
-            }.filter { authorizationService.checkIfHasPermissions(AclKey(it), superUserPrincipals, EnumSet.of(Permission.READ)) }.toSet()
+            }.filter { authorizationService.checkIfHasPermissions(AclKey(it), principals, EnumSet.of(Permission.READ)) }.toSet()
 
             val participants = getOrgParticipants(
                 participantEntitySetIds = participantEntitySets,
                 studiesEntitySetId = entitySets.getValue(STUDIES_ES),
                 entityKeyIds = studies.keys,
-                principals = superUserPrincipals,
+                principals = principals,
                 edgeEntitySetId = entitySets.getValue(PARTICIPATED_IN_ES)
             )
             logger.info("Retrieved ${participants.values.flatten().size} belonging to org $orgId")
@@ -210,7 +217,7 @@ class MigrateChronicleParticipantStats(
                 entityKeyIds = participants.values.flatten().map { it.id }.toSet(),
                 orgIdsByAppId = orgIdsByAppId,
                 orgId = orgId,
-                principals = superUserPrincipals,
+                principals = principals,
                 participantById = participants.values.flatten().associateBy { it.id },
                 studyIdByParticipantId = participants.values.flatten().associate { it.id to it.studyId }
             )
