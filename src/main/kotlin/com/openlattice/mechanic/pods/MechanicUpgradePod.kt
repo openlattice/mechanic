@@ -72,7 +72,7 @@ import com.openlattice.linking.graph.PostgresLinkingQueryService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
-import com.openlattice.mechanic.upgrades.GrantChronicleSuperUserMissingReadPermissions
+import com.openlattice.mechanic.upgrades.GrantChronicleSuperUserPermissionsOnLegacyEntitySets
 import com.openlattice.mechanic.upgrades.V3StudyMigrationUpgrade
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
@@ -381,8 +381,8 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun grantChronicleSuperUserReadPermissions(): GrantChronicleSuperUserMissingReadPermissions {
-        return GrantChronicleSuperUserMissingReadPermissions(
+    fun grantChronicleSuperUserPermissions(): GrantChronicleSuperUserPermissionsOnLegacyEntitySets {
+        return GrantChronicleSuperUserPermissionsOnLegacyEntitySets(
             toolbox,
             authorizationService(),
             entitySetService(),

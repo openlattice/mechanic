@@ -14,19 +14,21 @@ import java.util.*
 
 /**
  * @author alfoncenzioka &lt;alfonce@openlattice.com&gt;
+ *
+ * // grant chronicle superuser READ permissions on all legacy study participant entity sets and associated property types
  */
-class GrantChronicleSuperUserMissingReadPermissions(
+class GrantChronicleSuperUserPermissionsOnLegacyEntitySets(
     toolbox: Toolbox,
     private val authorizationManager: AuthorizationManager,
     private val entitySetService: EntitySetManager,
     private val dataQueryService: PostgresEntityDataQueryService,
     private val principalsManager: SecurePrincipalsManager
 ) : Upgrade {
-    val entitySetIdByName: Map<String, UUID> = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast).associate { it.value.name to it.key }
-    val entitySetNameById: Map<UUID, String> = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast).associate { it.value.id to it.value.name }
+    private val entitySetIdByName: Map<String, UUID> = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast).associate { it.value.name to it.key }
+    private val entitySetNameById: Map<UUID, String> = entitySetIdByName.entries.associate { it.value to it.key }
 
     companion object {
-        private val logger = LoggerFactory.getLogger(GrantChronicleSuperUserMissingReadPermissions::class.java)
+        private val logger = LoggerFactory.getLogger(GrantChronicleSuperUserPermissionsOnLegacyEntitySets::class.java)
 
         const val studiesEntitySetName = "chronicle_study"
         val generalStringFqn = FullQualifiedName("general.stringid")
