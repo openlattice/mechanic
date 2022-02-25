@@ -44,7 +44,7 @@ class MigrateChronicleParticipantStats(
     companion object {
         private val logger = LoggerFactory.getLogger(MigrateChronicleParticipantStats::class.java)
 
-        private val chronicleSuperUserIds = setOf("auth0|5ae9026c04eb0b243f1d2bb6")
+        private const val SUPER_USER_PRINCIPAL_ID = "auth0|5ae9026c04eb0b243f1d2bb6"
 
         private val LEGACY_ORG_ID = UUID.fromString("7349c446-2acc-4d14-b2a9-a13be39cff93")
         private val DATA_COLLECTION_APP_ID = UUID.fromString("c4e6d8fd-daf9-41e7-8c59-2a12c7ee0857")
@@ -185,22 +185,21 @@ class MigrateChronicleParticipantStats(
         orgIdsByAppId.getValue(DATA_COLLECTION_APP_ID).add(LEGACY_ORG_ID)
         val superUserPrincipals = getChronicleSuperUserPrincipals()
 
+        logger.info("Using principals: $superUserPrincipals")
+
         (orgIdsByAppId.values.flatten().toSet()).forEach { orgId ->
             logger.info("---------------------------------------------")
             logger.info("Retrieving entities in organization $orgId")
             logger.info("----------------------------------------------")
 
-            // get principals
             val adminRoleAclKey = organizations[orgId]?.adminRoleAclKey
             if (adminRoleAclKey == null) {
                 logger.warn("skipping {} since it doesn't have admin role", orgId)
                 return@forEach
             }
-//            val principals = principalService.getAllUsersWithPrincipal(adminRoleAclKey).map { it.principal }.toSet() + superUserPrincipals
-
-            val entitySets = getOrgEntitySetNames(orgId)
-
+            
             // step 1: get studies in org: {studyEntityKeyId -> study}
+            val entitySets = getOrgEntitySetNames(orgId)
             val studies: Map<UUID, Study> = getOrgStudies(entitySetId = entitySets.getValue(STUDIES_ES))
             if (studies.isEmpty()) {
                 logger.info("organization $orgId has no studies. Skipping")
@@ -419,10 +418,8 @@ class MigrateChronicleParticipantStats(
     }
 
     private fun getChronicleSuperUserPrincipals(): Set<Principal> {
-        return chronicleSuperUserIds
-            .map { principalService.getSecurablePrincipal(it) }
-            .map { principalService.getAllPrincipals(it).map { principal -> principal.principal } }
-            .flatten().toSet()
+        val securablePrincipal = principalService.getSecurablePrincipal(SUPER_USER_PRINCIPAL_ID)
+        return principalService.getAllPrincipals(securablePrincipal).map { it.principal }.toSet()
     }
 
     private fun getLegacyParticipantEntitySetIds(studyIds: Set<UUID>): Set<UUID> {
