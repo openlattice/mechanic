@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.geekbeast.rhizome.configuration.RhizomeConfiguration
+import com.google.common.base.Stopwatch
+import com.openlattice.assembler.OrganizationAssembly
 import com.openlattice.authorization.Principal
 import com.openlattice.data.requests.NeighborEntityDetails
 import com.openlattice.data.storage.MetadataOption
@@ -23,6 +25,7 @@ import org.slf4j.LoggerFactory
 import java.sql.Types
 import java.time.OffsetDateTime
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 /**
  * @author Andrew Carter andrew@openlattice.com
@@ -43,13 +46,14 @@ class V3TimeUseDiaryUpgrade(
     private val propertyTypes = HazelcastMap.PROPERTY_TYPES.getMap(toolbox.hazelcast)
     private val entitySetIds = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast).values.associateBy { it.name }
     private val organizations = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
-    private val answerPropertyTypeIds = propertyTypes.getAll(setOf(OL_VALUES_ID, OL_ID_ID))
     private val appConfigs = HazelcastMap.APP_CONFIGS.getMap(toolbox.hazelcast)
+    private val answerPropertyTypeIds = propertyTypes.getAll(setOf(OL_VALUES_ID, OL_ID_ID))
+    private val participantPropertyTypeIds = propertyTypes.getAll(setOf(OL_ID_ID))
     // TODO: replace empty strings with chronicle super user ids (auth0 and google-oauth2) when running migration
     private val chronicleSuperUserIds = setOf("")
 
     companion object {
-
+        val sw = Stopwatch.createStarted()
         val logger = LoggerFactory.getLogger(V3TimeUseDiaryUpgrade::class.java)
         val objectMapper = ObjectMapper().registerModule( JavaTimeModule() )
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
@@ -59,6 +63,7 @@ class V3TimeUseDiaryUpgrade(
         var submissionsRead = 0
         var submissionsWritten = 0
         var answersSkipped = 0
+        var totalSubmissionsInV2 = 0
 
         private val CHRONICLE_SURVEYS_APP_ID = UUID.fromString("bb44218b-515a-4314-b955-df2c991b2575")
         private val COMPLETED_DT_FQN = FullQualifiedName("date.completeddatetime")
@@ -73,7 +78,9 @@ class V3TimeUseDiaryUpgrade(
         private val OL_STUDY_ID = UUID.fromString("80c86a96-0e3f-46eb-9fbb-60d9174566a5")
         private const val PARTICIPANT_ENTITY_SET_SUFFIX = "participants"
         private const val STUDY_ENTITY_SET_SUFFIX = "studies"
+        private const val SUBMISSION_ENTITY_SET_SUFFIX = "submission"
         private const val PARTICIPATED_IN_ENTITY_SET_SUFFIX = "participatedin"
+        private const val RESPONDS_WITH_ENTITY_SET_SUFFIX = "respondswith"
         private const val ANSWER_ENTITY_SET_SUFFIX = "answer"
         private const val CHRONICLE_ENTITY_SET_PREFIX = "chronicle_"
         private const val CHRONICLE_SURVEYS_ENTITY_SET_PREFIX = "chronicle_surveys_"
@@ -100,7 +107,7 @@ class V3TimeUseDiaryUpgrade(
         """.trimIndent()
 
 
-        private val TimeUseDiarySubmissionPropIds =
+        private val timeUseDiarySubmissionPropIds =
             mapOf(
                 UUID.fromString("a8bccb5b-cda9-4509-a4df-e0b0b8c8d8e4") to "submission",
                 UUID.fromString("c949a756-70cc-4070-abca-4272a19c68f0") to "submission_date",
@@ -132,27 +139,32 @@ class V3TimeUseDiaryUpgrade(
             .toMutableSet()
 
         v2ChronicleSurveyOrganizations.forEach{ organizationId ->
-            logger.info("Gathering answers for organization $organizationId")
+            val adminRoleAclKey = organizations[organizationId]?.adminRoleAclKey
+            val principals = principalService.getAllUsersWithPrincipal(adminRoleAclKey!!).map { it.principal }.toSet() + superUserPrincipals
 
+            logger.info("Counting existing submission for this org $organizationId")
+            sw.reset().start()
+            totalSubmissionsInV2 += countSubmissionsInOrg(organizationId, principals)
+            logger.debug("Time taken to count submissions for org $organizationId: ${sw.elapsed(TimeUnit.MILLISECONDS)}")
+
+            logger.info("Gathering answers for organization $organizationId")
+            sw.reset().start()
             val answerEntitySet = getEntitySetForOrg(CHRONICLE_SURVEYS_ENTITY_SET_PREFIX, organizationId, ANSWER_ENTITY_SET_SUFFIX)
             val entityKeyIdsByEntitySetIds = mapOf(answerEntitySet.id to Optional.of(setOf<UUID>()))
             val answerAuthPropertyTypes = mapOf(answerEntitySet.id to answerPropertyTypeIds)
             val answerNeighborhoods = mutableListOf<AnswerNeighborhood>()
-
             // Use PostgresEntityDataQueryService to pull answer entities for organization
-            val answerEntitiesByAnswerId = getAnswerEntities(entityKeyIdsByEntitySetIds, answerAuthPropertyTypes)
+            val answerEntitiesByAnswerId = getEntities(entityKeyIdsByEntitySetIds, answerAuthPropertyTypes)
+            logger.debug("Time taken to gather answers: ${sw.elapsed(TimeUnit.MILLISECONDS)}")
 
             // Gather each answer neighborhood using SearchService
             for ((answerId, fqnToValue) in answerEntitiesByAnswerId) {
-                logger.info("Searching for neighbors of answer $answerId")
+//                sw.reset().start()
                 answersRead += 1
-
-                val adminRoleAclKey = organizations[organizationId]?.adminRoleAclKey
-                val principals = principalService.getAllUsersWithPrincipal(adminRoleAclKey!!).map { it.principal }.toSet() + superUserPrincipals
 
                 val filter = EntityNeighborsFilter(setOf(answerId))
                 val searchResult = searchForNeighbors(answerId, setOf(answerEntitySet.id), filter, principals)
-
+                logger.debug("Time taken to search neighbors: ${sw.elapsed(TimeUnit.MILLISECONDS)}")
                 val answerNeighborhood = extractAnswerNeighborhoodFromSearchResult(searchResult)
                 answerNeighborhood.organizationId = organizationId
                 answerNeighborhood.answer = fqnToValue.getOrDefault(OL_VALUES_FQN, setOf("")) as Set<String>
@@ -162,7 +174,7 @@ class V3TimeUseDiaryUpgrade(
                     answersSkipped += 1
                     continue
                 }
-
+                logger.debug("Time taken to extract answers: ${sw.elapsed(TimeUnit.MILLISECONDS)}")
                 val participantFilter = EntityNeighborsFilter(
                     setOf(answerNeighborhood.participantId),
                     Optional.of(setOf(getEntitySetForOrg(CHRONICLE_ENTITY_SET_PREFIX, organizationId, PARTICIPANT_ENTITY_SET_SUFFIX).id)),
@@ -175,11 +187,12 @@ class V3TimeUseDiaryUpgrade(
                     participantFilter,
                     principals
                 )
-
                 val study = participantNeighbors.filter { it.neighborEntitySet.get().entityTypeId == OL_STUDY_ID }
                 answerNeighborhood.studyId = study.first().neighborId.get() // study var should contain only a single study
+                logger.debug("Time taken to get study: ${sw.elapsed(TimeUnit.MILLISECONDS)}")
 
                 answerNeighborhoods.add(answerNeighborhood)
+                logger.debug("Time taken to process answers: ${sw.elapsed(TimeUnit.MILLISECONDS)}")
             }
 
             // Create Submission objects containing all questions and answers submitted as part of that survey
@@ -196,6 +209,7 @@ class V3TimeUseDiaryUpgrade(
         logger.info("Answers skipped:     $answersSkipped")
         logger.info("Submissions read:    $submissionsRead")
         logger.info("Submissions written: $submissionsWritten")
+        logger.info("V2 submissions:      $totalSubmissionsInV2")
         return true
     }
 
@@ -241,13 +255,13 @@ class V3TimeUseDiaryUpgrade(
         return entitySetIds.getValue(entitySetNameByTemplate)
     }
 
-    private fun getAnswerEntities(
-        answerEntityKeyIds: Map<UUID, Optional<Set<UUID>>>,
-        answerAuthPropertyTypes: Map<UUID, MutableMap<UUID, PropertyType>>
+    private fun getEntities(
+        entityKeyIds: Map<UUID, Optional<Set<UUID>>>,
+        entityAuthPropertyTypes: Map<UUID, MutableMap<UUID, PropertyType>>
     ): Map<UUID, MutableMap<FullQualifiedName, MutableSet<Any>>> {
         return pgEntityDataQueryService.getEntitiesWithPropertyTypeFqns(
-            answerEntityKeyIds,
-            answerAuthPropertyTypes,
+            entityKeyIds,
+            entityAuthPropertyTypes,
             emptyMap(),
             EnumSet.of(MetadataOption.LAST_WRITE),
             Optional.empty(),
@@ -286,7 +300,7 @@ class V3TimeUseDiaryUpgrade(
             val neighborEntitySet = it.neighborEntitySet.get()
             val neighborDetails = it.neighborDetails.get()
 
-            when (TimeUseDiarySubmissionPropIds[neighborEntitySet.entityTypeId]) {
+            when (timeUseDiarySubmissionPropIds[neighborEntitySet.entityTypeId]) {
                 "submission" -> {
                     submissionId = neighborId
                     submissionDateTime = OffsetDateTime.parse(fstStr(it.associationDetails[COMPLETED_DT_FQN]))
@@ -374,6 +388,7 @@ class V3TimeUseDiaryUpgrade(
             if (submissionId == null || studyId == null || participant == null || submissionDate == null || organizationId == null) {
                 logger.warn("Skipping Submission for answer $answers. " +
                         "Failed to retrieve required detail for Submission from answer group: submissionId, submissionDate, studyId, or participantId.")
+                answersSkipped += 1
                 continue
             }
             submissions.add(
@@ -388,6 +403,28 @@ class V3TimeUseDiaryUpgrade(
             )
         }
         return submissions
+    }
+
+    private fun countSubmissionsInOrg(organizationId: UUID, principals: Set<Principal>): Int {
+        val participantEntitySet = getEntitySetForOrg(CHRONICLE_ENTITY_SET_PREFIX, organizationId, PARTICIPANT_ENTITY_SET_SUFFIX)
+        val etyKIDsByESIDs = mapOf(participantEntitySet.id to Optional.of(setOf<UUID>()))
+        val participantAuthPropertyKeys = mapOf(participantEntitySet.id to participantPropertyTypeIds)
+
+        val participantsEntitiesByParticipantId = getEntities(etyKIDsByESIDs, participantAuthPropertyKeys)
+        val submissionSearchFilter = EntityNeighborsFilter(
+            participantsEntitiesByParticipantId.keys,
+            Optional.of(setOf(getEntitySetForOrg(CHRONICLE_ENTITY_SET_PREFIX,         organizationId, PARTICIPANT_ENTITY_SET_SUFFIX   ).id)),
+            Optional.of(setOf(getEntitySetForOrg(CHRONICLE_SURVEYS_ENTITY_SET_PREFIX, organizationId, SUBMISSION_ENTITY_SET_SUFFIX    ).id)),
+            Optional.of(setOf(getEntitySetForOrg(CHRONICLE_SURVEYS_ENTITY_SET_PREFIX, organizationId, RESPONDS_WITH_ENTITY_SET_SUFFIX ).id))
+        )
+
+        val res = searchService.executeEntityNeighborSearch(
+            etyKIDsByESIDs.keys,
+            PagedNeighborRequest(submissionSearchFilter),
+            principals
+        )
+
+        return res.neighbors.values.flatten().size
     }
 
     private fun getChronicleSuperUserPrincipals(): Set<Principal> {
