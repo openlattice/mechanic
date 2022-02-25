@@ -173,9 +173,8 @@ class MigrateChronicleParticipantStats(
         return Version.V2021_07_23.value
     }
 
-
     private fun getHikariDataSource(): HikariDataSource {
-        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["alpr"]!!
+        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["chronicle"]!!
         val hc = HikariConfig(hikariConfiguration)
         return HikariDataSource(hc)
     }
