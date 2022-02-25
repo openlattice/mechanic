@@ -22,8 +22,8 @@ class GrantChronicleSuperUserMissingReadPermissions(
     private val dataQueryService: PostgresEntityDataQueryService,
     private val principalsManager: SecurePrincipalsManager
 ) : Upgrade {
-    val entitySetIds: Map<String, UUID> = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast).associate { it.value.name to it.key }
-
+    val entitySetIdByName: Map<String, UUID> = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast).associate { it.value.name to it.key }
+    val entitySetNameById: Map<UUID, String> = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast).associate { it.value.id to it.value.name }
 
     companion object {
         private val logger = LoggerFactory.getLogger(GrantChronicleSuperUserMissingReadPermissions::class.java)
@@ -33,28 +33,37 @@ class GrantChronicleSuperUserMissingReadPermissions(
     }
 
     override fun upgrade(): Boolean {
-        val studiesEntitySetId = entitySetIds.getValue(studiesEntitySetName)
+        val studiesEntitySetId = entitySetIdByName.getValue(studiesEntitySetName)
 
         val studyIds = getStudyIds(studiesEntitySetId)
         val participantEntitySetIds = getParticipantEntitySetIds(studyIds)
+        logger.info("Participant entity sets found: $participantEntitySetIds")
+
         val propertyTypes = entitySetService.getPropertyTypesForEntitySet(participantEntitySetIds.first()).keys
 
-        val aclKeys = participantEntitySetIds.map { entitySetId -> propertyTypes.map { propertyType -> AclKey(entitySetId, propertyType) } }
-            .flatten()
-
         val securablePrincipal = principalsManager.getSecurablePrincipal("")
-        val principals = principalsManager.getAllPrincipals(securablePrincipal).map { it.principal }
+        val principals = principalsManager.getAllPrincipals(securablePrincipal).map { it.principal }.toSet()
+        logger.info("principals: $principals")
 
-        aclKeys.forEach {
-            authorizationManager.addPermission(it, principals.first(), EnumSet.of(Permission.READ))
+        val requiredPermissions = EnumSet.of(Permission.READ, Permission.OWNER, Permission.WRITE)
+
+        val unauthorizedAclKeys = participantEntitySetIds.map { entitySetId -> propertyTypes.map { propertyType -> AclKey(entitySetId, propertyType) } }
+            .flatten().filter { ackKey -> !authorizationManager.checkIfHasPermissions(ackKey, principals, requiredPermissions) }
+
+        unauthorizedAclKeys.forEach { aclKey ->
+            authorizationManager.addPermission(aclKey, principals.first(), requiredPermissions)
         }
-        logger.info("Granted chronicle super user read on participant entity sets and properties")
-        logger.info("entity set ids: $participantEntitySetIds")
+
+        val uniqueEntitySetIdsResolved = unauthorizedAclKeys.map { it.first() }.toSet()
+        val associatedStudies = uniqueEntitySetIdsResolved.map { entitySetNameById.getValue(it) }
+
+        logger.info("Granted chronicle super user $requiredPermissions on studies: $associatedStudies")
+
         return true
     }
 
     private fun getParticipantEntitySetIds(studyIds: Set<UUID>): Set<UUID> {
-        return studyIds.mapNotNull { entitySetIds["chronicle_participants_$it"] }.toSet()
+        return studyIds.mapNotNull { entitySetIdByName["chronicle_participants_$it"] }.toSet()
     }
 
     private fun getStudyIds(entitySetId: UUID): Set<UUID> {
