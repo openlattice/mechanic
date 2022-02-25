@@ -72,6 +72,7 @@ import com.openlattice.linking.graph.PostgresLinkingQueryService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
+import com.openlattice.mechanic.upgrades.MigrateOrgSettingsToStudies
 import com.openlattice.mechanic.upgrades.V3StudyMigrationUpgrade
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
@@ -376,6 +377,16 @@ class MechanicUpgradePod {
             principalService(),
             dataQueryService(),
             searchService()
+        )
+    }
+
+    @Bean
+    fun migrateOrgSettingsToStudies(): MigrateOrgSettingsToStudies {
+        return MigrateOrgSettingsToStudies(
+            toolbox,
+            entitySetService(),
+            rhizomeConfiguration,
+            dataQueryService()
         )
     }
 
