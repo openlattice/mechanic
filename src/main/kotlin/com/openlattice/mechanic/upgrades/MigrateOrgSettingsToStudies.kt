@@ -76,6 +76,7 @@ class MigrateOrgSettingsToStudies(
          */
         private val INSERT_INTO_SETTINGS_TABLE_QUERY = """
             INSERT INTO $STUDY_SETTINGS_TABLE ($LEGACY_STUDY_EK_ID, $LEGACY_STUDY_ID, $SETTINGS) VALUES (?, ?, ?::jsonb)
+            ON CONFLICT DO NOTHING
         """.trimIndent()
     }
 
