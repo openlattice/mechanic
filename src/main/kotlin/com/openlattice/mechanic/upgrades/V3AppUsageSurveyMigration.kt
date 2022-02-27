@@ -117,15 +117,16 @@ class V3AppUsageSurveyMigration(
 
         private val CREATE_APP_USAGE_SURVEY_TABLE_SQL = """
             CREATE TABLE IF NOT EXISTS $TABLE_NAME(
-                v2_study_id uuid NOT NULL,
-                participant_id text NOT NULL,
-                submission_date timestamp with time zone NOT NULL,
-                application_label text,
-                app_package_name text NOT NULL,
-                event_timestamp timestamp with time zone NOT NULL,
-                timezone text,
-                users text[],
-                PRIMARY KEY(app_package_name, event_timestamp)
+                $V2_STUDY_EKID uuid NOT NULL,
+                $V2_STUDY_ID uuid NOT NULL,
+                $PARTICIPANT_ID text NOT NULL,
+                $SUBMISSION_DATE timestamp with time zone NOT NULL,
+                $APPLICATION_LABEL text,
+                $APP_PACKAGE_NAME text NOT NULL,
+                $EVENT_TIMESTAMP timestamp with time zone NOT NULL,
+                $TIMEZONE text,
+                $USERS text[],
+                PRIMARY KEY($APP_PACKAGE_NAME, $EVENT_TIMESTAMP)
             );
         """.trimIndent()
     }
