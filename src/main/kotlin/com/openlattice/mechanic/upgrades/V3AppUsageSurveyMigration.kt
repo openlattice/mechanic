@@ -72,16 +72,27 @@ class V3AppUsageSurveyMigration(
         private val TIMEZONE_FQN = FullQualifiedName("ol.timezone")
         private val TITLE_FQN = FullQualifiedName("ol.title")
 
+        // table column names
+        private const val SUBMISSION_DATE = "submission_date"
+        private const val APPLICATION_LABEL = "application_label"
+        private const val APP_PACKAGE_NAME = "app_package_name"
+        private const val EVENT_TIMESTAMP = "event_timestamp"
+        private const val TIMEZONE = "timezone"
+        private const val USERS = "users"
+        private const val V2_STUDY_ID = "v2_study_id"
+        private const val PARTICIPANT_ID = "participant_id"
+        private const val V2_STUDY_EKID = "v2_study_ekid"
+
         private val FQN_TO_COLUMNS = mapOf(
-            LAST_WRITE_FQN to "submission_date",
-            TITLE_FQN to "application_label",
-            FULL_NAME_FQN to "app_package_name",
-            DATETIME_FQN to "event_timestamp",
-            TIMEZONE_FQN to "timezone",
-            USER_FQN to "users"
+            LAST_WRITE_FQN to SUBMISSION_DATE,
+            TITLE_FQN to APPLICATION_LABEL,
+            FULL_NAME_FQN to APP_PACKAGE_NAME,
+            DATETIME_FQN to EVENT_TIMESTAMP,
+            TIMEZONE_FQN to TIMEZONE,
+            USER_FQN to USERS
         )
 
-        private val column_names = listOf("v2_study_id", "participant_id") + FQN_TO_COLUMNS.values.toList()
+        private val column_names = listOf(V2_STUDY_EKID, V2_STUDY_ID, PARTICIPANT_ID) + FQN_TO_COLUMNS.values.toList()
         private val APP_USAGE_SURVEY_COLUMNS = column_names.joinToString(",") { it }
         private val APP_USAGE_SURVEY_PARAMS = column_names.joinToString(",") { "?" }
 
@@ -89,14 +100,15 @@ class V3AppUsageSurveyMigration(
 
         /**
          * PreparedStatement bind order
-         * 1) studyId
-         * 2) participantId
-         * 3) submissionDate,
-         * 4) appLabel
-         * 5) packageName
-         * 6) timestamp
-         * 7) timezone
-         * 8) users
+         * 1) studyEKID
+         * 2) studyId
+         * 3) participantId
+         * 4) submissionDate,
+         * 5) appLabel
+         * 6) packageName
+         * 7) timestamp
+         * 8) timezone
+         * 9) users
          */
         private val INSERT_INTO_APP_USAGE_SQL = """
             INSERT INTO app_usage_survey($APP_USAGE_SURVEY_COLUMNS) values ($APP_USAGE_SURVEY_PARAMS)
@@ -144,8 +156,9 @@ class V3AppUsageSurveyMigration(
                             return@forEach
                         }
 
-                        ps.setObject(1, studyId)
-                        ps.setString(2, participantId)
+                        ps.setObject(1, studyEKID)
+                        ps.setObject(2, studyId)
+                        ps.setString(3, participantId)
 
                         data.forEach data@{ entity ->
                             val users = entity.getOrDefault(USER_FQN, listOf())
@@ -171,12 +184,13 @@ class V3AppUsageSurveyMigration(
 
                             val timestamps = entity[DATETIME_FQN]?.map { it.toString() }?.toSet() ?: setOf()
                             timestamps.forEach { timestamp ->
-                                ps.setObject(3, OffsetDateTime.parse(submissionDate))
-                                ps.setString(4, applicationLabel)
-                                ps.setString(5, appPackageName)
-                                ps.setObject(6, OffsetDateTime.parse(timestamp))
-                                ps.setString(7, timezone)
-                                ps.setArray(8, PostgresArrays.createTextArray(connection, users))
+                                var index = 3
+                                ps.setObject(++index, OffsetDateTime.parse(submissionDate))
+                                ps.setString(++index, applicationLabel)
+                                ps.setString(++index, appPackageName)
+                                ps.setObject(++index, OffsetDateTime.parse(timestamp))
+                                ps.setString(++index, timezone)
+                                ps.setArray(++index, PostgresArrays.createTextArray(connection, users))
                                 ps.addBatch()
                             }
                         }
