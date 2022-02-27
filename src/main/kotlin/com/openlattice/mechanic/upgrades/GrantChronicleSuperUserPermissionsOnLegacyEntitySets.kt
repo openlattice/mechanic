@@ -43,7 +43,7 @@ class GrantChronicleSuperUserPermissionsOnLegacyEntitySets(
 
         val propertyTypes = entitySetService.getPropertyTypesForEntitySet(participantEntitySetIds.first()).keys
 
-        val securablePrincipal = principalsManager.getSecurablePrincipal("")
+        val securablePrincipal = principalsManager.getSecurablePrincipal("auth0|5ae9026c04eb0b243f1d2bb6")
         val principals = principalsManager.getAllPrincipals(securablePrincipal).map { it.principal }.toSet()
         logger.info("principals: $principals")
 
@@ -93,7 +93,7 @@ class GrantChronicleSuperUserPermissionsOnLegacyEntitySets(
         }
         return null
     }
-    
+
     override fun getSupportedVersion(): Long {
         return Version.V2021_07_23.value
     }
