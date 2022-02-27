@@ -1,8 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
-import com.openlattice.authorization.AclKey
-import com.openlattice.authorization.AuthorizationManager
-import com.openlattice.authorization.Permission
+import com.openlattice.authorization.*
 import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
 import com.openlattice.datastore.services.EntitySetManager
 import com.openlattice.hazelcast.HazelcastMap
@@ -43,17 +41,14 @@ class GrantChronicleSuperUserPermissionsOnLegacyEntitySets(
 
         val propertyTypes = entitySetService.getPropertyTypesForEntitySet(participantEntitySetIds.first()).keys
 
-        val securablePrincipal = principalsManager.getSecurablePrincipal("auth0|5ae9026c04eb0b243f1d2bb6")
-        val principals = principalsManager.getAllPrincipals(securablePrincipal).map { it.principal }.toSet()
-        logger.info("principals: $principals")
-
+        val principal = Principal(PrincipalType.USER, "auth0|5ae9026c04eb0b243f1d2bb6")
         val requiredPermissions = EnumSet.of(Permission.READ, Permission.OWNER, Permission.WRITE)
 
         val unauthorizedAclKeys = participantEntitySetIds.map { entitySetId -> propertyTypes.map { propertyType -> AclKey(entitySetId, propertyType) } }
-            .flatten().filter { ackKey -> !authorizationManager.checkIfHasPermissions(ackKey, principals, requiredPermissions) }
+            .flatten().filter { ackKey -> !authorizationManager.checkIfHasPermissions(ackKey, setOf(principal), requiredPermissions) }
 
         unauthorizedAclKeys.forEach { aclKey ->
-            authorizationManager.addPermission(aclKey, principals.first(), requiredPermissions)
+            authorizationManager.addPermission(aclKey, principal, requiredPermissions)
         }
 
         val uniqueEntitySetIdsResolved = unauthorizedAclKeys.map { it.first() }.toSet()
