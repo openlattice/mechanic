@@ -222,17 +222,6 @@ class MigrateChronicleParticipantStats(
             logger.info("Retrieved ${participants.values.flatten().size} participants")
             logger.info("Participant count by study: ${participants.map { studies.getValue(it.key).title to it.value.size }.toMap()}")
 
-            // check for duplicates
-            participants.forEach { (studyEntityKeyId, studyParticipants) ->
-                val unique = studyParticipants.distinct()
-                val duplicates = studyParticipants - unique.toSet()
-
-                if (duplicates.isNotEmpty()) {
-                    logger.info("Found duplicate participants in study ${studies.getValue(studyEntityKeyId)}: $duplicates")
-                    participants[studyEntityKeyId] = unique
-                }
-            }
-
             // step 3: neighbor search on participant entity set
             val participantStats = getParticipantStats(
                 participantEntitySets = participantEntitySets,
@@ -300,13 +289,13 @@ class MigrateChronicleParticipantStats(
         entityKeyIds: Set<UUID>,
         principals: Set<Principal>
     )
-        : Map<UUID, List<Participant>> {
+        : Map<UUID, Set<Participant>> {
         val filter = EntityNeighborsFilter(entityKeyIds, Optional.of(participantEntitySetIds), Optional.empty(), Optional.of(setOf(edgeEntitySetId)))
 
         return searchService
             .executeEntityNeighborSearch(setOf(studiesEntitySetId), PagedNeighborRequest(filter), principals)
             .neighbors
-            .mapValues { it.value.map { neighbor -> getParticipantFromNeighborEntity(it.key, neighbor) } }
+            .mapValues { it.value.map { neighbor -> getParticipantFromNeighborEntity(it.key, neighbor) }.toSet() }
 
     }
 
