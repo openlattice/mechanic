@@ -30,8 +30,8 @@ class GrantChronicleSuperUserPermissionsOnLegacyEntitySets(
     companion object {
         private val logger = LoggerFactory.getLogger(GrantChronicleSuperUserPermissionsOnLegacyEntitySets::class.java)
 
-        const val studiesEntitySetName = "chronicle_study"
-        val generalStringFqn = FullQualifiedName("general.stringid")
+        private const val studiesEntitySetName = "chronicle_study"
+        private val GENERAL_STRING_FQN = FullQualifiedName("general.stringid")
     }
 
     override fun upgrade(): Boolean {
@@ -77,10 +77,23 @@ class GrantChronicleSuperUserPermissionsOnLegacyEntitySets(
                 setOf(),
                 Optional.empty(),
                 false
-            ).values.map { it[generalStringFqn]?.iterator()?.next().toString() }.map { UUID.fromString(it) }.toSet()
+            ).values.mapNotNull {  getFirstUUIDOrNull(it, GENERAL_STRING_FQN) }.toSet()
     }
 
+    private fun getFirstUUIDOrNull(entity: Map<FullQualifiedName, Set<Any?>>, fqn: FullQualifiedName): UUID? {
+        return when (val string = getFirstValueOrNull(entity, fqn)) {
+            null -> null
+            else -> UUID.fromString(string)
+        }
+    }
 
+    private fun getFirstValueOrNull(entity: Map<FullQualifiedName, Set<Any?>>, fqn: FullQualifiedName): String? {
+        entity[fqn]?.iterator()?.let {
+            if (it.hasNext()) return it.next().toString()
+        }
+        return null
+    }
+    
     override fun getSupportedVersion(): Long {
         return Version.V2021_07_23.value
     }
