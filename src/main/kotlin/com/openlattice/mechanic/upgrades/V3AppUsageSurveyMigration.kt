@@ -12,9 +12,7 @@ import com.openlattice.edm.EdmConstants.Companion.LAST_WRITE_FQN
 import com.openlattice.graph.PagedNeighborRequest
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.organization.PERMISSION
 import com.openlattice.organizations.roles.SecurePrincipalsManager
-import com.openlattice.postgres.PostgresColumn.PERMISSIONS
 import com.openlattice.search.SearchService
 import com.openlattice.search.requests.EntityNeighborsFilter
 import com.zaxxer.hikari.HikariConfig
@@ -42,12 +40,10 @@ class V3AppUsageSurveyMigration(
     private val appConfigs = HazelcastMap.APP_CONFIGS.getMap(toolbox.hazelcast)
     private val entitySetIds = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast).values.associateBy { it.name }
 
-    private val allStudyIdsByParticipantEKID: MutableMap<UUID, UUID> = mutableMapOf()
-    private val allParticipantIdsByEKID: MutableMap<UUID, String?> = mutableMapOf()
-    private val allSurveyDataByParticipantEKID: MutableMap<UUID, List<Map<FullQualifiedName, Set<Any?>>>> = mutableMapOf()
-
-    //TODO: replace empty strings with chronicle super user ids (auth0 and google-oauth2) when running migration
-    private val chronicleSuperUserIds = setOf("auth0|5ae9026c04eb0b243f1d2bb6", "google-oauth2|113860246540203337319")
+    private val studyEKIDByParticipantEKID: MutableMap<UUID, UUID> = mutableMapOf()
+    private val participantIdByEKID: MutableMap<UUID, String?> = mutableMapOf()
+    private val surveyDataByParticipantEKID: MutableMap<UUID, List<Map<FullQualifiedName, Set<Any?>>>> = mutableMapOf()
+    private val studyIdByStudyEKID: MutableMap<UUID, UUID> = mutableMapOf()
 
     companion object {
         private val DATA_COLLECTION_APP_ID = UUID.fromString("c4e6d8fd-daf9-41e7-8c59-2a12c7ee0857")
@@ -85,7 +81,7 @@ class V3AppUsageSurveyMigration(
             USER_FQN to "users"
         )
 
-        private val column_names = listOf("study_id", "participant_id") + FQN_TO_COLUMNS.values.toList()
+        private val column_names = listOf("v2_study_id", "participant_id") + FQN_TO_COLUMNS.values.toList()
         private val APP_USAGE_SURVEY_COLUMNS = column_names.joinToString(",") { it }
         private val APP_USAGE_SURVEY_PARAMS = column_names.joinToString(",") { "?" }
 
@@ -109,7 +105,7 @@ class V3AppUsageSurveyMigration(
 
         private val CREATE_APP_USAGE_SURVEY_TABLE_SQL = """
             CREATE TABLE IF NOT EXISTS $TABLE_NAME(
-                study_id uuid NOT NULL,
+                v2_study_id uuid NOT NULL,
                 participant_id text NOT NULL,
                 submission_date timestamp with time zone NOT NULL,
                 application_label text,
@@ -138,11 +134,12 @@ class V3AppUsageSurveyMigration(
         try {
             val written = hds.connection.use { connection ->
                 connection.prepareStatement(INSERT_INTO_APP_USAGE_SQL).use { ps ->
-                    allSurveyDataByParticipantEKID.forEach { (key, data) ->
-                        val studyId = allStudyIdsByParticipantEKID[key]
-                        val participantId = allParticipantIdsByEKID[key]
+                    surveyDataByParticipantEKID.forEach { (key, data) ->
+                        val studyEKID = studyEKIDByParticipantEKID[key]
+                        val studyId = studyIdByStudyEKID[studyEKID]
+                        val participantId = participantIdByEKID[key]
 
-                        if (studyId == null || participantId == null) {
+                        if (studyEKID == null || participantId == null || studyId == null) {
                             logger.warn("Skipping migration for participant $key. failed to retrieve associated studyId or participantId")
                             return@forEach
                         }
@@ -188,7 +185,7 @@ class V3AppUsageSurveyMigration(
                 }
             }
 
-            logger.info("wrote {} entities to db. data query service returned {} entities", written, allSurveyDataByParticipantEKID.values.flatten().size)
+            logger.info("wrote {} entities to db. data query service returned {} entities", written, surveyDataByParticipantEKID.values.flatten().size)
             return true
         } catch (ex: Exception) {
             logger.error("error migrating app usage survey data to v3", ex)
@@ -239,44 +236,45 @@ class V3AppUsageSurveyMigration(
             logger.info("found {} studies in org {}", studies.size, orgId)
 
             val studyEntityKeyIds = studies.keys
-            val studyIds = studies.map { getFirstUUIDOrNull(it.value, STRING_ID_FQN) }.filterNotNull().toSet()
+            val studyIdByStudyEKID = studies.mapValues { getFirstUUIDOrNull(it.value, STRING_ID_FQN)!! }
+            val studyIds = studyIdByStudyEKID.values.toSet()
 
             val participantEntitySetIds = when (orgId) {
                 LEGACY_ORG_ID -> getLegacyParticipantEntitySetIds(studyIds)
                 else -> setOf(participantsEntitySetId!!)
-            }.filter { authorizationService.checkIfHasPermissions(AclKey(it), principals, EnumSet.of(Permission.READ)) }.toSet()
+            }
 
             val participants = getStudyParticipants(studiesEntitySetId, studyEntityKeyIds, participantEntitySetIds, participatedInEntitySetId, principals)
 
-            val participantsByStudyId = participants.mapValues { (_, neighbor) -> neighbor.map { it.neighborId.get() }.toSet() }
-            logger.info("org {} participant count by study {}", orgId, participantsByStudyId.mapValues { it.value.size })
+            val participantsByStudyEKID = participants.mapValues { (_, neighbor) -> neighbor.map { it.neighborId.get() }.toSet() }
+            logger.info("org {} participant count by study {}", orgId, participantsByStudyEKID.mapValues { it.value.size })
 
             val participantIdByEKID =
                 participants.values
                     .flatten()
                     .associate { getFirstUUIDOrNull(it.neighborDetails.get(), OL_ID_FQN)!! to getFirstValueOrNull(it.neighborDetails.get(), PERSON_FQN) }
-            val studyIdByParticipantEKID = participantsByStudyId
+            val studyEKIDByParticipantEKID = participantsByStudyEKID
                 .map { (studyId, participants) -> participants.associateWith { studyId } }
                 .flatMap {
                     it.asSequence()
                 }.associate { it.key to it.value }
 
-            val surveysDataByParticipant = getSurveysDataByParticipant(
-                principals, participantsByStudyId.values.flatten().toSet(), participantEntitySetIds, usedByEntitySetId, userAppsEntitySetId)
+            val surveyDataByParticipantEKID = getSurveysDataByParticipant(
+                principals, participantsByStudyEKID.values.flatten().toSet(), participantEntitySetIds, usedByEntitySetId, userAppsEntitySetId)
 
-            logger.info("found {} survey entities in org {}", surveysDataByParticipant.values.flatten().size, orgId)
+            logger.info("found {} survey entities in org {}", surveyDataByParticipantEKID.values.flatten().size, orgId)
 
-            allStudyIdsByParticipantEKID += studyIdByParticipantEKID
-            allParticipantIdsByEKID += participantIdByEKID
-            allSurveyDataByParticipantEKID += surveysDataByParticipant
+            this.studyEKIDByParticipantEKID += studyEKIDByParticipantEKID
+            this.participantIdByEKID += participantIdByEKID
+            this.surveyDataByParticipantEKID += surveyDataByParticipantEKID
+            this.studyIdByStudyEKID += studyIdByStudyEKID
         }
     }
 
     private fun getChronicleSuperUserPrincipals(): Set<Principal> {
-        return chronicleSuperUserIds
-            .map { principalService.getSecurablePrincipal(it)}
-            .map { principalService.getAllPrincipals(it).map { principal -> principal.principal } }
-            .flatten().toSet()
+        val userId = "auth0|5ae9026c04eb0b243f1d2bb6"
+        val securablePrincipal = principalService.getSecurablePrincipal(userId)
+        return principalService.getAllPrincipals(securablePrincipal).map { it.principal }.toSet() + Principal(PrincipalType.USER, userId)
     }
 
     private fun filterInvalidStudies(entities: Map<UUID, Map<FullQualifiedName, Set<Any>>>): Map<UUID, Map<FullQualifiedName, Set<Any>>> {
