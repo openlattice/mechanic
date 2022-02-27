@@ -151,7 +151,7 @@ class MigrateOrgSettingsToStudies(
             setOf(),
             Optional.empty(),
             false
-        ).values.map { getStudyEntity(it, appIds, orgId) }.toList()
+        ).values.filter { getFirstUUIDOrNull(it, STRING_ID_FQN) != null } .map { getStudyEntity(it, appIds, orgId) }.toList()
     }
 
     private fun getStudyEntity(entity: Map<FullQualifiedName, Set<Any>>, appIds: Set<UUID>, orgId: UUID): Study {
