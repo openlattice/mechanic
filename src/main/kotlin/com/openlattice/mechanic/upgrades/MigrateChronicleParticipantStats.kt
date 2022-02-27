@@ -212,7 +212,6 @@ class MigrateChronicleParticipantStats(
                 LEGACY_ORG_ID -> getLegacyParticipantEntitySetIds(studies.values.map { it.studyId }.toSet())
                 else -> setOf(entitySets.getValue(PARTICIPANTS_ES))
             }
-//            }.filter { authorizationService.checkIfHasPermissions(AclKey(it), superUserPrincipals, EnumSet.of(Permission.READ)) }.toSet()
             logger.info("participant entity sets: $participantEntitySets")
 
             val participants = getOrgParticipants(
@@ -223,7 +222,6 @@ class MigrateChronicleParticipantStats(
                 edgeEntitySetId = entitySets.getValue(PARTICIPATED_IN_ES)
             ).toMutableMap()
 
-            logger.info("participant entity sets: $participantEntitySets")
             logger.info("Retrieved ${participants.values.flatten().size} participants")
             logger.info("Participant count by study: ${participants.map { studies.getValue(it.key).title to it.value.size }.toMap()}")
 
