@@ -148,6 +148,7 @@ class MigrateChronicleParticipantStats(
          */
         private val INSERT_PARTICIPANT_STATS_SQL = """
             INSERT INTO participant_stats ($PARTICIPANT_STATS_COLS) values ($PARTICIPANT_STATS_PARAMS)
+            ON CONFLICT DO NOTHING
         """.trimIndent()
     }
 
@@ -475,24 +476,11 @@ class MigrateChronicleParticipantStats(
     }
 }
 
-class Participant(
+data class Participant(
     val studyEntityKeyId: UUID,
     val id: UUID,
     val participantId: String,
-) {
-    override fun equals(other: Any?): Boolean {
-        other as Participant
-        if (other.participantId == this.participantId && other.studyEntityKeyId == this.studyEntityKeyId) return true
-        return false
-    }
-
-    override fun hashCode(): Int {
-        var result = super.hashCode()
-        result = 31 * result + studyEntityKeyId.hashCode()
-        result = 31 * result + participantId.hashCode()
-        return result
-    }
-}
+)
 
 private data class ParticipantStats(
     val organizationId: UUID,
