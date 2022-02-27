@@ -373,9 +373,12 @@ class MigrateChronicleParticipantStats(
         val dateTimeEndValues = getOffsetDateTimesFromNeighborEntities(neighbors, DATE_TIME_END_FQN)
         val datesRecorded = getOffsetDateTimesFromNeighborEntities(neighbors, RECORDED_DATE_FQN)
 
+        val firstDate = dateTimeStartValues.stream().min(OffsetDateTime::compareTo)
+        val lastDate = dateTimeEndValues.stream().max(OffsetDateTime::compareTo)
+
         return Triple(
-            first = dateTimeStartValues.stream().min(OffsetDateTime::compareTo).get(),
-            second = dateTimeEndValues.stream().max(OffsetDateTime::compareTo).get(),
+            first = if (firstDate.isEmpty) null else firstDate.get(),
+            second = if (lastDate.isEmpty) null else lastDate.get(),
             third = datesRecorded.map { it.toLocalDate() }.toSet().size // unique dates
         )
     }
