@@ -1,10 +1,7 @@
 package com.openlattice.mechanic.upgrades
 
 import com.geekbeast.rhizome.configuration.RhizomeConfiguration
-import com.openlattice.authorization.AclKey
-import com.openlattice.authorization.AuthorizationManager
-import com.openlattice.authorization.Permission
-import com.openlattice.authorization.Principal
+import com.openlattice.authorization.*
 import com.openlattice.data.requests.NeighborEntityDetails
 import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
 import com.openlattice.datastore.services.EntitySetManager
@@ -417,7 +414,7 @@ class MigrateChronicleParticipantStats(
 
     private fun getChronicleSuperUserPrincipals(): Set<Principal> {
         val securablePrincipal = principalService.getSecurablePrincipal(SUPER_USER_PRINCIPAL_ID)
-        return principalService.getAllPrincipals(securablePrincipal).map { it.principal }.toSet()
+        return principalService.getAllPrincipals(securablePrincipal).map { it.principal }.toSet() + Principal(PrincipalType.USER, SUPER_USER_PRINCIPAL_ID)
     }
 
     private fun getLegacyParticipantEntitySetIds(studyIds: Set<UUID>): Set<UUID> {
