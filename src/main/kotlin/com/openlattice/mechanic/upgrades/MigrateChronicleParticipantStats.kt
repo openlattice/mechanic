@@ -99,7 +99,7 @@ class MigrateChronicleParticipantStats(
         private const val TUD_UNIQUE_DATES = "tud_unique_dates"
 
         private val CREATE_STATS_TABLE_SQL = """
-            CREATE TABLE IF NOT EXISTS version2_participant_stats(
+            CREATE TABLE IF NOT EXISTS v2_participant_stats(
                 $ORGANIZATION_IO uuid NOT NULL,
                 $V2_STUDY_EKID uuid NOT NULL,
                 $V2_STUDY_ID uuid NOT NULL,
