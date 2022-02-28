@@ -143,7 +143,7 @@ class MigrateChronicleParticipantStats(
          * 10) tudUniqueDates
          */
         private val INSERT_PARTICIPANT_STATS_SQL = """
-            INSERT INTO participant_stats ($PARTICIPANT_STATS_COLS) values ($PARTICIPANT_STATS_PARAMS)
+            INSERT INTO v2_participant_stats ($PARTICIPANT_STATS_COLS) values ($PARTICIPANT_STATS_PARAMS)
             ON CONFLICT DO NOTHING
         """.trimIndent()
     }
