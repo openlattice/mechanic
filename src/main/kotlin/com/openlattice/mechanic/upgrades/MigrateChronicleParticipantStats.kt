@@ -86,10 +86,11 @@ class MigrateChronicleParticipantStats(
         private val DATETIME_FQN = FullQualifiedName("ol.datetime")
         private val RECORDED_DATE_FQN = FullQualifiedName("ol.recordeddate")
 
+        private const val TABLE_NAME = "participant_stats"
+
         // column names
         private const val ORGANIZATION_IO = "organization_id"
-        private const val V2_STUDY_ID = "legacy_study_id"
-        private const val V2_STUDY_EKID = "legacy_study_ekid"
+        private const val V2_STUDY_ID = "study_id"
         private const val PARTICIPANT_ID = "participant_id"
         private const val ANDROID_FIRST_DATE = "android_first_date"
         private const val ANDROID_LAST_DATE = "android_last_date"
@@ -97,26 +98,30 @@ class MigrateChronicleParticipantStats(
         private const val TUD_FIRST_DATE = "tud_first_date"
         private const val TUD_LAST_DATE = "tud_last_date"
         private const val TUD_UNIQUE_DATES = "tud_unique_dates"
+        private const val IOS_FIRST_DATE = "ios_first_date"
+        private const val IOS_LAST_DATE = "ios_last_date"
+        private const val IOS_UNIQUE_DATES = "ios_unique_dates"
 
         private val CREATE_STATS_TABLE_SQL = """
-            CREATE TABLE IF NOT EXISTS v2_participant_stats(
+            CREATE TABLE IF NOT EXISTS $TABLE_NAME(
                 $ORGANIZATION_IO uuid NOT NULL,
-                $V2_STUDY_EKID uuid NOT NULL,
                 $V2_STUDY_ID uuid NOT NULL,
                 $PARTICIPANT_ID text NOT NULL,
                 $ANDROID_FIRST_DATE timestamp with time zone,
                 $ANDROID_LAST_DATE timestamp with time zone,
-                $ANDROID_UNIQUE_DATES date[],
+                $ANDROID_UNIQUE_DATES date[] default '{}',
                 $TUD_FIRST_DATE timestamp with time zone,
                 $TUD_LAST_DATE timestamp with time zone,
-                $TUD_UNIQUE_DATES date[],
-                PRIMARY KEY($V2_STUDY_EKID, $PARTICIPANT_ID)
+                $TUD_UNIQUE_DATES date[] default '{}',
+                $IOS_FIRST_DATE timestamp with time zone,
+                $IOS_LAST_DATE timestamp with time zone,
+                $IOS_UNIQUE_DATES date[] default '{}',
+                PRIMARY KEY($V2_STUDY_ID, $PARTICIPANT_ID)
             )
         """.trimIndent()
 
         private val COLS = setOf(
             ORGANIZATION_IO,
-            V2_STUDY_EKID,
             V2_STUDY_ID,
             PARTICIPANT_ID,
             ANDROID_FIRST_DATE,
@@ -143,7 +148,7 @@ class MigrateChronicleParticipantStats(
          * 10) tudUniqueDates
          */
         private val INSERT_PARTICIPANT_STATS_SQL = """
-            INSERT INTO v2_participant_stats ($PARTICIPANT_STATS_COLS) values ($PARTICIPANT_STATS_PARAMS)
+            INSERT INTO $TABLE_NAME ($PARTICIPANT_STATS_COLS) values ($PARTICIPANT_STATS_PARAMS)
             ON CONFLICT DO NOTHING
         """.trimIndent()
     }
@@ -216,6 +221,11 @@ class MigrateChronicleParticipantStats(
                 edgeEntitySetId = entitySets.getValue(PARTICIPATED_IN_ES)
             ).toMutableMap()
 
+            if (participants.values.isEmpty()) {
+                logger.info("no participants found in org. Skipping participant stats fetch")
+                return@forEach
+            }
+
             logger.info("Retrieved ${participants.values.flatten().size} participants")
             logger.info("Participant count by study: ${participants.map { studies.getValue(it.key).title to it.value.size }.toMap()}")
 
@@ -245,7 +255,6 @@ class MigrateChronicleParticipantStats(
                     entities.forEach {
                         var index = 0
                         ps.setObject(++index, it.organizationId)
-                        ps.setObject(++index, it.studyEntityKeyId)
                         ps.setObject(++index, it.studyId)
                         ps.setString(++index, it.participantId)
                         ps.setObject(++index, it.androidFirstDate)
