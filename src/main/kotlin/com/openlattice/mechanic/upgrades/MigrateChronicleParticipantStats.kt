@@ -1,5 +1,6 @@
 package com.openlattice.mechanic.upgrades
 
+import com.geekbeast.postgres.PostgresDatatype
 import com.geekbeast.rhizome.configuration.RhizomeConfiguration
 import com.openlattice.authorization.*
 import com.openlattice.data.requests.NeighborEntityDetails
@@ -16,6 +17,7 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.apache.olingo.commons.api.edm.FullQualifiedName
 import org.slf4j.LoggerFactory
+import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.*
 
@@ -91,29 +93,23 @@ class MigrateChronicleParticipantStats(
         private const val PARTICIPANT_ID = "participant_id"
         private const val ANDROID_FIRST_DATE = "android_first_date"
         private const val ANDROID_LAST_DATE = "android_last_date"
-        private const val ANDROID_DATES_COUNT = "android_dates_count"
-        private const val IOS_FIRST_DATE = "ios_first_date"
-        private const val IOS_LAST_DATE = "ios_last_date"
-        private const val IOS_DATES_COUNT = "ios_dates_count"
+        private const val ANDROID_UNIQUE_DATES = "android_unique_dates"
         private const val TUD_FIRST_DATE = "tud_first_date"
         private const val TUD_LAST_DATE = "tud_last_date"
-        private const val TUD_DATES_COUNT = "tud_dates_count"
+        private const val TUD_UNIQUE_DATES = "tud_unique_dates"
 
         private val CREATE_STATS_TABLE_SQL = """
-            CREATE TABLE IF NOT EXISTS participant_stats(
+            CREATE TABLE IF NOT EXISTS version2_participant_stats(
                 $ORGANIZATION_IO uuid NOT NULL,
                 $V2_STUDY_EKID uuid NOT NULL,
                 $V2_STUDY_ID uuid NOT NULL,
                 $PARTICIPANT_ID text NOT NULL,
                 $ANDROID_FIRST_DATE timestamp with time zone,
                 $ANDROID_LAST_DATE timestamp with time zone,
-                $ANDROID_DATES_COUNT integer,
-                $IOS_FIRST_DATE timestamp with time zone,
-                $IOS_LAST_DATE timestamp with time zone,
-                $IOS_DATES_COUNT integer,
+                $ANDROID_UNIQUE_DATES date[],
                 $TUD_FIRST_DATE timestamp with time zone,
                 $TUD_LAST_DATE timestamp with time zone,
-                $TUD_DATES_COUNT integer,
+                $TUD_UNIQUE_DATES date[],
                 PRIMARY KEY($V2_STUDY_EKID, $PARTICIPANT_ID)
             )
         """.trimIndent()
@@ -125,10 +121,10 @@ class MigrateChronicleParticipantStats(
             PARTICIPANT_ID,
             ANDROID_FIRST_DATE,
             ANDROID_LAST_DATE,
-            ANDROID_DATES_COUNT,
+            ANDROID_UNIQUE_DATES,
             TUD_FIRST_DATE,
             TUD_LAST_DATE,
-            TUD_DATES_COUNT
+            TUD_UNIQUE_DATES
         )
 
         private val PARTICIPANT_STATS_COLS = COLS.joinToString { it }
@@ -141,10 +137,10 @@ class MigrateChronicleParticipantStats(
          * 4) participantId
          * 5) androidFirstDate
          * 6) androidLastDate
-         * 7) androidDatesCount,
+         * 7) androidUniqueDates,
          * 8) tudFirstDate,
          * 9) tudLastDate
-         * 10) tudDatesCount
+         * 10) tudUniqueDates
          */
         private val INSERT_PARTICIPANT_STATS_SQL = """
             INSERT INTO participant_stats ($PARTICIPANT_STATS_COLS) values ($PARTICIPANT_STATS_PARAMS)
@@ -254,10 +250,10 @@ class MigrateChronicleParticipantStats(
                         ps.setString(++index, it.participantId)
                         ps.setObject(++index, it.androidFirstDate)
                         ps.setObject(++index, it.androidLastDate)
-                        ps.setInt(++index, it.androidDatesCount)
+                        ps.setArray(++index, connection.createArrayOf(PostgresDatatype.DATE.sql(), it.androidUniqueDates.toTypedArray()))
                         ps.setObject(++index, it.tudFirstDate)
                         ps.setObject(++index, it.tudLastDate)
-                        ps.setObject(++index, it.tudDatesCount)
+                        ps.setArray(++index, connection.createArrayOf(PostgresDatatype.DATE.sql(), it.tudUniqueDates.toTypedArray()))
                         ps.addBatch()
                     }
                     ps.executeBatch().sum()
@@ -342,10 +338,10 @@ class MigrateChronicleParticipantStats(
                     participantId = participantById.getValue(id).participantId,
                     androidFirstDate = androidStats.first,
                     androidLastDate = androidStats.second,
-                    androidDatesCount = androidStats.third,
+                    androidUniqueDates = androidStats.third,
                     tudFirstDate = tudStats.first,
                     tudLastDate = tudStats.second,
-                    tudDatesCount = tudStats.third
+                    tudUniqueDates = tudStats.third
                 )
             }.values.groupBy { it.studyEntityKeyId }
     }
@@ -353,10 +349,10 @@ class MigrateChronicleParticipantStats(
     // start, end date, count
     // in theory each participant should only have a single NeighborEntityDetails in the metadata entity set,
     // but some might have multiple entities
-    private fun getParticipantAndroidStats(neighbors: List<NeighborEntityDetails>?): Triple<OffsetDateTime?, OffsetDateTime?, Int> {
+    private fun getParticipantAndroidStats(neighbors: List<NeighborEntityDetails>?): Triple<OffsetDateTime?, OffsetDateTime?, Set<LocalDate>> {
 
         if (neighbors == null || neighbors.isEmpty()) {
-            return Triple(null, null, 0)
+            return Triple(null, null, setOf())
         }
 
         val dateTimeStartValues = getOffsetDateTimesFromNeighborEntities(neighbors, DATE_TIME_START_FQN)
@@ -369,20 +365,20 @@ class MigrateChronicleParticipantStats(
         return Triple(
             first = if (firstDate.isEmpty) null else firstDate.get(),
             second = if (lastDate.isEmpty) null else lastDate.get(),
-            third = datesRecorded.map { it.toLocalDate() }.toSet().size // unique dates
+            third = datesRecorded.map { it.toLocalDate() }.toSet() // unique dates
         )
     }
 
     // start date, end date, count
-    private fun getParticipantTudStats(neighbors: List<NeighborEntityDetails>?): Triple<OffsetDateTime?, OffsetDateTime?, Int> {
-        if (neighbors == null) return Triple(null, null, 0)
+    private fun getParticipantTudStats(neighbors: List<NeighborEntityDetails>?): Triple<OffsetDateTime?, OffsetDateTime?, Set<LocalDate>> {
+        if (neighbors == null) return Triple(null, null, setOf())
 
         val dateTimeValues = getOffsetDateTimesFromNeighborEntities(neighbors, DATETIME_FQN)
 
         return Triple(
             first = dateTimeValues.stream().min(OffsetDateTime::compareTo).get(),
             second = dateTimeValues.stream().max(OffsetDateTime::compareTo).get(),
-            third = dateTimeValues.map { it.toLocalDate() }.toSet().size // unique dates
+            third = dateTimeValues.map { it.toLocalDate() }.toSet() // unique dates
         )
     }
 
@@ -489,10 +485,10 @@ private data class ParticipantStats(
     val participantId: String,
     val androidFirstDate: Any?,
     val androidLastDate: Any?,
-    val androidDatesCount: Int = 0,
+    val androidUniqueDates: Set<LocalDate> = setOf(),
     val tudFirstDate: Any?,
     val tudLastDate: Any?,
-    val tudDatesCount: Int = 0
+    val tudUniqueDates: Set<LocalDate> = setOf()
 )
 
 private data class Study(
