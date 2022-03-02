@@ -30,11 +30,13 @@ class MigrateTimeUseDiarySubmissions(
     private val dataQueryService: PostgresEntityDataQueryService,
     private val entitySetService: EntitySetManager,
     private val searchService: SearchService,
-    private val principalService: SecurePrincipalsManager
+    private val principalService: SecurePrincipalsManager,
 ) : Upgrade {
 
     private val entitySetIds: Map<String, UUID> = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast).associate { it.value.name to it.key }
     private val appConfigs = HazelcastMap.APP_CONFIGS.getMap(toolbox.hazelcast)
+
+    var totalSubmissionEntities: Int = 0 //keep track of number of submission entities
 
     companion object {
         private val logger = LoggerFactory.getLogger(MigrateTimeUseDiarySubmissions::class.java)
@@ -106,7 +108,7 @@ class MigrateTimeUseDiarySubmissions(
                 $STUDY_ID uuid not null,
                 $ORGANIZATION_ID uuid not null,
                 $SUBMISSION_ID uuid not null,
-                $PARTICIPANT_ID uuid not null,
+                $PARTICIPANT_ID text not null,
                 $SUBMISSION jsonb not null,
                 $SUBMISSION_DATE  timestamp with time zone not null,
                 PRIMARY KEY($SUBMISSION_ID, $SUBMISSION_DATE)
@@ -165,83 +167,80 @@ class MigrateTimeUseDiarySubmissions(
     private fun processOrganization(orgId: UUID, principals: Set<Principal>): List<SubmissionEntity> {
         logger.info("Processing org $orgId")
 
-        // get studies
-        val entitySets = getOrgEntitySetNames(orgId)
-        val studies: Map<UUID, Study> = getOrgStudies(entitySetId = entitySets.getValue(STUDIES_ES))
-        if (studies.isEmpty()) {
-            logger.info("organization $orgId has no studies. Skipping")
-            return listOf()
-        }
-        logger.info("Retrieved ${studies.size} studies")
 
-        // study -> participants
-        val participants: Map<UUID, Set<Participant>> = getOrgParticipants(
-            participantEntitySetIds = setOf(entitySets.getValue(PARTICIPANTS_ES)),
-            studiesEntitySetId = entitySets.getValue(STUDIES_ES),
-            entityKeyIds = studies.keys,
-            principals = principals,
-            edgeEntitySetId = entitySets.getValue(PARTICIPATED_IN_ES)
-        ).toMutableMap()
+        val orgEntitySetIds = getOrgEntitySetNames(orgId)
 
-        if (participants.values.flatten().isEmpty()) {
-            logger.info("No participants found in $orgId")
+        // get all participants in studies
+        val participants: Set<Participant> = getOrgParticipants(
+            entitySetIds = orgEntitySetIds,
+        )
+
+        if (participants.isEmpty()) {
+            logger.info("No participants found in org $orgId")
             return listOf()
         }
 
         // participant -> neighbor entity set id -> [neighbors]
         val participantNeighbors: Map<UUID, Map<UUID, List<NeighborEntityDetails>>> = getParticipantNeighbors(
-            entityKeyIds = participants.values.flatten().map { it.id }.toSet(),
-            entitySetIds = entitySetIds,
+            entityKeyIds = participants.map { it.id }.toSet(),
+            entitySetIds = orgEntitySetIds,
             principals = principals
         )
 
+        val studiesByParticipantId: Map<UUID, Study> = participantNeighbors
+            .mapValues { it.value.getOrDefault(orgEntitySetIds.getValue(STUDIES_ES), listOf()).first() }
+            .mapValues { getStudyEntity(it.value.neighborId.get(), it.value.neighborDetails.get()) }
+        logger.info("Org studies: ${studiesByParticipantId.values.toSet()}")
+
         // unique submission. Each submission entity is an entry in the tud submissions table
         val submissionsById = participantNeighbors
-            .asSequence()
-            .filter { it.value.keys.contains(entitySets.getValue(SUBMISSION_ES)) }
-            .map { it.value.values.flatten() }
-            .flatten().associateBy { it.neighborId.get() }
+            .values.map { it.getOrDefault(orgEntitySetIds.getValue(SUBMISSION_ES), listOf()) }.flatten().associateBy { it.neighborId.get() }
+        totalSubmissionEntities += submissionsById.keys.size
 
-        val answersById = participantNeighbors.values
-            .asSequence()
-            .filter { it.keys.contains(entitySets.getValue(ANSWER_ES)) }
-            .map { it.values.flatten() }
-            .flatten().associateBy { it.neighborId.get() }
+        if (submissionsById.isEmpty()) {
+            logger.info("no submissions found")
+            return listOf()
+        }
+
+        val answersById = participantNeighbors
+            .values.map { it.getOrDefault(orgEntitySetIds.getValue(ANSWER_ES), listOf()) }.flatten().associateBy { it.neighborId.get() }
+        if (answersById.isEmpty()) {
+            logger.warn("unexpected. submission should have answer entities")
+            return listOf()
+        }
 
         // answerId -> neighbor esid -> [neighbors]
         val answerNeighbors = getAnswerNeighbors(
             entityKeyIds = answersById.keys,
-            entitySetIds = entitySets,
+            entitySetIds = orgEntitySetIds,
             principals = principals
         )
 
         // submissionId -> [answer]
         val answersBySubmissionId = getAnswersBySubmissionId(
             entityKeyIds = submissionsById.keys,
-            entitySetIds = entitySets,
+            entitySetIds = orgEntitySetIds,
             principals = principals
         )
 
         val participantBySubmissionId = participantNeighbors
-            .filter { it.value.keys.contains(entitySets.getValue(SUBMISSION_ES)) }
-            .mapValues { it.value.values.flatten().associate { neighbor -> neighbor.neighborId.get() to it.key } }
-            .values.first()
-
-        val participantsById = participants.values.flatten().associateBy { it.id }
-        val studiesById = studies.values.associateBy { it.studyEntityKeyId }
-
+            .map { it.value.getOrDefault(orgEntitySetIds.getValue(SUBMISSION_ES), setOf()).associate { neighbor -> neighbor.neighborId.get() to it.key } }
+            .asSequence()
+            .flatMap { it.asSequence() }
+            .groupBy({ it.key }, { it.value })
+            .mapValues { it.value.first() }
 
         return answersBySubmissionId.map { (submissionId, answerEntities) ->
             getSubmissionEntity(
-                orgId,
-                submissionId,
-                answerEntities,
-                participantsById,
-                participantBySubmissionId,
-                studiesById,
-                answerNeighbors.mapValues { answers -> answers.value.mapValues { neighbors -> neighbors.value.first() } },
-                submissionsById.getValue(submissionId).neighborDetails.get(),
-                entitySetIds
+                orgId = orgId,
+                submissionId = submissionId,
+                answerEntities = answerEntities,
+                participantsById = participants.associateBy { it.id },
+                studiesByParticipantId = studiesByParticipantId,
+                participantBySubmissionId = participantBySubmissionId,
+                answerNeighbors = answerNeighbors.mapValues { answers -> answers.value.mapValues { neighbors -> neighbors.value.first() } },
+                submissionEntity = submissionsById.getValue(submissionId).neighborDetails.get(),
+                entitySetIds = orgEntitySetIds
             )
         }
     }
@@ -249,20 +248,20 @@ class MigrateTimeUseDiarySubmissions(
     private fun getSubmissionEntity(
         orgId: UUID,
         submissionId: UUID,
-        answers: List<NeighborEntityDetails>,
+        answerEntities: List<NeighborEntityDetails>,
         participantsById: Map<UUID, Participant>,
-        participantIdBySubmissionId: Map<UUID, UUID>,
-        studiesById: Map<UUID, Study>,
+        studiesByParticipantId: Map<UUID, Study>,
+        participantBySubmissionId: Map<UUID, UUID>,
         answerNeighbors: Map<UUID, Map<UUID, NeighborEntityDetails>>,
         submissionEntity: Map<FullQualifiedName, Set<Any>>,
         entitySetIds: Map<String, UUID>
     ): SubmissionEntity {
         val dateSubmitted = getFirstValueOrNull(submissionEntity, DATE_TIME_FQN)
 
-        val participantId = participantIdBySubmissionId.getValue(submissionId)
+        val participantId = participantBySubmissionId.getValue(submissionId)
         val participant = participantsById.getValue(participantId)
 
-        val responses = answers.map { answer ->
+        val responses = answerEntities.map { answer ->
             getResponse(
                 answerId = answer.neighborId.get(),
                 answerEntity = answer.neighborDetails.get(),
@@ -274,12 +273,11 @@ class MigrateTimeUseDiarySubmissions(
             orgId = orgId,
             submissionId = submissionId,
             date = dateSubmitted?.let { OffsetDateTime.parse(it) },
-            studyId = studiesById.getValue(participant.studyEntityKeyId).studyId,
-            participantId = participant.participantId,
+            studyId = studiesByParticipantId.getValue(participantId).studyId,
+            participantId = participant.participantId!!, //force unwrapping is safe because we have already filtered out "bad" participant entities
             responses = responses.filter { it.code != null && it.question != null }.toSet()
         )
     }
-
 
     private fun getResponse(
         answerId: UUID,
@@ -359,12 +357,14 @@ class MigrateTimeUseDiarySubmissions(
         val submissionEntitySetId = entitySetIds.getValue(SUBMISSION_ES)
         val respondsWithEntitySetId = entitySetIds.getValue(RESPONDED_WITH_ES)
         val answerEntitySetId = entitySetIds.getValue(ANSWER_ES)
+        val participatedInEntitySetId = entitySetIds.getValue(PARTICIPATED_IN_ES)
+        val studiesEntitySetId = entitySetIds.getValue(STUDIES_ES)
 
         val filter = EntityNeighborsFilter(
             entityKeyIds,
             Optional.empty(),
-            Optional.of(setOf(submissionEntitySetId, answerEntitySetId)),
-            Optional.of(setOf(respondsWithEntitySetId))
+            Optional.of(setOf(submissionEntitySetId, answerEntitySetId, studiesEntitySetId)),
+            Optional.of(setOf(respondsWithEntitySetId, participatedInEntitySetId))
         )
         return searchService.executeEntityNeighborSearch(
             setOf(entitySetIds.getValue(PARTICIPANTS_ES)),
@@ -394,28 +394,25 @@ class MigrateTimeUseDiarySubmissions(
 
     // Returns a mapping from studyEntityKeyId to list of participants
     private fun getOrgParticipants(
-        participantEntitySetIds: Set<UUID>,
-        edgeEntitySetId: UUID,
-        studiesEntitySetId: UUID,
-        entityKeyIds: Set<UUID>,
-        principals: Set<Principal>
-    )
-        : Map<UUID, Set<Participant>> {
-        val filter = EntityNeighborsFilter(entityKeyIds, Optional.of(participantEntitySetIds), Optional.empty(), Optional.of(setOf(edgeEntitySetId)))
-
-        return searchService
-            .executeEntityNeighborSearch(setOf(studiesEntitySetId), PagedNeighborRequest(filter), principals)
-            .neighbors
-            .mapValues { it.value.map { neighbor -> getParticipantFromNeighborEntity(it.key, neighbor) }.toSet() }
+        entitySetIds: Map<String, UUID>,
+    ): Set<Participant> {
+        return dataQueryService.getEntitiesWithPropertyTypeFqns(
+            mapOf(entitySetIds.getValue(PARTICIPANTS_ES) to Optional.empty()),
+            entitySetService.getPropertyTypesOfEntitySets(setOf(entitySetIds.getValue(PARTICIPANTS_ES))),
+            mapOf(),
+            setOf(),
+            Optional.empty(),
+            false
+        ).mapValues { getParticipantEntity(it.key, it.value) }.values.filter { it.participantId != null }.toSet()
 
     }
 
-    private fun getParticipantFromNeighborEntity(studyEntityKeyId: UUID, entity: NeighborEntityDetails): Participant {
-        val id = getFirstUUIDOrNull(entity.neighborDetails.get(), OL_ID_FQN)
-        val participantId = getFirstValueOrNull(entity.neighborDetails.get(), PERSON_FQN)
-
-        return Participant(studyEntityKeyId, id!!, participantId!!) // hope this force unwrapping doesn't throw NPE
-
+    private fun getParticipantEntity(entityKeyId: UUID, entity: Map<FullQualifiedName, Set<Any>>): Participant {
+        val participantId = getFirstValueOrNull(entity, PERSON_FQN)
+        return Participant(
+            id = entityKeyId,
+            participantId = participantId
+        )
     }
 
     private fun getFirstUUIDOrNull(entity: Map<FullQualifiedName, Set<Any?>>, fqn: FullQualifiedName): UUID? {
@@ -459,7 +456,7 @@ class MigrateTimeUseDiarySubmissions(
                 }
                 return@use wc
             } catch (ex: Exception) {
-                return 0
+                throw ex
             }
 
         }
@@ -472,6 +469,7 @@ class MigrateTimeUseDiarySubmissions(
         val entities = orgIds.map { processOrganization(it, superUserPrincipals) }.flatten()
         val written = writeEntitiesToTable(entities)
         logger.info("Exported $written entities to $TABLE_NAME")
+        logger.info("Actual number of entities found in all submission entity sets: $totalSubmissionEntities")
         return true
     }
 
@@ -487,9 +485,8 @@ private data class Study(
 )
 
 data class Participant(
-    val studyEntityKeyId: UUID,
     val id: UUID,
-    val participantId: String,
+    val participantId: String?,
 )
 
 data class ResponseEntity(
