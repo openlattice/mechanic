@@ -32,7 +32,7 @@ class MigrateTimeUseDiarySubmissions(
     private val searchService: SearchService,
     private val principalService: SecurePrincipalsManager
 ) : Upgrade {
-    
+
     private val entitySetIds: Map<String, UUID> = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast).associate { it.value.name to it.key }
     private val appConfigs = HazelcastMap.APP_CONFIGS.getMap(toolbox.hazelcast)
 
