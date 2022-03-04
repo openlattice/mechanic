@@ -115,8 +115,8 @@ class MigrateTimeUseDiarySummarizedData(
         val entitySets = getOrgEntitySetNames(orgId)
         logger.info("entity sets: $entitySets")
         
-        val submissionEntitySetId = entitySetIds.getValue(SUBMISSION_ES)
-        val registeredForEntitySetId = entitySetIds.getValue(REGISTERED_FOR_ES)
+        val submissionEntitySetId = entitySets.getValue(SUBMISSION_ES)
+        val registeredForEntitySetId = entitySets.getValue(REGISTERED_FOR_ES)
         val summaryEntitySetId = entitySets.getValue(SUMMARY_ES)
 
         val submissionIds = dataQueryService.getEntitiesWithPropertyTypeFqns(
