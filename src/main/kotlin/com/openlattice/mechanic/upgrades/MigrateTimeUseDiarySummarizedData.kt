@@ -111,10 +111,16 @@ class MigrateTimeUseDiarySummarizedData(
         logger.info("processing org $orgId")
         val entitySets = getOrgEntitySetNames(orgId)
         logger.info("entity sets: $entitySets")
-        
-        val submissionEntitySetId = entitySets.getValue(SUBMISSION_ES)
-        val registeredForEntitySetId = entitySets.getValue(REGISTERED_FOR_ES)
-        val summaryEntitySetId = entitySets.getValue(SUMMARY_ES)
+
+
+        val submissionEntitySetId = entitySets[SUBMISSION_ES]
+        val registeredForEntitySetId = entitySets[REGISTERED_FOR_ES]
+        val summaryEntitySetId = entitySets[SUMMARY_ES]
+
+        if (submissionEntitySetId == null || registeredForEntitySetId == null || summaryEntitySetId == null) {
+            logger.info("submission: {}, registered_for: {}, summary: {}", submissionEntitySetId, registeredForEntitySetId, summaryEntitySetId)
+            return setOf()
+        }
 
         val submissionIds = dataQueryService.getEntitiesWithPropertyTypeFqns(
             mapOf(submissionEntitySetId to Optional.empty()),
