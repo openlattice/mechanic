@@ -111,7 +111,10 @@ class MigrateTimeUseDiarySummarizedData(
 
 
     private fun getEntitiesForOrg(orgId: UUID, principals: Set<Principal>): Set<SubmissionEntity> {
+        logger.info("processing org $orgId")
         val entitySets = getOrgEntitySetNames(orgId)
+        logger.info("entity sets: $entitySets")
+        
         val submissionEntitySetId = entitySetIds.getValue(SUBMISSION_ES)
         val registeredForEntitySetId = entitySetIds.getValue(REGISTERED_FOR_ES)
         val summaryEntitySetId = entitySets.getValue(SUMMARY_ES)
