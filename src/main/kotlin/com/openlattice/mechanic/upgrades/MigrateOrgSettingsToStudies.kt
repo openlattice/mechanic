@@ -159,7 +159,12 @@ class MigrateOrgSettingsToStudies(
         val studyEntityKeyId = getFirstUUIDOrNull(entity, OL_ID_FQN)
 
         val settings: MutableMap<String, Any> = mutableMapOf()
-        settings[COMPONENTS_SETTING] = appIds.map { appIdToComponentMapping.getValue(it) }.toSet()
+
+        val appComponents =  appIds.map { appIdToComponentMapping.getValue(it) }.toMutableSet()
+        if (appIds.contains(SURVEY_APP_ID)) {
+            appComponents.add(AppComponents.TIME_USE_DIARY)
+        }
+        settings[COMPONENTS_SETTING] = appComponents
         settings[APP_FREQUENCY_SETTING] = if (orgId == RICE_UNIVERSITY_ORG_ID) AppUsageFrequency.HOURLY else AppUsageFrequency.DAILY
 
         return Study(
@@ -206,7 +211,8 @@ private data class Study(
 private enum class AppComponents {
     CHRONICLE,
     CHRONICLE_DATA_COLLECTION,
-    CHRONICLE_SURVEYS
+    CHRONICLE_SURVEYS,
+    TIME_USE_DIARY
 }
 
 private enum class AppUsageFrequency {
