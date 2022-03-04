@@ -161,7 +161,7 @@ class MigrateOrgSettingsToStudies(
         val settings: MutableMap<String, Any> = mutableMapOf()
 
         val appComponents =  appIds.map { appIdToComponentMapping.getValue(it) }.toMutableSet()
-        if (appIds.contains(SURVEY_APP_ID)) {
+        if (appIds.contains(SURVEY_APP_ID) && orgId != LEGACY_ORG_ID) {
             appComponents.add(AppComponents.TIME_USE_DIARY)
         }
         settings[COMPONENTS_SETTING] = appComponents
