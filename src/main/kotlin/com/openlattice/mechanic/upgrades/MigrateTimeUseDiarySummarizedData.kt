@@ -153,6 +153,8 @@ class MigrateTimeUseDiarySummarizedData(
 
     private fun getSummaryEntityForSubmission(submissionId: UUID, neighbors: List<NeighborEntityDetails>): SubmissionEntity {
         val date = getFirstValueOrNull(neighbors.first().associationDetails, DATE_COMPLETED)
+        val dates = neighbors.map { getFirstValueOrNull(it.associationDetails, DATE_COMPLETED) }
+        logger.info("dates: $dates")
 
         val values = neighbors.map {
             val entity = it.neighborDetails.get()
