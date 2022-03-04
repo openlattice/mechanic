@@ -56,19 +56,17 @@ class MigrateTimeUseDiarySummarizedData(
 
         private val VARIABLE_FQN = FullQualifiedName("ol.variable")
         private val VALUES_FQN = FullQualifiedName("ol.values")
-        private val DATE_COMPLETED = FullQualifiedName("date.completeddatetime")
 
         private val CREATE_TABLE_SQL = """
             CREATE TABLE IF NOT EXISTS time_use_diary_summary(
                 submission_id uuid not null,
-                date  timestamp with time zone not null,
                 data jsonb not null,
                 PRIMARY KEY (submission_id)
             )
         """.trimIndent()
 
         private val INSERT_INTO_TABLE_SQL = """
-            INSERT INTO time_use_diary_summary values(?, ?, ?::jsonb)
+            INSERT INTO time_use_diary_summary values(?, ?::jsonb)
         """.trimIndent()
     }
 
@@ -99,7 +97,6 @@ class MigrateTimeUseDiarySummarizedData(
             val wc = connection.prepareStatement(INSERT_INTO_TABLE_SQL).use { ps ->
                 entities.forEach {
                     ps.setObject(1, it.submissionId)
-                    ps.setObject(2, it.date)
                     ps.setString(3, mapper.writeValueAsString(it.entities))
                     ps.addBatch()
                 }
@@ -152,10 +149,6 @@ class MigrateTimeUseDiarySummarizedData(
     }
 
     private fun getSummaryEntityForSubmission(submissionId: UUID, neighbors: List<NeighborEntityDetails>): SubmissionEntity {
-        val date = getFirstValueOrNull(neighbors.first().associationDetails, DATE_COMPLETED)
-        val dates = neighbors.map { getFirstValueOrNull(it.associationDetails, DATE_COMPLETED) }
-        logger.info("dates: $dates")
-
         val values = neighbors.map {
             val entity = it.neighborDetails.get()
             SummarizedEntity(
@@ -167,7 +160,6 @@ class MigrateTimeUseDiarySummarizedData(
         return SubmissionEntity(
             submissionId = submissionId,
             entities = values,
-            date = OffsetDateTime.parse(date)
         )
     }
 
@@ -204,5 +196,4 @@ private data class SummarizedEntity(
 private data class SubmissionEntity(
     val submissionId: UUID,
     val entities: Set<SummarizedEntity>,
-    val date: OffsetDateTime
 )
