@@ -97,7 +97,7 @@ class MigrateTimeUseDiarySummarizedData(
             val wc = connection.prepareStatement(INSERT_INTO_TABLE_SQL).use { ps ->
                 entities.forEach {
                     ps.setObject(1, it.submissionId)
-                    ps.setString(3, mapper.writeValueAsString(it.entities))
+                    ps.setString(2, mapper.writeValueAsString(it.entities))
                     ps.addBatch()
                 }
                 ps.executeBatch().sum()
