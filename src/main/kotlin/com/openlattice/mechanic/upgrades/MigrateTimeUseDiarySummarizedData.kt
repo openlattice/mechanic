@@ -131,6 +131,11 @@ class MigrateTimeUseDiarySummarizedData(
             false
         ).keys
 
+        if (submissionIds.isEmpty()) {
+            logger.info("no submission entities found")
+            return setOf()
+        }
+
         // get entities from summarized entity set associated with submission ids
         val filter = EntityNeighborsFilter(
             submissionIds,
