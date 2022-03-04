@@ -41,6 +41,7 @@ class ExportOrganizationMembers(
         val members = principalService.getOrganizationMembers(organizationsIds)
 
         hds.connection.use { connection ->
+            connection.createStatement().use { stmt -> stmt.execute(USERS_EXPORT_TABLE) }
             connection.prepareStatement(INSERT_USER_SQL).use { ps ->
             members.forEach { (orgId, orgMembers) ->
                 orgMembers.forEach { orgMember ->
