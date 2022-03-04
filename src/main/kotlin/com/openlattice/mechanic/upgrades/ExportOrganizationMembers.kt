@@ -3,7 +3,7 @@ package com.openlattice.mechanic.upgrades
 import com.hazelcast.core.HazelcastInstance
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.organizations.roles.HazelcastPrincipalService
+import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 
@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory
 class ExportOrganizationMembers(
     private val toolbox: Toolbox,
     private val hds: HikariDataSource,
-    private val principalService: HazelcastPrincipalService,
+    private val principalService: SecurePrincipalsManager,
     hazelcast :HazelcastInstance
 ) : Upgrade {
     companion object {
