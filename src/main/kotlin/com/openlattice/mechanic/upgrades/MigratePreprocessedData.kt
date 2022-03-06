@@ -98,16 +98,15 @@ class MigratePreprocessedData(
                 $STUDY_ID uuid not null,
                 $PARTICIPANT_ID text not null,
                 $APP_LABEL text,
-                $APP_PACKAGE_NAME text not null,
+                $APP_PACKAGE_NAME text,
                 $DATE_TIME_START timestamp with time zone,
                 $DATE_TIME_END timestamp with time zone,
-                $TIMEZONE text not null,
-                $RECORD_TYPE text not null,
+                $TIMEZONE text,
+                $RECORD_TYPE text,
                 $NEW_PERIOD boolean,
                 $NEW_APP boolean,
                 $DURATION DOUBLE PRECISION ,
-                $WARNING text,
-                PRIMARY KEY ($PARTICIPANT_ID, $STUDY_ID, $DATE_TIME_START, $APP_PACKAGE_NAME)
+                $WARNING text
             )
         """.trimIndent()
 
@@ -256,7 +255,7 @@ class MigratePreprocessedData(
             study_id = participant.legacy_study_id,
             participant_id = participant.legacy_participant_id,
             appLabel = getFirstValueOrNull(entity, TITLE_FQN),
-            packageName = getFirstValueOrNull(entity, FULL_NAME_FQN)!!,
+            packageName = getFirstValueOrNull(entity, FULL_NAME_FQN),
             datetimeStart = getFirstValueOrNull(entity, DATE_TIME_START_FQN)?.let { OffsetDateTime.parse(it) },
             datetimeEnd = getFirstValueOrNull(entity, DATE_TIME_END_FQN)?.let { OffsetDateTime.parse(it) },
             timezone = getFirstValueOrNull(entity, TIMEZONE_FQN),
@@ -352,7 +351,7 @@ data class PreProcessedEntity(
     val appLabel: String?,
     val datetimeStart: OffsetDateTime?,
     val datetimeEnd: OffsetDateTime?,
-    val packageName: String,
+    val packageName: String?,
     val timezone: String?,
     val recordType: String?,
     val newPeriod: Boolean,
