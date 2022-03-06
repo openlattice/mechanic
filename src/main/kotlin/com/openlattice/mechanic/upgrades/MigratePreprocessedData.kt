@@ -56,7 +56,6 @@ class MigratePreprocessedData(
 
         // collection template names
         private const val PRE_PROCESSED_TEMPLATE = "preprocesseddata";
-        private const val STUDIES_TEMPLATE = "studies"
         private const val PARTICIPATED_IN_TEMPLATE = "participatedin"
         private const val PARTICIPANTS_TEMPLATE = "participants"
         private const val RECORDED_BY_TEMPLATE = "recordedby"
@@ -64,7 +63,6 @@ class MigratePreprocessedData(
         // entity sets lookup name
         private const val RECORDED_BY_ES = "recordedBy"
         private const val PRE_PROCESSED_ES = "preprocessed"
-        private const val STUDIES_ES = "studies"
         private const val PARTICIPATED_IN_ES = "participatedIn"
         private const val PARTICIPANTS_ES = "participants"
 
@@ -76,11 +74,11 @@ class MigratePreprocessedData(
         private const val DATE_TIME_END = "datetime_end"
         private const val APP_PACKAGE_NAME = "app_package_name"
         private const val TIMEZONE = "timezone"
-        private const val RECORD_TYPE ="record_type"
-        private const val NEW_PERIOD ="new_period"
+        private const val RECORD_TYPE = "record_type"
+        private const val NEW_PERIOD = "new_period"
         private const val NEW_APP = "new_app"
         private const val DURATION = "duration_seconds"
-        private const val WARNING ="warning"
+        private const val WARNING = "warning"
 
         private val PERSON_FQN = FullQualifiedName("nc.SubjectIdentification")
         private val TITLE_FQN = FullQualifiedName("ol.title")
@@ -225,7 +223,7 @@ class MigratePreprocessedData(
         logger.info("getting preprocessed data entities for org $orgId")
         val orgEntitySetIds = getOrgEntitySetNames(orgId)
 
-        val participantEntitySetIds = when(orgId) {
+        val participantEntitySetIds = when (orgId) {
             LEGACY_ORG_ID -> getLegacyParticipantEntitySetIds()
             else -> setOf(orgEntitySetIds.getValue(PARTICIPANTS_ES))
         }
@@ -260,7 +258,7 @@ class MigratePreprocessedData(
             appLabel = getFirstValueOrNull(entity, TITLE_FQN),
             packageName = getFirstValueOrNull(entity, FULL_NAME_FQN)!!,
             datetimeStart = getFirstValueOrNull(entity, DATE_TIME_START_FQN)?.let { OffsetDateTime.parse(it) },
-            datetimeEnd =  getFirstValueOrNull(entity, DATE_TIME_END_FQN)?.let { OffsetDateTime.parse(it) },
+            datetimeEnd = getFirstValueOrNull(entity, DATE_TIME_END_FQN)?.let { OffsetDateTime.parse(it) },
             timezone = getFirstValueOrNull(entity, TIMEZONE_FQN)!!,
             recordType = getFirstValueOrNull(entity, RECORD_TYPE_FQN)!!,
             newPeriod = getFirstValueOrNull(entity, NEW_PERIOD_FQN).toBoolean(),
@@ -313,14 +311,6 @@ class MigratePreprocessedData(
     }
 
 
-    private fun getParticipantEntity(entityKeyId: UUID, entity: Map<FullQualifiedName, Set<Any>>): Participant {
-        val participantId = getFirstValueOrNull(entity, PERSON_FQN)
-        return Participant(
-            id = entityKeyId,
-            participantId = participantId
-        )
-    }
-
     private fun getFirstValueOrNull(entity: Map<FullQualifiedName, Set<Any?>>, fqn: FullQualifiedName): String? {
         entity[fqn]?.iterator()?.let {
             if (it.hasNext()) return it.next().toString()
@@ -334,17 +324,15 @@ class MigratePreprocessedData(
             LEGACY_ORG_ID -> mapOf(
                 PRE_PROCESSED_ES to LEGACY_PREPROCESSED_ES,
                 PARTICIPATED_IN_ES to LEGACY_PARTICIPATED_IN_ES,
-                STUDIES_ES to LEGACY_STUDIES_ES,
                 RECORDED_BY_ES to LEGACY_RECORDED_BY_ES
             )
             else -> {
                 val orgIdToStr = orgId.toString().replace("-", "")
                 mapOf(
                     PRE_PROCESSED_ES to "$DATA_COLLECTION_APP_ES_PREFIX${orgIdToStr}_$PRE_PROCESSED_TEMPLATE",
-                    PARTICIPATED_IN_ES to "$DATA_COLLECTION_APP_ES_PREFIX${orgIdToStr}_$PARTICIPATED_IN_TEMPLATE",
                     RECORDED_BY_ES to "$DATA_COLLECTION_APP_ES_PREFIX${orgIdToStr}_$RECORDED_BY_TEMPLATE",
                     PARTICIPANTS_ES to "$CHRONICLE_APP_ES_PREFIX${orgIdToStr}_${PARTICIPANTS_TEMPLATE}",
-                    STUDIES_ES to "$CHRONICLE_APP_ES_PREFIX${orgIdToStr}_${STUDIES_TEMPLATE}E",
+                    PARTICIPATED_IN_ES to "$CHRONICLE_APP_ES_PREFIX${orgIdToStr}_$PARTICIPATED_IN_TEMPLATE",
                 )
             }
         }
@@ -357,17 +345,6 @@ class MigratePreprocessedData(
         return principalService.getAllPrincipals(securablePrincipal).map { it.principal }.toSet() + Principal(PrincipalType.USER, SUPER_USER_PRINCIPAL_ID)
     }
 }
-
-private data class Study(
-    val studyEntityKeyId: UUID,
-    val studyId: UUID,
-    val title: String?
-)
-
-data class Participant(
-    val id: UUID,
-    val participantId: String?,
-)
 
 data class PreProcessedEntity(
     val study_id: UUID,
@@ -383,6 +360,7 @@ data class PreProcessedEntity(
     val duration: Double?,
     val warning: String?
 )
+
 data class ParticipantExport(
     val participant_ek_id: UUID,
     val legacy_study_id: UUID,
