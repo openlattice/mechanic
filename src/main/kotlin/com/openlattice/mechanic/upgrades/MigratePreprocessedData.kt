@@ -216,8 +216,7 @@ class MigratePreprocessedData(
     private fun participant(rs: ResultSet): ParticipantExport {
         return ParticipantExport(
             participant_ek_id = rs.getObject("participant_ek_id", UUID::class.java),
-            study_id = rs.getObject("study_id", UUID::class.java),
-            organization_id = rs.getObject("organization_id", UUID::class.java),
+            legacy_study_id = rs.getObject("legacy_study_id", UUID::class.java),
             study_ek_id = rs.getObject("study_ek_id", UUID::class.java),
             study_es_id = rs.getObject("study_es_id", UUID::class.java),
             legacy_participant_id = rs.getString("legacy_participant_id"),
@@ -259,7 +258,7 @@ class MigratePreprocessedData(
         val participant = participants.getValue(participant_ek_id)
 
         return PreProcessedEntity(
-            study_id = participant.study_id,
+            study_id = participant.legacy_study_id,
             participant_id = participant.legacy_participant_id,
             appLabel = getFirstValueOrNull(entity, TITLE_FQN),
             packageName = getFirstValueOrNull(entity, FULL_NAME_FQN)!!,
@@ -392,7 +391,6 @@ data class ParticipantExport(
     val participant_ek_id: UUID,
     val study_es_id: UUID,
     val study_ek_id: UUID,
-    val organization_id: UUID,
+    val legacy_study_id: UUID,
     val legacy_participant_id: String,
-    val study_id: UUID
 )
