@@ -217,10 +217,7 @@ class MigratePreprocessedData(
         return ParticipantExport(
             participant_ek_id = rs.getObject("participant_ek_id", UUID::class.java),
             legacy_study_id = rs.getObject("legacy_study_id", UUID::class.java),
-            study_ek_id = rs.getObject("study_ek_id", UUID::class.java),
-            study_es_id = rs.getObject("study_es_id", UUID::class.java),
             legacy_participant_id = rs.getString("legacy_participant_id"),
-            participant_es_id = rs.getObject("participant_es_id", UUID::class.java)
         )
     }
 
@@ -232,14 +229,14 @@ class MigratePreprocessedData(
             LEGACY_ORG_ID -> getLegacyParticipantEntitySetIds()
             else -> setOf(orgEntitySetIds.getValue(PARTICIPANTS_ES))
         }
-        val orgParticipants: Set<Participant> = getOrgParticipants(participantEntitySetIds)
+        val orgParticipants: Set<UUID> = getOrgParticipants(participantEntitySetIds)
         if (orgParticipants.isEmpty()) {
             logger.info("No participants found. Skipping org")
             return listOf()
         }
 
         val participantNeighbors: Map<UUID, List<NeighborEntityDetails>> = getParticipantNeighbors(
-            entityKeyIds = orgParticipants.map { it.id }.toSet(),
+            entityKeyIds = orgParticipants,
             entitySetIds = orgEntitySetIds,
             participantEntitySetIds = participantEntitySetIds,
             principals = principals
@@ -304,7 +301,7 @@ class MigratePreprocessedData(
     // Returns participants in an org
     private fun getOrgParticipants(
         participantEntitySetIds: Set<UUID>
-    ): Set<Participant> {
+    ): Set<UUID> {
         return dataQueryService.getEntitiesWithPropertyTypeFqns(
             participantEntitySetIds.associateWith { Optional.empty() },
             entitySetService.getPropertyTypesOfEntitySets(participantEntitySetIds),
@@ -312,7 +309,7 @@ class MigratePreprocessedData(
             setOf(),
             Optional.empty(),
             false
-        ).mapValues { getParticipantEntity(it.key, it.value) }.values.filter { it.participantId != null }.toSet()
+        ).keys
     }
 
 
@@ -387,10 +384,7 @@ data class PreProcessedEntity(
     val warning: String?
 )
 data class ParticipantExport(
-    val participant_es_id: UUID,
     val participant_ek_id: UUID,
-    val study_es_id: UUID,
-    val study_ek_id: UUID,
     val legacy_study_id: UUID,
     val legacy_participant_id: String,
 )
