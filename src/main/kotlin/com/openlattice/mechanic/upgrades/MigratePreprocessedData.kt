@@ -107,7 +107,7 @@ class MigratePreprocessedData(
                 $RECORD_TYPE text not null,
                 $NEW_PERIOD boolean,
                 $NEW_APP boolean,
-                $DURATION double,
+                $DURATION DOUBLE PRECISION ,
                 $WARNING text,
                 PRIMARY KEY ($PARTICIPANT_ID, $STUDY_ID, $DATE_TIME_START, $APP_PACKAGE_NAME)
             )
