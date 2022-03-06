@@ -108,7 +108,7 @@ class MigratePreprocessedData(
                 $NEW_PERIOD boolean,
                 $NEW_APP boolean,
                 $DURATION double,
-                $WARNING text
+                $WARNING text,
                 PRIMARY_KEY($PARTICIPANT_ID, $STUDY_ID, $DATE_TIME_START, $APP_PACKAGE_NAME)
             )
         """.trimIndent()
