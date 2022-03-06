@@ -241,7 +241,7 @@ class MigratePreprocessedData(
 
         return participantNeighbors.mapValues {
             it.value.map { entityDetails -> getEntity(entityDetails.neighborDetails.get(), it.key, participants) }
-        }.values.flatten()
+        }.values.flatten().filter { it.study_id != null || it.participant_id != null }
     }
 
     private fun getEntity(
@@ -249,11 +249,11 @@ class MigratePreprocessedData(
         participant_ek_id: UUID,
         participants: Map<UUID, ParticipantExport>
     ): PreProcessedEntity {
-        val participant = participants.getValue(participant_ek_id)
+        val participant = participants[participant_ek_id]
 
         return PreProcessedEntity(
-            study_id = participant.legacy_study_id,
-            participant_id = participant.legacy_participant_id,
+            study_id = participant?.legacy_study_id,
+            participant_id = participant?.legacy_participant_id,
             appLabel = getFirstValueOrNull(entity, TITLE_FQN),
             packageName = getFirstValueOrNull(entity, FULL_NAME_FQN),
             datetimeStart = getFirstValueOrNull(entity, DATE_TIME_START_FQN)?.let { OffsetDateTime.parse(it) },
@@ -346,8 +346,8 @@ class MigratePreprocessedData(
 }
 
 data class PreProcessedEntity(
-    val study_id: UUID,
-    val participant_id: String,
+    val study_id: UUID?,
+    val participant_id: String?,
     val appLabel: String?,
     val datetimeStart: OffsetDateTime?,
     val datetimeEnd: OffsetDateTime?,
