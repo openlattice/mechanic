@@ -396,6 +396,18 @@ class MechanicUpgradePod {
         )
     }
 
+    @Bean
+    fun migrateTImeUseDiarySummarizedData(): MigrateTimeUseDiarySummarizedData {
+        return MigrateTimeUseDiarySummarizedData(
+            toolbox,
+            rhizomeConfiguration,
+            principalService(),
+            searchService(),
+            dataQueryService(),
+            entitySetService()
+        )
+    }
+
     @PostConstruct
     fun post() {
         Principals.init(principalService(), hazelcastInstance)
