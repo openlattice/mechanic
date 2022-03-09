@@ -431,6 +431,18 @@ class MechanicUpgradePod {
         )
     }
 
+    @Bean
+    fun migrateTudSubmissions(): MigrateTimeUseDiarySubmissions {
+        return MigrateTimeUseDiarySubmissions(
+            toolbox,
+            rhizomeConfiguration,
+            dataQueryService(),
+            entitySetService(),
+            searchService(),
+            principalService()
+        )
+    }
+
     @PostConstruct
     fun post() {
         Principals.init(principalService(), hazelcastInstance)
