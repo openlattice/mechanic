@@ -397,7 +397,7 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun migrateTImeUseDiarySummarizedData(): MigrateTimeUseDiarySummarizedData {
+    fun migrateTimeUseDiarySummarizedData(): MigrateTimeUseDiarySummarizedData {
         return MigrateTimeUseDiarySummarizedData(
             toolbox,
             rhizomeConfiguration,
