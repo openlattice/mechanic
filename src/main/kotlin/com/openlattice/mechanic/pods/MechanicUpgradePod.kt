@@ -33,24 +33,14 @@ import com.openlattice.assembler.AssemblerConfiguration
 import com.openlattice.auditing.AuditRecordEntitySetsManager
 import com.openlattice.auditing.AuditingConfiguration
 import com.openlattice.auditing.pods.AuditingConfigurationPod
-import com.openlattice.authorization.AuthorizationManager
-import com.openlattice.authorization.DbCredentialService
-import com.openlattice.authorization.HazelcastAclKeyReservationService
-import com.openlattice.authorization.HazelcastAuthorizationService
-import com.openlattice.authorization.HazelcastPrincipalsMapManager
-import com.openlattice.authorization.Principals
-import com.openlattice.authorization.PrincipalsMapManager
+import com.openlattice.authorization.*
 import com.openlattice.authorization.mapstores.ResolvedPrincipalTreesMapLoader
 import com.openlattice.conductor.rpc.ConductorConfiguration
 import com.openlattice.conductor.rpc.ConductorElasticsearchApi
 import com.openlattice.data.DataDeletionManager
 import com.openlattice.data.EntityKeyIdService
 import com.openlattice.data.ids.PostgresEntityKeyIdService
-import com.openlattice.data.storage.ByteBlobDataManager
-import com.openlattice.data.storage.DataDeletionService
-import com.openlattice.data.storage.DataSourceResolver
-import com.openlattice.data.storage.EntityDatastore
-import com.openlattice.data.storage.IndexingMetadataManager
+import com.openlattice.data.storage.*
 import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
 import com.openlattice.data.storage.postgres.PostgresEntityDatastore
 import com.openlattice.datasets.DataSetService
@@ -72,8 +62,8 @@ import com.openlattice.linking.graph.PostgresLinkingQueryService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
-import com.openlattice.mechanic.upgrades.MigrateChronicleSystemApps
 import com.openlattice.mechanic.upgrades.ExportOrganizationMembers
+import com.openlattice.mechanic.upgrades.MigrateChronicleSystemApps
 import com.openlattice.mechanic.upgrades.V3StudyMigrationUpgrade
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
@@ -208,26 +198,26 @@ class MechanicUpgradePod {
     @Bean
     fun edmManager(): EdmManager {
         return EdmService(
-                hazelcastInstance,
-                aclKeyReservationService(),
-                authorizationService(),
-                postgresTypeManager(),
-                schemaManager(),
-                dataSetService()
+            hazelcastInstance,
+            aclKeyReservationService(),
+            authorizationService(),
+            postgresTypeManager(),
+            schemaManager(),
+            dataSetService()
         )
     }
 
     @Bean
     fun entitySetService(): EntitySetManager {
         return EntitySetService(
-                hazelcastInstance,
-                eventBus,
-                aclKeyReservationService(),
-                authorizationService(),
-                edmManager(),
-                hikariDataSource,
-                dataSetService(),
-                auditingConfiguration
+            hazelcastInstance,
+            eventBus,
+            aclKeyReservationService(),
+            authorizationService(),
+            edmManager(),
+            hikariDataSource,
+            dataSetService(),
+            auditingConfiguration
         )
     }
 
@@ -239,8 +229,8 @@ class MechanicUpgradePod {
     @Bean
     fun dataQueryService(): PostgresEntityDataQueryService {
         return PostgresEntityDataQueryService(
-                dataSourceResolver(),
-                byteBlobDataManager
+            dataSourceResolver(),
+            byteBlobDataManager
         )
     }
 
@@ -252,19 +242,19 @@ class MechanicUpgradePod {
     @Bean
     fun idService(): EntityKeyIdService {
         return PostgresEntityKeyIdService(
-                dataSourceResolver(),
-                idGenerationService()
+            dataSourceResolver(),
+            idGenerationService()
         )
     }
 
     @Bean
     fun graphService(): GraphService {
         return Graph(
-                dataSourceResolver(),
-                entitySetService(),
-                dataQueryService(),
-                idService(),
-                MetricRegistry()
+            dataSourceResolver(),
+            entitySetService(),
+            dataQueryService(),
+            idService(),
+            MetricRegistry()
         )
     }
 
@@ -276,13 +266,13 @@ class MechanicUpgradePod {
     @Bean
     fun entityDatastore(entitySetManager: EntitySetManager): EntityDatastore {
         return PostgresEntityDatastore(
-                dataQueryService(),
-                edmManager(),
-                entitySetManager,
-                metricRegistry,
-                eventBus,
-                postgresLinkingFeedbackQueryService(),
-                lqs()
+            dataQueryService(),
+            edmManager(),
+            entitySetManager,
+            metricRegistry,
+            eventBus,
+            postgresLinkingFeedbackQueryService(),
+            lqs()
         )
     }
 
@@ -290,11 +280,11 @@ class MechanicUpgradePod {
     fun dataDeletionService(): DataDeletionManager {
         val entitySetService = entitySetService()
         return DataDeletionService(
-                entitySetService,
-                authorizationService(),
-                entityDatastore(entitySetService),
-                graphService(),
-                jobService(),
+            entitySetService,
+            authorizationService(),
+            entityDatastore(entitySetService),
+            graphService(),
+            jobService(),
         )
     }
 
@@ -326,7 +316,7 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun dbCredService(): DbCredentialService  {
+    fun dbCredService(): DbCredentialService {
         return DbCredentialService(hazelcastInstance, longIdService())
     }
 
@@ -354,11 +344,11 @@ class MechanicUpgradePod {
     @Bean
     fun deleteOrgMetadataEntitySets(): DeleteOrgMetadataEntitySets {
         return DeleteOrgMetadataEntitySets(
-                toolbox,
-                auditRecordEntitySetsManager(),
-                dataDeletionService(),
-                entitySetService(),
-                jobService()
+            toolbox,
+            auditRecordEntitySetsManager(),
+            dataDeletionService(),
+            entitySetService(),
+            jobService()
         )
     }
 
@@ -382,7 +372,7 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun exportOrganizationMembers() : ExportOrganizationMembers {
+    fun exportOrganizationMembers(): ExportOrganizationMembers {
         return ExportOrganizationMembers(toolbox, hikariDataSource, principalService(), hazelcastInstance)
     }
 
