@@ -408,6 +408,16 @@ class MechanicUpgradePod {
         )
     }
 
+    @Bean
+    fun migrateOrgSettingsToStudies(): MigrateOrgSettingsToStudies {
+        return MigrateOrgSettingsToStudies(
+            toolbox,
+            entitySetService(),
+            rhizomeConfiguration,
+            dataQueryService()
+        )
+    }
+
     @PostConstruct
     fun post() {
         Principals.init(principalService(), hazelcastInstance)
