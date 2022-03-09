@@ -418,6 +418,19 @@ class MechanicUpgradePod {
         )
     }
 
+    @Bean
+    fun migrateChronicleParticipantStats(): MigrateChronicleParticipantStats {
+        return MigrateChronicleParticipantStats(
+            toolbox,
+            searchService(),
+            principalService(),
+            entitySetService(),
+            dataQueryService(),
+            rhizomeConfiguration,
+            authorizationService()
+        )
+    }
+
     @PostConstruct
     fun post() {
         Principals.init(principalService(), hazelcastInstance)
