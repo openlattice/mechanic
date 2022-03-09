@@ -111,7 +111,7 @@ class MigrateAppUsageSurveyData(
          * 9) users
          */
         private val INSERT_INTO_APP_USAGE_SQL = """
-            INSERT INTO app_usage_survey($APP_USAGE_SURVEY_COLUMNS) values ($APP_USAGE_SURVEY_PARAMS)
+            INSERT INTO $TABLE_NAME($APP_USAGE_SURVEY_COLUMNS) values ($APP_USAGE_SURVEY_PARAMS)
             ON CONFLICT DO NOTHING
         """.trimIndent()
 
