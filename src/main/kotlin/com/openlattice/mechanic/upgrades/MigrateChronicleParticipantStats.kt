@@ -344,7 +344,7 @@ class MigrateChronicleParticipantStats(
                     organizationId = orgId,
                     studyEntityKeyId = studyEntityKeyId,
                     studyId = studies.getValue(studyEntityKeyId).studyId,
-                    participantId = participantById.getValue(id).participantId,
+                    participantId = participantById.getValue(id).participantId!!,
                     androidFirstDate = androidStats.first,
                     androidLastDate = androidStats.second,
                     androidUniqueDates = androidStats.third,
@@ -477,14 +477,14 @@ class MigrateChronicleParticipantStats(
     private fun getStudyEntity(studyEntityKeyId: UUID, entity: Map<FullQualifiedName, Set<Any>>): Study {
         val title = getFirstValueOrNull(entity, FULL_NAME_FQN)
         val studyId = getFirstUUIDOrNull(entity, STRING_ID_FQN)
-        return Study(studyEntityKeyId, studyId!!, title)
+        return Study(studyEntityKeyId, studyId!!, title = title)
     }
 }
 
 data class Participant(
     val studyEntityKeyId: UUID,
     val id: UUID,
-    val participantId: String,
+    val participantId: String?,
 )
 
 private data class ParticipantStats(
@@ -500,8 +500,9 @@ private data class ParticipantStats(
     val tudUniqueDates: Set<LocalDate> = setOf()
 )
 
-private data class Study(
+data class Study(
     val studyEntityKeyId: UUID,
     val studyId: UUID,
-    val title: String?
+    val settings: Map<String, Any> = mapOf(),
+    val title: String? = ""
 )

@@ -1,10 +1,7 @@
 package com.openlattice.mechanic.upgrades
 
-import com.fasterxml.jackson.databind.json.JsonMapper
 import com.geekbeast.mappers.mappers.ObjectMappers
 import com.geekbeast.rhizome.configuration.RhizomeConfiguration
-import com.geekbeast.util.log
-import com.openlattice.authorization.AuthorizationManager
 import com.openlattice.authorization.Principal
 import com.openlattice.authorization.PrincipalType
 import com.openlattice.data.requests.NeighborEntityDetails
@@ -20,7 +17,6 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.apache.olingo.commons.api.edm.FullQualifiedName
 import org.slf4j.LoggerFactory
-import java.time.OffsetDateTime
 import java.util.*
 
 /**
@@ -91,7 +87,7 @@ class MigrateTimeUseDiarySummarizedData(
         return Version.V2021_07_23.value
     }
 
-    private fun writeEntitiesToTable(entities: Set<SubmissionEntity>): Int {
+    private fun writeEntitiesToTable(entities: Set<SummarizedDataSubmissionEntity>): Int {
         val hds = getHikariDataSource()
         return hds.connection.use { connection ->
             val wc = connection.prepareStatement(INSERT_INTO_TABLE_SQL).use { ps ->
@@ -107,7 +103,7 @@ class MigrateTimeUseDiarySummarizedData(
     }
 
 
-    private fun getEntitiesForOrg(orgId: UUID, principals: Set<Principal>): Set<SubmissionEntity> {
+    private fun getEntitiesForOrg(orgId: UUID, principals: Set<Principal>): Set<SummarizedDataSubmissionEntity> {
         logger.info("processing org $orgId")
         val entitySets = getOrgEntitySetNames(orgId)
         logger.info("entity sets: $entitySets")
@@ -159,7 +155,7 @@ class MigrateTimeUseDiarySummarizedData(
         return null
     }
 
-    private fun getSummaryEntityForSubmission(submissionId: UUID, neighbors: List<NeighborEntityDetails>): SubmissionEntity {
+    private fun getSummaryEntityForSubmission(submissionId: UUID, neighbors: List<NeighborEntityDetails>): SummarizedDataSubmissionEntity {
         val values = neighbors.map {
             val entity = it.neighborDetails.get()
             SummarizedEntity(
@@ -168,7 +164,7 @@ class MigrateTimeUseDiarySummarizedData(
             )
         }.filter { it.value != null && it.variable != null }.toSet()
 
-        return SubmissionEntity(
+        return SummarizedDataSubmissionEntity(
             submissionId = submissionId,
             entities = values,
         )
@@ -204,7 +200,7 @@ private data class SummarizedEntity(
     val value: String?
 )
 
-private data class SubmissionEntity(
+private data class SummarizedDataSubmissionEntity(
     val submissionId: UUID,
     val entities: Set<SummarizedEntity>,
 )

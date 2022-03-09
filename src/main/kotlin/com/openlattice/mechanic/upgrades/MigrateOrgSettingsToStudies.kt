@@ -202,12 +202,6 @@ class MigrateOrgSettingsToStudies(
     }
 }
 
-private data class Study(
-    val studyId: UUID,
-    val studyEntityKeyId: UUID,
-    val settings: Map<String, Any>
-)
-
 private enum class AppComponents {
     CHRONICLE,
     CHRONICLE_DATA_COLLECTION,

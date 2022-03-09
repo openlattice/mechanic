@@ -389,7 +389,7 @@ class MigrateTimeUseDiarySubmissions(
     private fun getStudyEntity(studyEntityKeyId: UUID, entity: Map<FullQualifiedName, Set<Any>>): Study {
         val title = getFirstValueOrNull(entity, FULL_NAME_FQN)
         val studyId = getFirstUUIDOrNull(entity, STRING_ID_FQN)
-        return Study(studyEntityKeyId, studyId!!, title)
+        return Study(studyEntityKeyId, studyId!!, title = title)
     }
 
     // Returns a mapping from studyEntityKeyId to list of participants
@@ -411,7 +411,8 @@ class MigrateTimeUseDiarySubmissions(
         val participantId = getFirstValueOrNull(entity, PERSON_FQN)
         return Participant(
             id = entityKeyId,
-            participantId = participantId
+            participantId = participantId,
+            studyEntityKeyId = entityKeyId
         )
     }
 
@@ -478,18 +479,7 @@ class MigrateTimeUseDiarySubmissions(
     }
 }
 
-private data class Study(
-    val studyEntityKeyId: UUID,
-    val studyId: UUID,
-    val title: String?
-)
-
-data class Participant(
-    val id: UUID,
-    val participantId: String?,
-)
-
-data class ResponseEntity(
+private data class ResponseEntity(
     val code: String?,
     val question: String?,
     val response: Set<String>,
@@ -497,7 +487,7 @@ data class ResponseEntity(
     val endDateTime: OffsetDateTime?
 )
 
-data class SubmissionEntity(
+private data class SubmissionEntity(
     val orgId: UUID,
     val studyId: UUID,
     val submissionId: UUID,
