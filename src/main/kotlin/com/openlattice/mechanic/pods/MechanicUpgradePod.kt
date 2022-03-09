@@ -73,6 +73,7 @@ import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
 import com.openlattice.mechanic.upgrades.MigrateChronicleSystemApps
+import com.openlattice.mechanic.upgrades.ExportOrganizationMembers
 import com.openlattice.mechanic.upgrades.V3StudyMigrationUpgrade
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
@@ -381,6 +382,10 @@ class MechanicUpgradePod {
     }
 
     @Bean
+    fun exportOrganizationMembers() : ExportOrganizationMembers {
+        return ExportOrganizationMembers(toolbox, hikariDataSource, principalService(), hazelcastInstance)
+    }
+
     fun migrateChronicleSystemApps(): MigrateChronicleSystemApps {
         return MigrateChronicleSystemApps(
             toolbox,
@@ -396,4 +401,3 @@ class MechanicUpgradePod {
         lateInitProvider.setDataSourceResolver(dataSourceResolver())
     }
 }
-
