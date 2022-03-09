@@ -92,7 +92,7 @@ class MigrateTimeUseDiarySubmissions(
         private const val SUBMISSION_ID = "submission_id" //not unique for each row
         private const val SUBMISSION_DATE = "submission_date"
 
-        private const val TABLE_NAME = "time_use_diary_v2"
+        private const val TABLE_NAME = "migrate_time_use_diary"
 
         private val COLUMNS = linkedSetOf(
             STUDY_ID,

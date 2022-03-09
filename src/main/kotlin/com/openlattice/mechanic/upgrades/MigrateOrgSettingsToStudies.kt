@@ -57,7 +57,7 @@ class MigrateOrgSettingsToStudies(
         private const val LEGACY_STUDY_EK_ID = "v2_study_ekid"
         private const val SETTINGS = "settings"
 
-        private const val STUDY_SETTINGS_TABLE = "study_settings"
+        private const val STUDY_SETTINGS_TABLE = "migrate_study_settings"
 
         private val CREATE_TABLE_QUERY = """
             CREATE TABLE IF NOT EXISTS $STUDY_SETTINGS_TABLE(

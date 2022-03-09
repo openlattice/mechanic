@@ -96,7 +96,7 @@ class MigrateAppUsageSurveyData(
         private val APP_USAGE_SURVEY_COLUMNS = column_names.joinToString(",") { it }
         private val APP_USAGE_SURVEY_PARAMS = column_names.joinToString(",") { "?" }
 
-        private const val TABLE_NAME = "public.app_usage_survey"
+        private const val TABLE_NAME = "migrate_app_usage_survey"
 
         /**
          * PreparedStatement bind order

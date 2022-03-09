@@ -86,7 +86,7 @@ class MigrateChronicleParticipantStats(
         private val DATETIME_FQN = FullQualifiedName("ol.datetime")
         private val RECORDED_DATE_FQN = FullQualifiedName("ol.recordeddate")
 
-        private const val TABLE_NAME = "participant_stats"
+        private const val TABLE_NAME = "migrate_participant_stats"
 
         // column names
         private const val ORGANIZATION_IO = "organization_id"

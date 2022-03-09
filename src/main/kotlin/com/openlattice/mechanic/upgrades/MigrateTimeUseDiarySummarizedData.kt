@@ -53,8 +53,10 @@ class MigrateTimeUseDiarySummarizedData(
         private val VARIABLE_FQN = FullQualifiedName("ol.variable")
         private val VALUES_FQN = FullQualifiedName("ol.values")
 
+        private const val TABLE_NAME = "migrate_time_use_diary_summary"
+
         private val CREATE_TABLE_SQL = """
-            CREATE TABLE IF NOT EXISTS time_use_diary_summary(
+            CREATE TABLE IF NOT EXISTS $TABLE_NAME(
                 submission_id uuid not null,
                 data jsonb not null,
                 PRIMARY KEY (submission_id)
@@ -62,7 +64,7 @@ class MigrateTimeUseDiarySummarizedData(
         """.trimIndent()
 
         private val INSERT_INTO_TABLE_SQL = """
-            INSERT INTO time_use_diary_summary values(?, ?::jsonb)
+            INSERT INTO $TABLE_NAME values(?, ?::jsonb)
         """.trimIndent()
     }
 
