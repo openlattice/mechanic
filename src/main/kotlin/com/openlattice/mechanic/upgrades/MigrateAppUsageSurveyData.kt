@@ -25,7 +25,7 @@ import java.util.*
 /**
  * @author alfoncenzioka &lt;alfonce@openlattice.com&gt;
  */
-class V3AppUsageSurveyMigration(
+class MigrateAppUsageSurveyData(
     toolbox: Toolbox,
     private val rhizomeConfiguration: RhizomeConfiguration,
     private val authorizationService: AuthorizationManager,
@@ -34,7 +34,7 @@ class V3AppUsageSurveyMigration(
     private val dataQueryService: PostgresEntityDataQueryService,
     private val entitySetService: EntitySetManager
 ) : Upgrade {
-    private val logger = LoggerFactory.getLogger(V3AppUsageSurveyMigration::class.java)
+    private val logger = LoggerFactory.getLogger(MigrateAppUsageSurveyData::class.java)
 
     private val organizations = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
     private val appConfigs = HazelcastMap.APP_CONFIGS.getMap(toolbox.hazelcast)

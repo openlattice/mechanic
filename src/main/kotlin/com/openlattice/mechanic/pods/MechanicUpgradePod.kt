@@ -384,8 +384,8 @@ class MechanicUpgradePod {
     }
 
     @Bean
-    fun v3AppUsageSurveyMigration(): V3AppUsageSurveyMigration {
-        return V3AppUsageSurveyMigration(
+    fun migrateAppUsageSurveyData(): MigrateAppUsageSurveyData {
+        return MigrateAppUsageSurveyData(
             toolbox,
             rhizomeConfiguration,
             authorizationService(),
