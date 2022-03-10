@@ -2,6 +2,8 @@ package com.openlattice.mechanic.upgrades
 
 import com.geekbeast.rhizome.configuration.RhizomeConfiguration
 import com.hazelcast.query.Predicates
+import com.openlattice.authorization.Principal
+import com.openlattice.authorization.PrincipalType
 import com.openlattice.data.storage.MetadataOption
 import com.openlattice.data.storage.postgres.PostgresEntityDataQueryService
 import com.openlattice.edm.EdmConstants.Companion.LAST_WRITE_FQN
@@ -32,6 +34,7 @@ class V3StudyMigrationUpgrade(
     private val searchService: SearchService
 ): Upgrade {
 
+    private val SUPER_USER_PRINCIPAL_ID = "auth0|5ae9026c04eb0b243f1d2bb6"
     private val logger = LoggerFactory.getLogger(V3StudyMigrationUpgrade::class.java)
 
     private val propertyTypes = HazelcastMap.PROPERTY_TYPES.getMap(toolbox.hazelcast)
@@ -254,8 +257,8 @@ class V3StudyMigrationUpgrade(
 
         val filter = EntityNeighborsFilter(setOf(studyEkid), Optional.of(orgMaybeParticipantEntitySetIds), Optional.of(orgStudyEntitySetIds), Optional.empty())
 
-        val chronicleSuperUserSecurablePrincipal = principalService.getSecurablePrincipal("")
-        val chronicleSuperUserPrincipals = principalService.getAllPrincipals(chronicleSuperUserSecurablePrincipal).map { it.principal }.toSet()
+        val chronicleSuperUserSecurablePrincipal = principalService.getSecurablePrincipal(SUPER_USER_PRINCIPAL_ID)
+        val chronicleSuperUserPrincipals = principalService.getAllPrincipals(chronicleSuperUserSecurablePrincipal).map { it.principal }.toSet() + Principal(PrincipalType.USER, SUPER_USER_PRINCIPAL_ID)
         logger.info("chronicle super user principals ${chronicleSuperUserPrincipals.size} $chronicleSuperUserPrincipals")
 
         // get all participants for the study
