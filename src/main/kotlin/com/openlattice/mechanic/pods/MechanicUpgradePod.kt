@@ -370,7 +370,7 @@ class MechanicUpgradePod {
 
     @Bean
     fun exportOrganizationMembers(): ExportOrganizationMembers {
-        return ExportOrganizationMembers(toolbox, hikariDataSource, principalService(), hazelcastInstance)
+        return ExportOrganizationMembers(toolbox, hikariDataSource, principalService(), hazelcastInstance, rhizomeConfiguration)
     }
 
     @Bean

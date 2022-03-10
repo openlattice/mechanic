@@ -1,9 +1,11 @@
 package com.openlattice.mechanic.upgrades
 
+import com.geekbeast.rhizome.configuration.RhizomeConfiguration
 import com.hazelcast.core.HazelcastInstance
 import com.openlattice.hazelcast.HazelcastMap
 import com.openlattice.mechanic.Toolbox
 import com.openlattice.organizations.roles.SecurePrincipalsManager
+import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 
@@ -15,12 +17,13 @@ class ExportOrganizationMembers(
     private val toolbox: Toolbox,
     private val hds: HikariDataSource,
     private val principalService: SecurePrincipalsManager,
-    hazelcast :HazelcastInstance
+    hazelcast :HazelcastInstance,
+    private val rhizomeConfiguration: RhizomeConfiguration
 ) : Upgrade {
     companion object {
         private const val USERS_EXPORT_TABLE_NAME = "users_export"
         const val USERS_EXPORT_TABLE = """
-            CREATE TABLE $USERS_EXPORT_TABLE_NAME ( 
+            CREATE TABLE IF NOT EXISTS $USERS_EXPORT_TABLE_NAME ( 
                 organization_id uuid,
                 principal_id text NOT NULL,
                 principal_email text, 
@@ -36,11 +39,16 @@ class ExportOrganizationMembers(
     private val organizations = HazelcastMap.ORGANIZATIONS.getMap(hazelcast)
     private val users = HazelcastMap.USERS.getMap(hazelcast)
 
+    private fun getDatasource(): HikariDataSource {
+        val (hikariConfiguration) = rhizomeConfiguration.datasourceConfigurations["chronicle"]!!
+        val hc = HikariConfig(hikariConfiguration)
+        return HikariDataSource(hc)
+    }
     override fun upgrade(): Boolean {
         val organizationsIds = organizations.keys.toMutableSet()
         val members = principalService.getOrganizationMembers(organizationsIds)
 
-        hds.connection.use { connection ->
+        getDatasource().connection.use { connection ->
             connection.createStatement().use { stmt -> stmt.execute(USERS_EXPORT_TABLE) }
             connection.prepareStatement(INSERT_USER_SQL).use { ps ->
             members.forEach { (orgId, orgMembers) ->
