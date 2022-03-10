@@ -239,7 +239,7 @@ class MigratePreprocessedData(
         val allIds = participants.keys.toMutableSet()
         while (allIds.isNotEmpty()) {
             val current = allIds.take(50).toSet()
-            logger.info("processing ${current.size} entity key ids. Remaining ${(allIds - current).size}")
+            logger.info("processing neighbors of ${current.size} participants. Remaining ${(allIds - current).size}")
             val participantNeighbors: Map<UUID, List<NeighborEntityDetails>> = getParticipantNeighbors(
                 entityKeyIds = current,
                 entitySetIds = orgEntitySetIds,
@@ -250,11 +250,12 @@ class MigratePreprocessedData(
                 it.value.map { entityDetails -> getEntity(entityDetails.neighborDetails.get(), it.key, participants) }
             }.values.flatten().filter { it.study_id != null || it.participant_id != null }
 
-            logger.info("retrieved ${entities.size} entities")
+            logger.info("retrieved ${entities.size} preprocessed entities")
             result.addAll(entities)
 
             allIds -= current
         }
+        logger.info("Total preprocessed entities retrieved for org: ${result.size}")
         return result
     }
 
