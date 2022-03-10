@@ -156,15 +156,15 @@ class MigratePreprocessedData(
         val participants = BasePostgresIterable(
             PreparedStatementHolderSupplier(
                 getHikariDataSource(),
-                "SELECT * FROM participant_export"
+                "SELECT * FROM participants_export"
             ) {}
         ) {
             participant(it)
-        }.associateBy { it.participant_ek_id }
+        }.groupBy { it.organization_id }
 
         val orgIds = (appConfigs.keys.filter { it.appId == DATA_COLLECTION_APP_ID }.map { it.organizationId } + LEGACY_ORG_ID).toSet()
         val principals = getChronicleSuperUserPrincipals()
-        val entitiesToWrite = orgIds.associateWith { getEntitiesForOrg(it, participants, principals) }.values.flatten()
+        val entitiesToWrite = orgIds.associateWith { getEntitiesForOrg(it, participants.getValue(it).associateBy { participant -> participant.participant_ek_id }, principals) }.values.flatten()
 
         val written = writeEntities(entitiesToWrite)
         logger.info("Exported $written entities to preprocessed table")
@@ -215,6 +215,7 @@ class MigratePreprocessedData(
             participant_ek_id = rs.getObject("participant_ek_id", UUID::class.java),
             legacy_study_id = rs.getObject("legacy_study_id", UUID::class.java),
             legacy_participant_id = rs.getString("legacy_participant_id"),
+            organization_id = rs.getObject("organization_id", UUID::class.java)
         )
     }
 
@@ -223,25 +224,37 @@ class MigratePreprocessedData(
         val orgEntitySetIds = getOrgEntitySetNames(orgId)
 
         val participantEntitySetIds = when (orgId) {
-            LEGACY_ORG_ID -> getLegacyParticipantEntitySetIds()
+            LEGACY_ORG_ID -> {
+                val entitySetNames = participants.values.map { it.legacy_study_id }.map { studyId -> "chronicle_participants_$studyId" }
+                 entitySetIds.filter { entitySetNames.contains(it.key) }.values.toSet()
+            }
             else -> setOf(orgEntitySetIds.getValue(PARTICIPANTS_ES))
         }
-        val orgParticipants: Set<UUID> = getOrgParticipants(participantEntitySetIds)
-        if (orgParticipants.isEmpty()) {
+        if (participants.isEmpty()) {
             logger.info("No participants found. Skipping org")
             return listOf()
         }
 
-        val participantNeighbors: Map<UUID, List<NeighborEntityDetails>> = getParticipantNeighbors(
-            entityKeyIds = orgParticipants,
-            entitySetIds = orgEntitySetIds,
-            participantEntitySetIds = participantEntitySetIds,
-            principals = principals
-        )
+        val result: MutableList<PreProcessedEntity> = mutableListOf()
+        val allIds = participants.keys.toMutableSet()
+        while (allIds.isNotEmpty()) {
+            val current = allIds.take(20).toSet()
+            logger.info("processing $current entity key ids. Remaining ${(allIds - current).size}")
+            val participantNeighbors: Map<UUID, List<NeighborEntityDetails>> = getParticipantNeighbors(
+                entityKeyIds = current,
+                entitySetIds = orgEntitySetIds,
+                participantEntitySetIds = participantEntitySetIds,
+                principals = principals
+            )
+            val entities =  participantNeighbors.mapValues {
+                it.value.map { entityDetails -> getEntity(entityDetails.neighborDetails.get(), it.key, participants) }
+            }.values.flatten().filter { it.study_id != null || it.participant_id != null }
 
-        return participantNeighbors.mapValues {
-            it.value.map { entityDetails -> getEntity(entityDetails.neighborDetails.get(), it.key, participants) }
-        }.values.flatten().filter { it.study_id != null || it.participant_id != null }
+            result.addAll(entities);
+
+            allIds -= current
+        }
+        return result
     }
 
     private fun getEntity(
@@ -364,4 +377,5 @@ data class ParticipantExport(
     val participant_ek_id: UUID,
     val legacy_study_id: UUID,
     val legacy_participant_id: String,
+    val organization_id: UUID
 )
