@@ -169,7 +169,15 @@ class MigratePreprocessedData(
         val invalidOrgIds = orgIds.filter { !participants.keys.contains(it) }
         logger.info("Organizations not found. Skipping: ${invalidOrgIds.map { organizations[it] }}")
 
-        val entitiesToWrite = (orgIds - invalidOrgIds.toSet()).forEach { exportEntities(it, participants.getValue(it).associateBy { participant -> participant.participant_ek_id }, principals) }
+        val hds = getHikariDataSource()
+        (orgIds - invalidOrgIds.toSet()).forEach { orgId ->
+            exportEntities(
+                hds,
+                orgId,
+                participants.getValue(orgId).associateBy { participant -> participant.participant_ek_id },
+                principals
+            )
+        }
 
         return true
     }
@@ -178,8 +186,7 @@ class MigratePreprocessedData(
         return Version.V2021_07_23.value
     }
 
-    private fun writeEntities(entities: List<PreProcessedEntity>): Int {
-        val hds = getHikariDataSource()
+    private fun writeEntities(entities: List<PreProcessedEntity>, hds: HikariDataSource): Int {
         return hds.connection.use { connection ->
             try {
                 val wc = connection.prepareStatement(INSERT_SQL).use { ps ->
@@ -201,7 +208,6 @@ class MigratePreprocessedData(
                     }
                     ps.executeBatch().sum()
                 }
-                hds.connection.close()
                 return@use wc
             } catch (ex: Exception) {
                 logger.error("exception", ex)
@@ -225,14 +231,19 @@ class MigratePreprocessedData(
         )
     }
 
-    private fun exportEntities(orgId: UUID, participants: Map<UUID, ParticipantExport>, principals: Set<Principal>) {
+    private fun exportEntities(
+        hds: HikariDataSource,
+        orgId: UUID,
+        participants: Map<UUID, ParticipantExport>,
+        principals: Set<Principal>
+    ) {
         logger.info("getting preprocessed data entities for org $orgId")
         val orgEntitySetIds = getOrgEntitySetNames(orgId)
 
         val participantEntitySetIds = when (orgId) {
             LEGACY_ORG_ID -> {
                 val entitySetNames = participants.values.map { it.legacy_study_id }.map { studyId -> "chronicle_participants_$studyId" }
-                 entitySetIds.filter { entitySetNames.contains(it.key) }.values.toSet()
+                entitySetIds.filter { entitySetNames.contains(it.key) }.values.toSet()
             }
             else -> setOf(orgEntitySetIds.getValue(PARTICIPANTS_ES))
         }
@@ -251,12 +262,12 @@ class MigratePreprocessedData(
                 participantEntitySetIds = participantEntitySetIds,
                 principals = principals
             )
-            val entities =  participantNeighbors.mapValues {
+            val entities = participantNeighbors.mapValues {
                 it.value.map { entityDetails -> getEntity(entityDetails.neighborDetails.get(), it.key, participants) }
             }.values.flatten().filter { it.study_id != null || it.participant_id != null }
 
             logger.info("retrieved ${entities.size} preprocessed entities")
-            val written = writeEntities(entities)
+            val written = writeEntities(entities, hds)
             logger.info("exported $written entities to table")
 
             allIds -= current
