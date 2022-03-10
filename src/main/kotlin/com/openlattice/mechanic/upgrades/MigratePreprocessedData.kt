@@ -196,6 +196,7 @@ class MigratePreprocessedData(
                         ps.setBoolean(++index, it.newApp)
                         ps.setObject(++index, it.duration)
                         ps.setString(++index, it.warning)
+                        ps.addBatch()
                     }
                     ps.executeBatch().sum()
                 }
