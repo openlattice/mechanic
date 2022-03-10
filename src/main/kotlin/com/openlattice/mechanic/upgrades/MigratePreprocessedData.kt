@@ -250,7 +250,8 @@ class MigratePreprocessedData(
                 it.value.map { entityDetails -> getEntity(entityDetails.neighborDetails.get(), it.key, participants) }
             }.values.flatten().filter { it.study_id != null || it.participant_id != null }
 
-            result.addAll(entities);
+            logger.info("retrieved ${entities.size} entities")
+            result.addAll(entities)
 
             allIds -= current
         }
