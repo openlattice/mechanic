@@ -179,7 +179,8 @@ class MigratePreprocessedData(
     }
 
     private fun writeEntities(entities: List<PreProcessedEntity>): Int {
-        return getHikariDataSource().connection.use { connection ->
+        val hds = getHikariDataSource()
+        return hds.connection.use { connection ->
             try {
                 val wc = connection.prepareStatement(INSERT_SQL).use { ps ->
                     entities.forEach {
@@ -200,6 +201,7 @@ class MigratePreprocessedData(
                     }
                     ps.executeBatch().sum()
                 }
+                hds.connection.close()
                 return@use wc
             } catch (ex: Exception) {
                 logger.error("exception", ex)
