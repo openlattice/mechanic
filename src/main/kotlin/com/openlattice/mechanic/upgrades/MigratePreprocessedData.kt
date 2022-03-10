@@ -37,6 +37,8 @@ class MigratePreprocessedData(
     private val entitySetIds: Map<String, UUID> = HazelcastMap.ENTITY_SETS.getMap(toolbox.hazelcast).associate { it.value.name to it.key }
     private val appConfigs = HazelcastMap.APP_CONFIGS.getMap(toolbox.hazelcast)
 
+    private val organizations = HazelcastMap.ORGANIZATIONS.getMap(toolbox.hazelcast)
+
     companion object {
         private val logger = LoggerFactory.getLogger(MigratePreprocessedData::class.java)
 
@@ -164,7 +166,10 @@ class MigratePreprocessedData(
 
         val orgIds = (appConfigs.keys.filter { it.appId == DATA_COLLECTION_APP_ID }.map { it.organizationId } + LEGACY_ORG_ID).toSet()
         val principals = getChronicleSuperUserPrincipals()
-        val entitiesToWrite = orgIds.associateWith { getEntitiesForOrg(it, participants.getValue(it).associateBy { participant -> participant.participant_ek_id }, principals) }.values.flatten()
+        val invalidOrgIds = orgIds.filter { !participants.keys.contains(it) }
+        logger.info("Invalid organizations: ${invalidOrgIds.map { organizations[it] }}")
+
+        val entitiesToWrite = (orgIds - invalidOrgIds.toSet()).associateWith { getEntitiesForOrg(it, participants.getValue(it).associateBy { participant -> participant.participant_ek_id }, principals) }.values.flatten()
 
         val written = writeEntities(entitiesToWrite)
         logger.info("Exported $written entities to preprocessed table")
