@@ -167,7 +167,7 @@ class MigratePreprocessedData(
         val orgIds = (appConfigs.keys.filter { it.appId == DATA_COLLECTION_APP_ID }.map { it.organizationId } + LEGACY_ORG_ID).toSet()
         val principals = getChronicleSuperUserPrincipals()
         val invalidOrgIds = orgIds.filter { !participants.keys.contains(it) }
-        logger.info("Invalid organizations: ${invalidOrgIds.map { organizations[it] }}")
+        logger.info("Organizations not found. Skipping: ${invalidOrgIds.map { organizations[it] }}")
 
         val entitiesToWrite = (orgIds - invalidOrgIds.toSet()).associateWith { getEntitiesForOrg(it, participants.getValue(it).associateBy { participant -> participant.participant_ek_id }, principals) }.values.flatten()
 
