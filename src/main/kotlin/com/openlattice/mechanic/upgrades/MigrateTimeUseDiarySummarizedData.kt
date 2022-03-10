@@ -64,7 +64,7 @@ class MigrateTimeUseDiarySummarizedData(
         """.trimIndent()
 
         private val INSERT_INTO_TABLE_SQL = """
-            INSERT INTO $TABLE_NAME values(?, ?::jsonb)
+            INSERT INTO $TABLE_NAME values(?, ?::jsonb) ON CONFLICT DO NOTHING
         """.trimIndent()
     }
 
