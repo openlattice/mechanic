@@ -443,6 +443,18 @@ class MechanicUpgradePod {
         )
     }
 
+    @Bean
+    fun migratePreprocessedData() : MigratePreprocessedData {
+        return MigratePreprocessedData(
+            toolbox,
+            rhizomeConfiguration,
+            dataQueryService(),
+            entitySetService(),
+            searchService(),
+            principalService()
+        )
+    }
+
     @PostConstruct
     fun post() {
         Principals.init(principalService(), hazelcastInstance)
