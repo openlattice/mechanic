@@ -244,7 +244,7 @@ class MigratePreprocessedData(
         val allIds = participants.keys.toMutableSet()
         while (allIds.isNotEmpty()) {
             val current = allIds.take(50).toSet()
-            logger.info("processing neighbors of ${current.size} participants. Remaining ${(allIds - current).size}")
+            logger.info("processing batch of ${current.size}. Remaining: ${(allIds - current).size}")
             val participantNeighbors: Map<UUID, List<NeighborEntityDetails>> = getParticipantNeighbors(
                 entityKeyIds = current,
                 entitySetIds = orgEntitySetIds,
