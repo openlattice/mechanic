@@ -238,7 +238,7 @@ class MigratePreprocessedData(
         val result: MutableList<PreProcessedEntity> = mutableListOf()
         val allIds = participants.keys.toMutableSet()
         while (allIds.isNotEmpty()) {
-            val current = allIds.take(20).toSet()
+            val current = allIds.take(50).toSet()
             logger.info("processing ${current.size} entity key ids. Remaining ${(allIds - current).size}")
             val participantNeighbors: Map<UUID, List<NeighborEntityDetails>> = getParticipantNeighbors(
                 entityKeyIds = current,
