@@ -169,10 +169,8 @@ class MigratePreprocessedData(
         val invalidOrgIds = orgIds.filter { !participants.keys.contains(it) }
         logger.info("Organizations not found. Skipping: ${invalidOrgIds.map { organizations[it] }}")
 
-        val entitiesToWrite = (orgIds - invalidOrgIds.toSet()).associateWith { getEntitiesForOrg(it, participants.getValue(it).associateBy { participant -> participant.participant_ek_id }, principals) }.values.flatten()
+        val entitiesToWrite = (orgIds - invalidOrgIds.toSet()).forEach { exportEntities(it, participants.getValue(it).associateBy { participant -> participant.participant_ek_id }, principals) }
 
-        val written = writeEntities(entitiesToWrite)
-        logger.info("Exported $written entities to preprocessed table")
         return true
     }
 
@@ -224,7 +222,7 @@ class MigratePreprocessedData(
         )
     }
 
-    private fun getEntitiesForOrg(orgId: UUID, participants: Map<UUID, ParticipantExport>, principals: Set<Principal>): List<PreProcessedEntity> {
+    private fun exportEntities(orgId: UUID, participants: Map<UUID, ParticipantExport>, principals: Set<Principal>) {
         logger.info("getting preprocessed data entities for org $orgId")
         val orgEntitySetIds = getOrgEntitySetNames(orgId)
 
@@ -237,13 +235,12 @@ class MigratePreprocessedData(
         }
         if (participants.isEmpty()) {
             logger.info("No participants found. Skipping org")
-            return listOf()
+            return
         }
 
-        val result: MutableList<PreProcessedEntity> = mutableListOf()
         val allIds = participants.keys.toMutableSet()
         while (allIds.isNotEmpty()) {
-            val current = allIds.take(50).toSet()
+            val current = allIds.take(20).toSet()
             logger.info("processing batch of ${current.size}. Remaining: ${(allIds - current).size}")
             val participantNeighbors: Map<UUID, List<NeighborEntityDetails>> = getParticipantNeighbors(
                 entityKeyIds = current,
@@ -256,12 +253,11 @@ class MigratePreprocessedData(
             }.values.flatten().filter { it.study_id != null || it.participant_id != null }
 
             logger.info("retrieved ${entities.size} preprocessed entities")
-            result.addAll(entities)
+            val written = writeEntities(entities)
+            logger.info("exported $written entities to table")
 
             allIds -= current
         }
-        logger.info("Total preprocessed entities retrieved for org: ${result.size}")
-        return result
     }
 
     private fun getEntity(
