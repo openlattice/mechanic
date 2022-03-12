@@ -158,7 +158,7 @@ class MigratePreprocessedData(
         val participants = BasePostgresIterable(
             PreparedStatementHolderSupplier(
                 getHikariDataSource(),
-                "SELECT * FROM participants_export"
+                "select * from (select * from participants_export union select * from missed_participants_fresh) AS participants"
             ) {}
         ) {
             participant(it)
