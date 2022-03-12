@@ -264,7 +264,7 @@ class MigratePreprocessedData(
             )
             val entities = participantNeighbors.mapValues {
                 it.value.map { entityDetails -> getEntity(entityDetails.neighborDetails.get(), it.key, participants) }
-            }.values.flatten().filter { it.study_id != null && it.participant_id != null && it.packageName != null && it.packageName.isNotBlank() }
+            }.values.flatten().filter { it.study_id != null && it.participant_id != null}
 
             logger.info("retrieved ${entities.size} preprocessed entities")
             val written = writeEntities(entities, hds)
