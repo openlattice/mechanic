@@ -61,10 +61,7 @@ import com.openlattice.linking.PostgresLinkingFeedbackService
 import com.openlattice.linking.graph.PostgresLinkingQueryService
 import com.openlattice.mechanic.MechanicCli.Companion.UPGRADE
 import com.openlattice.mechanic.Toolbox
-import com.openlattice.mechanic.upgrades.DeleteOrgMetadataEntitySets
-import com.openlattice.mechanic.upgrades.ExportOrganizationMembers
-import com.openlattice.mechanic.upgrades.MigrateChronicleSystemApps
-import com.openlattice.mechanic.upgrades.V3StudyMigrationUpgrade
+import com.openlattice.mechanic.upgrades.*
 import com.openlattice.organizations.roles.HazelcastPrincipalService
 import com.openlattice.organizations.roles.SecurePrincipalsManager
 import com.openlattice.postgres.PostgresTable
@@ -373,15 +370,88 @@ class MechanicUpgradePod {
 
     @Bean
     fun exportOrganizationMembers(): ExportOrganizationMembers {
-        return ExportOrganizationMembers(toolbox, hikariDataSource, principalService(), hazelcastInstance)
+        return ExportOrganizationMembers(toolbox, hikariDataSource, principalService(), hazelcastInstance, rhizomeConfiguration)
     }
 
+    @Bean
     fun migrateChronicleSystemApps(): MigrateChronicleSystemApps {
         return MigrateChronicleSystemApps(
             toolbox,
             rhizomeConfiguration,
             entitySetService(),
             dataQueryService()
+        )
+    }
+
+    @Bean
+    fun migrateAppUsageSurveyData(): MigrateAppUsageSurveyData {
+        return MigrateAppUsageSurveyData(
+            toolbox,
+            rhizomeConfiguration,
+            authorizationService(),
+            principalService(),
+            searchService(),
+            dataQueryService(),
+            entitySetService()
+        )
+    }
+
+    @Bean
+    fun migrateTimeUseDiarySummarizedData(): MigrateTimeUseDiarySummarizedData {
+        return MigrateTimeUseDiarySummarizedData(
+            toolbox,
+            rhizomeConfiguration,
+            principalService(),
+            searchService(),
+            dataQueryService(),
+            entitySetService()
+        )
+    }
+
+    @Bean
+    fun migrateOrgSettingsToStudies(): MigrateOrgSettingsToStudies {
+        return MigrateOrgSettingsToStudies(
+            toolbox,
+            entitySetService(),
+            rhizomeConfiguration,
+            dataQueryService()
+        )
+    }
+
+    @Bean
+    fun migrateChronicleParticipantStats(): MigrateChronicleParticipantStats {
+        return MigrateChronicleParticipantStats(
+            toolbox,
+            searchService(),
+            principalService(),
+            entitySetService(),
+            dataQueryService(),
+            rhizomeConfiguration,
+            authorizationService()
+        )
+    }
+
+    @Bean
+    fun migrateTudSubmissions(): MigrateTimeUseDiarySubmissions {
+        return MigrateTimeUseDiarySubmissions(
+            toolbox,
+            rhizomeConfiguration,
+            dataQueryService(),
+            entitySetService(),
+            searchService(),
+            principalService()
+        )
+    }
+
+    @Bean
+    fun migratePreprocessedData() : MigratePreprocessedData {
+        return MigratePreprocessedData(
+            toolbox,
+            rhizomeConfiguration,
+            dataQueryService(),
+            entitySetService(),
+            searchService(),
+            principalService()
         )
     }
 

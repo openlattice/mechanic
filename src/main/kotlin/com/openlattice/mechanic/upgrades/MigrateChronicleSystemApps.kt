@@ -35,15 +35,16 @@ class MigrateChronicleSystemApps(
         private val FULL_NAME_FQN = FullQualifiedName("general.fullname")
         private val RECORD_TYPE_FQN = FullQualifiedName("ol.recordtype")
 
+        private const val TABLE_NAME = "migrate_system_apps"
         private val CREATE_SYSTEM_APPS_SQL = """
-            CREATE TABLE IF NOT EXISTS public.system_apps(
+            CREATE TABLE IF NOT EXISTS $TABLE_NAME(
                 app_package_name text NOT NULL,
                 PRIMARY KEY (app_package_name)
             )
         """.trimIndent()
 
         private val INSERT_SYSTEM_APPS_SQL = """
-            INSERT INTO public.system_apps values(?) ON CONFLICT DO NOTHING
+            INSERT INTO $TABLE_NAME values(?) ON CONFLICT DO NOTHING
         """.trimIndent()
     }
 
